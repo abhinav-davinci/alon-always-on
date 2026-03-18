@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -58,9 +59,9 @@ const JOURNEY_STAGES = [
 ] as Array<{ key: string; label: string; icon: typeof Search; status: 'done' | 'active' | 'pending' }>;
 
 const DEMO_PROPERTIES = [
-  { name: 'Godrej Hillside', area: 'Baner', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, color: '#1A3A8F' },
-  { name: 'Pride World City', area: 'Balewadi', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, color: '#2D5A4A' },
-  { name: 'Kolte Patil 24K', area: 'Wakad', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, color: '#4A3A6A' },
+  { name: 'Godrej Hillside', area: 'Baner', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=250&fit=crop' },
+  { name: 'Pride World City', area: 'Balewadi', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&h=250&fit=crop' },
+  { name: 'Kolte Patil 24K', area: 'Wakad', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=250&fit=crop' },
 ];
 
 function isBusinessHours(): boolean {
@@ -290,10 +291,12 @@ export default function DashboardScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.propertiesScroll}>
             {DEMO_PROPERTIES.map((p) => (
               <View key={p.name} style={styles.propertyCard}>
-                <View style={[styles.propertyImage, { backgroundColor: p.color }]}>
-                  <View style={styles.propertyImageIcon}>
-                    <Landmark size={24} color="rgba(255,255,255,0.15)" strokeWidth={1} />
-                  </View>
+                <View style={styles.propertyImage}>
+                  <Image
+                    source={{ uri: p.image }}
+                    style={styles.propertyImg}
+                    resizeMode="cover"
+                  />
                   {p.isNew && (
                     <View style={styles.newBadge}>
                       <Text style={styles.newBadgeText}>NEW</Text>
@@ -428,9 +431,9 @@ const styles = StyleSheet.create({
   // Properties
   propertiesScroll: { marginHorizontal: -Spacing.xxl, paddingHorizontal: Spacing.xxl },
   propertyCard: { width: 220, backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1, borderColor: Colors.gray200, marginRight: 12, overflow: 'hidden' as const },
-  propertyImage: { height: 110, justifyContent: 'flex-start' as const },
-  propertyImageIcon: { position: 'absolute' as const, bottom: 10, right: 10 },
-  newBadge: { backgroundColor: Colors.blue500, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, margin: 8, alignSelf: 'flex-start' as const },
+  propertyImage: { height: 120, backgroundColor: Colors.gray100, position: 'relative' as const },
+  propertyImg: { width: '100%', height: '100%' },
+  newBadge: { position: 'absolute' as const, top: 8, left: 8, backgroundColor: Colors.blue500, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, zIndex: 2 },
   newBadgeText: { fontSize: 9, fontFamily: 'DMSans-Bold', color: '#fff', letterSpacing: 0.5 },
   propertyContent: { padding: 12 },
   propertyName: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },

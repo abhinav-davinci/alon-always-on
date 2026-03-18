@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Shield, MapPin } from 'lucide-react-native';
@@ -7,11 +7,11 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 
 const PROPERTIES = [
-  { name: 'Godrej Hillside', area: 'Baner, Pune', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true },
-  { name: 'Pride World City', area: 'Balewadi, Pune', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true },
-  { name: 'Kolte Patil 24K', area: 'Wakad, Pune', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false },
-  { name: 'Sobha Dream Acres', area: 'Hinjewadi, Pune', price: '₹1.05 Cr', size: '2 BHK · 1,180 sq.ft', tags: ['RERA ✓', 'New Launch'], isNew: true },
-  { name: 'Panchshil Towers', area: 'Kharadi, Pune', price: '₹1.42 Cr', size: '3 BHK · 1,520 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: false },
+  { name: 'Godrej Hillside', area: 'Baner, Pune', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=300&fit=crop' },
+  { name: 'Pride World City', area: 'Balewadi, Pune', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=300&fit=crop' },
+  { name: 'Kolte Patil 24K', area: 'Wakad, Pune', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=300&fit=crop' },
+  { name: 'Sobha Dream Acres', area: 'Hinjewadi, Pune', price: '₹1.05 Cr', size: '2 BHK · 1,180 sq.ft', tags: ['RERA ✓', 'New Launch'], isNew: true, image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=300&fit=crop' },
+  { name: 'Panchshil Towers', area: 'Kharadi, Pune', price: '₹1.42 Cr', size: '3 BHK · 1,520 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: false, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=300&fit=crop' },
 ];
 
 export default function PropertiesScreen() {
@@ -43,6 +43,7 @@ export default function PropertiesScreen() {
           >
             <TouchableOpacity style={styles.card} activeOpacity={0.7}>
               <View style={styles.cardImage}>
+                <Image source={{ uri: p.image }} style={styles.cardImg} resizeMode="cover" />
                 {p.isNew && (
                   <View style={styles.newBadge}>
                     <Text style={styles.newBadgeText}>NEW</Text>
@@ -104,8 +105,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardImage: {
-    height: 140,
-    backgroundColor: Colors.blue50,
+    height: 160,
+    backgroundColor: Colors.gray100,
+  },
+  cardImg: {
+    width: '100%',
+    height: '100%',
   },
   newBadge: {
     backgroundColor: Colors.blue500,
