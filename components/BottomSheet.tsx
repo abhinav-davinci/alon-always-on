@@ -7,9 +7,10 @@ import {
   StyleSheet,
   Dimensions,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../constants/theme';
+import { X } from 'lucide-react-native';
+import { Colors, Spacing } from '../constants/theme';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -40,11 +41,22 @@ export default function BottomSheet({
               <View style={styles.handle} />
               <View style={styles.header}>
                 <Text style={styles.title}>{title}</Text>
-                <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="close" size={24} color={Colors.gray500} />
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={onClose}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color={Colors.textTertiary} strokeWidth={2} />
                 </TouchableOpacity>
               </View>
-              <View style={styles.content}>{children}</View>
+              <ScrollView
+                style={styles.scrollContent}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+              >
+                {children}
+              </ScrollView>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -56,40 +68,52 @@ export default function BottomSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: Colors.white,
-    borderTopLeftRadius: Radius.xxl,
-    borderTopRightRadius: Radius.xxl,
-    maxHeight: SCREEN_HEIGHT * 0.7,
-    paddingBottom: 40,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: SCREEN_HEIGHT * 0.75,
   },
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: Colors.gray300,
+    backgroundColor: Colors.gray200,
     borderRadius: 2,
     alignSelf: 'center',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.md,
+    marginTop: 10,
+    marginBottom: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.xxl,
-    paddingBottom: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray100,
   },
   title: {
-    ...Typography.heading3,
+    fontSize: 16,
+    fontFamily: 'DMSans-SemiBold',
     color: Colors.textPrimary,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.gray50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    maxHeight: SCREEN_HEIGHT * 0.55,
   },
   content: {
     paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: 40,
   },
 });

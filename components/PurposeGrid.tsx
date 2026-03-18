@@ -1,8 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../constants/theme';
-import { PURPOSE_OPTIONS } from '../constants/locations';
+import { Home, TrendingUp, Users, Briefcase } from 'lucide-react-native';
+import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
+
+const PURPOSE_ITEMS = [
+  { id: 'self', label: 'Live in it', icon: Home },
+  { id: 'invest', label: 'Invest', icon: TrendingUp },
+  { id: 'family', label: 'Family', icon: Users },
+  { id: 'work', label: 'Work hub', icon: Briefcase },
+];
 
 interface PurposeGridProps {
   selected: string;
@@ -14,7 +21,8 @@ export default function PurposeGrid({ selected, onSelect }: PurposeGridProps) {
 
   return (
     <View style={styles.grid}>
-      {PURPOSE_OPTIONS.map((option) => {
+      {PURPOSE_ITEMS.map((option) => {
+        const Icon = option.icon;
         const isSelected = selected === option.id;
         return (
           <TouchableOpacity
@@ -26,7 +34,13 @@ export default function PurposeGrid({ selected, onSelect }: PurposeGridProps) {
             }}
             activeOpacity={0.7}
           >
-            <Text style={styles.icon}>{option.icon}</Text>
+            <View style={[styles.iconWrap, isSelected && styles.iconWrapSelected]}>
+              <Icon
+                size={18}
+                color={isSelected ? Colors.blue500 : Colors.gray400}
+                strokeWidth={1.8}
+              />
+            </View>
             <Text style={[styles.label, isSelected && styles.labelSelected]}>
               {option.label}
             </Text>
@@ -41,28 +55,38 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: 10,
   },
   cell: {
     width: '47%',
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.gray50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.white,
     borderWidth: 1.5,
     borderColor: Colors.gray200,
-    alignItems: 'center',
   },
   cellSelected: {
     backgroundColor: Colors.blue50,
     borderColor: Colors.blue500,
   },
-  icon: {
-    fontSize: 24,
-    marginBottom: Spacing.sm,
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.gray50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapSelected: {
+    backgroundColor: Colors.blue100,
   },
   label: {
-    ...Typography.captionMedium,
+    fontSize: 13,
+    fontFamily: 'DMSans-Medium',
     color: Colors.textSecondary,
   },
   labelSelected: {
