@@ -1,0 +1,127 @@
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { ChevronLeft, Shield, MapPin } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Colors, Spacing } from '../../constants/theme';
+
+const PROPERTIES = [
+  { name: 'Godrej Hillside', area: 'Baner, Pune', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true },
+  { name: 'Pride World City', area: 'Balewadi, Pune', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true },
+  { name: 'Kolte Patil 24K', area: 'Wakad, Pune', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false },
+  { name: 'Sobha Dream Acres', area: 'Hinjewadi, Pune', price: '₹1.05 Cr', size: '2 BHK · 1,180 sq.ft', tags: ['RERA ✓', 'New Launch'], isNew: true },
+  { name: 'Panchshil Towers', area: 'Kharadi, Pune', price: '₹1.42 Cr', size: '3 BHK · 1,520 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: false },
+];
+
+export default function PropertiesScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Top matches</Text>
+        <View style={{ width: 36 }} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.subtitle}>
+          {PROPERTIES.length} properties matched your criteria
+        </Text>
+
+        {PROPERTIES.map((p, i) => (
+          <Animated.View
+            key={p.name}
+            entering={FadeInDown.delay(i * 80).duration(300)}
+          >
+            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+              <View style={styles.cardImage}>
+                {p.isNew && (
+                  <View style={styles.newBadge}>
+                    <Text style={styles.newBadgeText}>NEW</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.cardContent}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardName}>{p.name}</Text>
+                  <Text style={styles.cardPrice}>{p.price}</Text>
+                </View>
+                <View style={styles.cardMeta}>
+                  <MapPin size={12} color={Colors.textTertiary} strokeWidth={1.5} />
+                  <Text style={styles.cardArea}>{p.area}</Text>
+                  <Text style={styles.cardSize}>{p.size}</Text>
+                </View>
+                <View style={styles.cardTags}>
+                  {p.tags.map((tag) => (
+                    <View key={tag} style={styles.tag}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.gray50, borderWidth: 1, borderColor: Colors.gray200,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  topBarTitle: { fontSize: 16, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  content: { paddingHorizontal: Spacing.xxl, paddingTop: Spacing.lg },
+  subtitle: { fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginBottom: Spacing.lg },
+
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  cardImage: {
+    height: 140,
+    backgroundColor: Colors.blue50,
+  },
+  newBadge: {
+    backgroundColor: Colors.blue500,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 6, margin: 10,
+    alignSelf: 'flex-start',
+  },
+  newBadgeText: { fontSize: 9, fontFamily: 'DMSans-Bold', color: '#fff', letterSpacing: 0.5 },
+  cardContent: { padding: 14 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardName: { fontSize: 15, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary, flex: 1 },
+  cardPrice: { fontSize: 16, fontFamily: 'DMSans-Bold', color: Colors.blue600 },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  cardArea: { fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
+  cardSize: { fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginLeft: 8 },
+  cardTags: { flexDirection: 'row', gap: 4, marginTop: 10 },
+  tag: { backgroundColor: '#DCFCE7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
+  tagText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: '#16A34A' },
+});

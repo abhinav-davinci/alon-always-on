@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Check, Shield, Search, FileCheck, BarChart3 } from 'lucide-react-native';
+import { ChevronLeft, Check, Shield, Search, BarChart3, Bell, MessageCircle, Mail } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -139,29 +139,79 @@ export default function ActivationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
-  const { locations, propertySize, budget, purpose, propertyType, notifyVia, setNotifyVia } =
+  const { locations, propertySize, budget, purpose, propertyType, notifyVia, toggleNotifyVia } =
     useOnboardingStore();
 
   // Hero animation values
   const heroScale = useSharedValue(0);
   const heroOpacity = useSharedValue(0);
-  const ringScale = useSharedValue(0.6);
-  const ringOpacity = useSharedValue(0);
   const titleOpacity = useSharedValue(0);
   const titleY = useSharedValue(15);
   const subtitleOpacity = useSharedValue(0);
   const progressWidth = useSharedValue(0);
-  const glowPulse = useSharedValue(0);
+
+  // 3 radial signal rings — staggered outward pulse
+  const sig1Scale = useSharedValue(0.5);
+  const sig1Opacity = useSharedValue(0);
+  const sig2Scale = useSharedValue(0.5);
+  const sig2Opacity = useSharedValue(0);
+  const sig3Scale = useSharedValue(0.5);
+  const sig3Opacity = useSharedValue(0);
 
   useEffect(() => {
-    // Orchestrated entrance sequence
-    // 1. Avatar pops in with spring
+    // 1. Avatar pops in
     heroOpacity.value = withDelay(200, withTiming(1, { duration: 200 }));
     heroScale.value = withDelay(200, withSpring(1, { damping: 12, stiffness: 120 }));
 
-    // 2. Ring expands
-    ringOpacity.value = withDelay(400, withTiming(0.4, { duration: 400 }));
-    ringScale.value = withDelay(400, withSpring(1, { damping: 15, stiffness: 80 }));
+    // 2. Signal rings — sine-wave modulated pulse
+    // Each ring breathes outward with sinusoidal easing:
+    // slow start → smooth expansion → gentle fade
+    // Like ripples in still water, not a radar ping
+    const CYCLE = 3500; // 3.5s per ring — deliberate, premium
+    const STAGGER = 1100; // generous gap between rings
+
+    const signalAnim = (delay: number) => ({
+      scale: withDelay(
+        800 + delay,
+        withRepeat(
+          withSequence(
+            withTiming(0.6, { duration: 0 }),
+            // Sine easing: slow start, smooth middle, soft end
+            withTiming(1.35, { duration: CYCLE, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
+      ),
+      opacity: withDelay(
+        800 + delay,
+        withRepeat(
+          withSequence(
+            withTiming(0, { duration: 0 }),
+            // Fade in during first 30% of cycle
+            withTiming(0.45, { duration: CYCLE * 0.3, easing: Easing.out(Easing.sin) }),
+            // Hold briefly
+            withTiming(0.35, { duration: CYCLE * 0.15, easing: Easing.inOut(Easing.sin) }),
+            // Long gentle fade out — the premium part
+            withTiming(0, { duration: CYCLE * 0.55, easing: Easing.inOut(Easing.sin) })
+          ),
+          -1,
+          false
+        )
+      ),
+    });
+
+    const s1 = signalAnim(0);
+    sig1Scale.value = s1.scale;
+    sig1Opacity.value = s1.opacity;
+
+    const s2 = signalAnim(STAGGER);
+    sig2Scale.value = s2.scale;
+    sig2Opacity.value = s2.opacity;
+
+    const s3 = signalAnim(STAGGER * 2);
+    sig3Scale.value = s3.scale;
+    sig3Opacity.value = s3.opacity;
 
     // 3. Title fades up
     titleOpacity.value = withDelay(700, withTiming(1, { duration: 500 }));
@@ -173,16 +223,6 @@ export default function ActivationScreen() {
     // 5. Progress bar fills
     progressWidth.value = withDelay(1800, withTiming(72, { duration: 2500, easing: Easing.out(Easing.cubic) }));
 
-    // 6. Continuous glow
-    glowPulse.value = withDelay(1200, withRepeat(
-      withSequence(
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.sin) })
-      ),
-      -1,
-      true
-    ));
-
     setTimeout(() => haptics.success(), 500);
   }, []);
 
@@ -191,9 +231,17 @@ export default function ActivationScreen() {
     opacity: heroOpacity.value,
   }));
 
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: ringScale.value }],
-    opacity: ringOpacity.value,
+  const sig1Style = useAnimatedStyle(() => ({
+    transform: [{ scale: sig1Scale.value }],
+    opacity: sig1Opacity.value,
+  }));
+  const sig2Style = useAnimatedStyle(() => ({
+    transform: [{ scale: sig2Scale.value }],
+    opacity: sig2Opacity.value,
+  }));
+  const sig3Style = useAnimatedStyle(() => ({
+    transform: [{ scale: sig3Scale.value }],
+    opacity: sig3Opacity.value,
   }));
 
   const titleStyle = useAnimatedStyle(() => ({
@@ -209,22 +257,18 @@ export default function ActivationScreen() {
     width: `${progressWidth.value}%`,
   }));
 
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(glowPulse.value, [0, 1], [0.1, 0.25]),
-    transform: [{ scale: interpolate(glowPulse.value, [0, 1], [0.95, 1.08]) }],
-  }));
-
   const summaryItems = [
-    locations.join(', '),
-    propertyType,
-    propertySize.join(', '),
+    locations.length > 0 ? locations.join(', ') : null,
+    propertyType || null,
+    propertySize.length > 0 ? propertySize.join(', ') : null,
     `${formatBudget(budget.min)} – ${formatBudget(budget.max)}`,
-  ].filter(Boolean);
+    purpose || null,
+  ].filter(Boolean) as string[];
 
-  const notifyOptions: Array<{ key: 'push' | 'whatsapp' | 'email'; label: string }> = [
-    { key: 'push', label: 'Push' },
-    { key: 'whatsapp', label: 'WhatsApp' },
-    { key: 'email', label: 'Email' },
+  const notifyOptions: Array<{ key: string; label: string; icon: typeof Bell }> = [
+    { key: 'push', label: 'Push', icon: Bell },
+    { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+    { key: 'email', label: 'Email', icon: Mail },
   ];
 
   return (
@@ -240,10 +284,11 @@ export default function ActivationScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero section — ALON eye with glow */}
+        {/* Hero — ALON eye with radial signal rings */}
         <View style={styles.heroSection}>
-          <Animated.View style={[styles.heroGlow, glowStyle]} />
-          <Animated.View style={[styles.heroRing, ringStyle]} />
+          <Animated.View style={[styles.signalRing, styles.signalRing1, sig1Style]} />
+          <Animated.View style={[styles.signalRing, styles.signalRing2, sig2Style]} />
+          <Animated.View style={[styles.signalRing, styles.signalRing3, sig3Style]} />
           <Animated.View style={heroStyle}>
             <AlonAvatar size={44} showRings={false} showBlink variant="light" />
           </Animated.View>
@@ -316,21 +361,30 @@ export default function ActivationScreen() {
         >
           <View style={styles.notifyRow}>
             <Text style={styles.notifyTitle}>Notify via</Text>
-            {notifyOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.key}
-                style={[styles.notifyChip, notifyVia === opt.key && styles.notifyChipActive]}
-                onPress={() => {
-                  haptics.selection();
-                  setNotifyVia(opt.key);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.notifyChipText, notifyVia === opt.key && styles.notifyChipTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {notifyOptions.map((opt) => {
+              const Icon = opt.icon;
+              const isActive = notifyVia.includes(opt.key);
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.notifyChip, isActive && styles.notifyChipActive]}
+                  onPress={() => {
+                    haptics.selection();
+                    toggleNotifyVia(opt.key);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    size={13}
+                    color={isActive ? Colors.blue300 : 'rgba(255,255,255,0.35)'}
+                    strokeWidth={1.8}
+                  />
+                  <Text style={[styles.notifyChipText, isActive && styles.notifyChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Button
@@ -378,30 +432,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 100,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
   },
-  heroGlow: {
+  signalRing: {
     position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    // Warm amber-gold glow — "ALON is powering up"
-    backgroundColor: '#E8A84C',
+    borderWidth: 1.5,
+    borderColor: '#E8A84C',
   },
-  heroRing: {
-    position: 'absolute',
+  signalRing1: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  signalRing2: {
     width: 80,
     height: 80,
     borderRadius: 40,
     borderWidth: 1,
-    borderColor: 'rgba(232,168,76,0.25)',
+  },
+  signalRing3: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 0.5,
   },
 
   // Title
   titleSection: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   title: {
     fontFamily: 'DMSerifDisplay',
@@ -423,7 +483,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 0,
+    marginBottom: 4,
   },
   pill: {
     paddingHorizontal: 12,
@@ -445,8 +505,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    padding: 14,
-    marginBottom: Spacing.lg,
+    padding: 16,
+    marginBottom: Spacing.xl,
   },
   counterRow: {
     flexDirection: 'row',
@@ -477,7 +537,7 @@ const styles = StyleSheet.create({
   cardDivider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    marginBottom: 10,
+    marginVertical: 12,
   },
 
   // Steps
@@ -592,7 +652,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   notifyChip: {
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,

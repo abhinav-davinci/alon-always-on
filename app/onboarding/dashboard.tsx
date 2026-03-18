@@ -3,360 +3,454 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Animated, {
   FadeIn,
+  FadeInDown,
   useSharedValue,
   useAnimatedStyle,
+  withRepeat,
+  withSequence,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import PropertyCard from '../../components/PropertyCard';
-import AlertCard from '../../components/AlertCard';
-import { Colors, Typography, Spacing, Radius, Shadows } from '../../constants/theme';
+import {
+  Search,
+  ListChecks,
+  MapPin,
+  GitCompare,
+  Landmark,
+  Scale,
+  Handshake,
+  Key,
+  Check,
+  Phone,
+  PhoneOff,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  TrendingUp,
+  Clock,
+  Bell,
+  MessageCircle,
+  Mail,
+} from 'lucide-react-native';
+import AlonAvatar from '../../components/AlonAvatar';
+import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import { formatBudget } from '../../constants/locations';
 
+const JOURNEY_STAGES = [
+  { key: 'search', label: 'Search', icon: Search, status: 'active' },
+  { key: 'shortlist', label: 'Shortlist', icon: ListChecks, status: 'pending' },
+  { key: 'visit', label: 'Visit', icon: MapPin, status: 'pending' },
+  { key: 'compare', label: 'Compare', icon: GitCompare, status: 'pending' },
+  { key: 'finance', label: 'Finance', icon: Landmark, status: 'pending' },
+  { key: 'legal', label: 'Legal', icon: Scale, status: 'pending' },
+  { key: 'negotiate', label: 'Negotiate', icon: Handshake, status: 'pending' },
+  { key: 'possess', label: 'Possess', icon: Key, status: 'pending' },
+] as Array<{ key: string; label: string; icon: typeof Search; status: 'done' | 'active' | 'pending' }>;
+
 const DEMO_PROPERTIES = [
-  {
-    name: 'Godrej Hillside',
-    location: 'Baner, Pune',
-    price: '₹1.35 Cr',
-    size: '3 BHK · 1,450 sq.ft',
-    image: '',
-    tags: ['RERA ✓', 'Premium'],
-    isNew: true,
-  },
-  {
-    name: 'Pride World City',
-    location: 'Balewadi, Pune',
-    price: '₹1.18 Cr',
-    size: '3 BHK · 1,320 sq.ft',
-    image: '',
-    tags: ['RERA ✓', 'Ready'],
-    isNew: true,
-  },
-  {
-    name: 'Kolte Patil 24K',
-    location: 'Wakad, Pune',
-    price: '₹98 L',
-    size: '2 BHK · 1,050 sq.ft',
-    image: '',
-    tags: ['RERA ✓'],
-    isNew: false,
-  },
+  { name: 'Godrej Hillside', area: 'Baner', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, color: '#1A3A8F' },
+  { name: 'Pride World City', area: 'Balewadi', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, color: '#2D5A4A' },
+  { name: 'Kolte Patil 24K', area: 'Wakad', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, color: '#4A3A6A' },
 ];
 
-function useCountAnimation(target: number, duration: number = 1500) {
+function isBusinessHours(): boolean {
+  const now = new Date();
+  const h = now.getHours();
+  const d = now.getDay();
+  return d >= 1 && d <= 6 && h >= 10 && h < 19;
+}
+
+function Counter({ target, delay = 0 }: { target: number; delay?: number }) {
   const [count, setCount] = useState(0);
-
   useEffect(() => {
-    const start = Date.now();
-    const frame = () => {
-      const elapsed = Date.now() - start;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(eased * target));
-      if (progress < 1) requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
-  }, [target]);
-
-  return count;
+    const t = setTimeout(() => {
+      const start = Date.now();
+      const frame = () => {
+        const p = Math.min((Date.now() - start) / 1500, 1);
+        setCount(Math.floor((1 - Math.pow(1 - p, 3)) * target));
+        if (p < 1) requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  return <Text style={styles.statNumber}>{count.toLocaleString()}</Text>;
 }
 
 export default function DashboardScreen() {
-  const { locations, propertySize, budget } = useOnboardingStore();
-  const checkedCount = useCountAnimation(12847);
-  const newToday = useCountAnimation(23);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { locations, propertySize, budget, propertyType, notifyVia, toggleNotifyVia } = useOnboardingStore();
+  const bizHours = isBusinessHours();
+  const [journeyExpanded, setJourneyExpanded] = useState(false);
+
+  const dotPulse = useSharedValue(1);
+  const scanPos = useSharedValue(0);
+
+  useEffect(() => {
+    dotPulse.value = withRepeat(
+      withSequence(
+        withTiming(1.4, { duration: 900, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1, true
+    );
+    scanPos.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1, true
+    );
+  }, []);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: dotPulse.value }],
+  }));
+  const scanStyle = useAnimatedStyle(() => ({
+    left: `${scanPos.value * 100}%`,
+  }));
 
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
     return 'Good evening';
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Blue gradient header */}
-        <View style={styles.header}>
-          <Animated.View entering={FadeIn.duration(500)}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <View style={styles.statusRow}>
-              <View style={styles.greenDot} />
-              <Text style={styles.statusText}>ALON is active</Text>
-            </View>
-          </Animated.View>
+  const criteriaText = [locations.join(', '), propertyType, propertySize.join(', '), `${formatBudget(budget.min)}–${formatBudget(budget.max)}`].filter(Boolean).join(' · ');
+  const currentStage = JOURNEY_STAGES.find((s) => s.status === 'active');
+  const currentIndex = JOURNEY_STAGES.findIndex((s) => s.status === 'active');
 
-          {/* Active search card */}
-          <Animated.View
-            style={styles.searchCard}
-            entering={FadeIn.delay(300).duration(400)}
-          >
-            <View style={styles.searchCardHeader}>
-              <Text style={styles.searchCardTitle}>Active Search</Text>
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>live</Text>
+  const notifyOptions: Array<{ key: string; label: string; icon: typeof Bell }> = [
+    { key: 'push', label: 'Push', icon: Bell },
+    { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
+    { key: 'email', label: 'Email', icon: Mail },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.statusBarBg, { height: insets.top }]} />
+      <View style={{ height: insets.top }} />
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── 1. Header + Stats ── */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>{getGreeting()}</Text>
+              <View style={styles.statusRow}>
+                <Animated.View style={[styles.activeDot, dotStyle]} />
+                <Text style={styles.statusLabel}>ALON is active</Text>
               </View>
             </View>
-            <View style={styles.statRow}>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>
-                  {checkedCount.toLocaleString()}
-                </Text>
-                <Text style={styles.statLabel}>listings checked</Text>
+            <AlonAvatar size={36} showRings={false} showBlink variant="light" />
+          </View>
+          <Animated.View style={styles.statsCard} entering={FadeInDown.delay(300).duration(400)}>
+            <View style={styles.statsRow}>
+              <View style={styles.statBlock}>
+                <Counter target={12847} delay={400} />
+                <Text style={styles.statLabel}>scanned</Text>
               </View>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{newToday}</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statBlock}>
+                <Counter target={342} delay={600} />
+                <Text style={styles.statLabel}>matches</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statBlock}>
+                <Counter target={23} delay={800} />
                 <Text style={styles.statLabel}>new today</Text>
               </View>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>6pm</Text>
-                <Text style={styles.statLabel}>next report</Text>
-              </View>
             </View>
-            <Text style={styles.criteria}>
-              {locations.join(', ')} · {propertySize.join(', ')} ·{' '}
-              {formatBudget(budget.min)}–{formatBudget(budget.max)}
-            </Text>
+            <Text style={styles.criteriaText}>{criteriaText}</Text>
           </Animated.View>
         </View>
 
-        {/* Top matches */}
-        <Animated.View
-          style={styles.section}
-          entering={FadeIn.delay(600).duration(400)}
-        >
-          <Text style={styles.sectionTitle}>Top matches for you</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.propertiesScroll}
+        {/* ── 2. Relationship Manager ── */}
+        <Animated.View style={styles.section} entering={FadeIn.delay(500).duration(400)}>
+          <Text style={styles.sectionLabel}>YOUR ADVISOR</Text>
+          <View style={styles.rmCard}>
+            <View style={styles.rmAvatar}>
+              <Text style={styles.rmInitials}>PS</Text>
+            </View>
+            <View style={styles.rmInfo}>
+              <Text style={styles.rmName}>Priya Sharma</Text>
+              <Text style={styles.rmRole}>Property Advisor · Pune</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.callChip, !bizHours && styles.callChipOff]}
+              onPress={() => bizHours && Linking.openURL('tel:+919876543210')}
+              activeOpacity={bizHours ? 0.7 : 1}
+            >
+              {bizHours ? (
+                <Phone size={12} color="#fff" strokeWidth={2} />
+              ) : (
+                <PhoneOff size={12} color={Colors.gray400} strokeWidth={2} />
+              )}
+              <Text style={[styles.callChipText, !bizHours && styles.callChipTextOff]}>
+                {bizHours ? 'Call' : '10–7pm'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* ── 3. Journey — collapsible ── */}
+        <Animated.View style={styles.section} entering={FadeIn.delay(600).duration(400)}>
+          <TouchableOpacity
+            style={styles.journeyHeader}
+            onPress={() => setJourneyExpanded(!journeyExpanded)}
+            activeOpacity={0.7}
           >
-            {DEMO_PROPERTIES.map((property) => (
-              <PropertyCard key={property.name} {...property} />
+            <View style={styles.journeyHeaderLeft}>
+              <Text style={styles.sectionTitleInline}>Your home journey</Text>
+              <View style={styles.journeyBadge}>
+                <Text style={styles.journeyBadgeText}>{currentIndex + 1} of 8</Text>
+              </View>
+            </View>
+            {journeyExpanded ? (
+              <ChevronUp size={18} color={Colors.gray400} strokeWidth={2} />
+            ) : (
+              <ChevronDown size={18} color={Colors.gray400} strokeWidth={2} />
+            )}
+          </TouchableOpacity>
+
+          {!journeyExpanded && currentStage && (
+            <View style={styles.journeyCollapsed}>
+              <View style={styles.journeyActiveDotWrap}>
+                <Animated.View style={[styles.journeyPulseRing, dotStyle]} />
+                <View style={styles.journeyDotActive}>
+                  <View style={styles.journeyDotInner} />
+                </View>
+              </View>
+              <View style={styles.journeyCollapsedContent}>
+                <Text style={styles.journeyCollapsedBold}>Searching...</Text>
+                <Text style={styles.journeyCollapsedSub}>ALON is scanning properties for you</Text>
+              </View>
+              <View style={styles.miniScanTrack}>
+                <Animated.View style={[styles.miniScanDot, scanStyle]} />
+              </View>
+            </View>
+          )}
+
+          {journeyExpanded && (
+            <View style={styles.journeyCard}>
+              {JOURNEY_STAGES.map((stage, i) => {
+                const Icon = stage.icon;
+                const isActive = stage.status === 'active';
+                const isDone = stage.status === 'done';
+                const isLast = i === JOURNEY_STAGES.length - 1;
+                return (
+                  <View key={stage.key} style={styles.journeyRow}>
+                    {!isLast && (
+                      <View style={[styles.journeyLine, (isActive || isDone) && styles.journeyLineActive]} />
+                    )}
+                    <View style={[styles.journeyDot, isActive && styles.journeyDotActive, isDone && styles.journeyDotDone]}>
+                      {isDone ? (
+                        <Check size={10} color="#fff" strokeWidth={3} />
+                      ) : (
+                        <Icon size={11} color={isActive ? '#fff' : Colors.gray400} strokeWidth={1.8} />
+                      )}
+                    </View>
+                    <Text style={[styles.journeyLabel, isActive && styles.journeyLabelActive, isDone && styles.journeyLabelDone]}>
+                      {stage.label}
+                    </Text>
+                    {isActive && (
+                      <View style={styles.currentBadge}>
+                        <Text style={styles.currentBadgeText}>Current</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* ── 4. Top Matches ── */}
+        <Animated.View style={styles.section} entering={FadeIn.delay(700).duration(400)}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Top matches</Text>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => router.push('/onboarding/properties')}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.propertiesScroll}>
+            {DEMO_PROPERTIES.map((p) => (
+              <View key={p.name} style={styles.propertyCard}>
+                <View style={[styles.propertyImage, { backgroundColor: p.color }]}>
+                  <View style={styles.propertyImageIcon}>
+                    <Landmark size={24} color="rgba(255,255,255,0.15)" strokeWidth={1} />
+                  </View>
+                  {p.isNew && (
+                    <View style={styles.newBadge}>
+                      <Text style={styles.newBadgeText}>NEW</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.propertyContent}>
+                  <Text style={styles.propertyName} numberOfLines={1}>{p.name}</Text>
+                  <Text style={styles.propertyArea}>{p.area}, Pune</Text>
+                  <View style={styles.propertyMeta}>
+                    <Text style={styles.propertyPrice}>{p.price}</Text>
+                    <Text style={styles.propertySize}>{p.size}</Text>
+                  </View>
+                  <View style={styles.propertyTags}>
+                    {p.tags.map((tag) => (
+                      <View key={tag} style={styles.propertyTag}>
+                        <Text style={styles.propertyTagText}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
             ))}
           </ScrollView>
         </Animated.View>
 
-        {/* ALON Alerts */}
-        <Animated.View
-          style={styles.section}
-          entering={FadeIn.delay(800).duration(400)}
-        >
-          <Text style={styles.sectionTitle}>ALON Alerts</Text>
-          <AlertCard
-            icon="🏗"
-            title="New site visit available"
-            subtitle="Godrej Hillside · Sat 10am – 1pm"
-            action="Schedule"
-          />
-          <AlertCard
-            icon="📊"
-            title="Market insight"
-            subtitle="Baner prices up 3.2% this quarter"
-            action="View"
-          />
-          <AlertCard
-            icon="✏️"
-            title="Refine your preferences?"
-            subtitle="Update budget or add more locations"
-            action="Update"
-          />
+        {/* ── 5. Alerts ── */}
+        <Animated.View style={styles.section} entering={FadeIn.delay(800).duration(400)}>
+          <Text style={styles.sectionTitle}>ALON alerts</Text>
+          {[
+            { title: '5 new matches found', sub: 'Godrej Hillside + 4 more', icon: TrendingUp, bg: '#EEF2FF', color: Colors.blue500 },
+            { title: 'Site visit available', sub: 'Godrej Hillside · Sat 10am–1pm', icon: Clock, bg: '#FEF3C7', color: '#D97706' },
+            { title: 'RERA check complete', sub: '3 of 5 are RERA-verified', icon: Shield, bg: '#DCFCE7', color: '#16A34A' },
+          ].map((alert) => (
+            <TouchableOpacity key={alert.title} style={styles.alertCard} activeOpacity={0.7}>
+              <View style={[styles.alertIcon, { backgroundColor: alert.bg }]}>
+                <alert.icon size={15} color={alert.color} strokeWidth={1.8} />
+              </View>
+              <View style={styles.alertContent}>
+                <Text style={styles.alertTitle}>{alert.title}</Text>
+                <Text style={styles.alertSub}>{alert.sub}</Text>
+              </View>
+              <ChevronRight size={15} color={Colors.gray300} strokeWidth={1.8} />
+            </TouchableOpacity>
+          ))}
         </Animated.View>
 
-        {/* 8-step journey placeholder */}
-        <Animated.View
-          style={styles.journeyCard}
-          entering={FadeIn.delay(1000).duration(400)}
-        >
-          <Text style={styles.journeyTitle}>Your Home Journey</Text>
-          <Text style={styles.journeySubtitle}>
-            8 stages from Search to Possession — ALON guides you through each
-            one
-          </Text>
-          <View style={styles.journeySteps}>
-            {['Search', 'Shortlist', 'Visit', 'Compare', 'Finance', 'Legal', 'Buy', 'Possess'].map(
-              (step, i) => (
-                <View
-                  key={step}
-                  style={[
-                    styles.journeyStep,
-                    i === 0 && styles.journeyStepActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.journeyStepText,
-                      i === 0 && styles.journeyStepTextActive,
-                    ]}
-                  >
-                    {step}
-                  </Text>
-                </View>
-              )
-            )}
-          </View>
-        </Animated.View>
+        {/* Footer */}
+        <View style={styles.footerBadge}>
+          <View style={styles.footerDot} />
+          <Text style={styles.footerText}>ALON stays on until you find your home</Text>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.gray50,
-  },
-  scrollContent: {
-    paddingBottom: Spacing.xxxxl,
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  statusBarBg: { backgroundColor: '#0D1F4A', position: 'absolute' as const, top: 0, left: 0, right: 0, zIndex: 10 },
+  scroll: {},
+
   header: {
-    backgroundColor: Colors.blue800,
+    backgroundColor: '#0D1F4A',
     paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xxxl,
+    paddingTop: Spacing.xl,
     paddingBottom: Spacing.xxl,
-    borderBottomLeftRadius: Radius.xxl,
-    borderBottomRightRadius: Radius.xxl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  greeting: {
-    fontFamily: 'DMSerifDisplay',
-    fontSize: 28,
-    color: Colors.white,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  greenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.green500,
-  },
-  statusText: {
-    ...Typography.small,
-    color: Colors.green500,
-  },
-  searchCard: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    marginTop: Spacing.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  searchCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  searchCardTitle: {
-    ...Typography.bodySemiBold,
-    color: Colors.white,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(34,197,94,0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.green500,
-  },
-  liveText: {
-    ...Typography.small,
-    color: Colors.green500,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    ...Typography.heading2,
-    color: Colors.white,
-  },
-  statLabel: {
-    ...Typography.small,
-    color: Colors.blue200,
-    marginTop: 2,
-  },
-  criteria: {
-    ...Typography.small,
-    color: Colors.blue200,
-    textAlign: 'center',
-  },
-  section: {
-    paddingHorizontal: Spacing.xxl,
-    marginTop: Spacing.xxl,
-  },
-  sectionTitle: {
-    ...Typography.heading3,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
-  },
-  propertiesScroll: {
-    paddingRight: Spacing.xxl,
-  },
-  journeyCard: {
-    marginHorizontal: Spacing.xxl,
-    marginTop: Spacing.xxl,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    ...Shadows.md,
-  },
-  journeyTitle: {
-    ...Typography.heading3,
-    color: Colors.textPrimary,
-  },
-  journeySubtitle: {
-    ...Typography.small,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  journeySteps: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  journeyStep: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.gray100,
-  },
-  journeyStepActive: {
-    backgroundColor: Colors.blue500,
-  },
-  journeyStepText: {
-    ...Typography.smallMedium,
-    color: Colors.textSecondary,
-  },
-  journeyStepTextActive: {
-    color: Colors.white,
-  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xl },
+  greeting: { fontFamily: 'DMSerifDisplay', fontSize: 26, color: '#fff', marginBottom: 4 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22C55E' },
+  statusLabel: { fontSize: 12, fontFamily: 'DMSans-Medium', color: '#22C55E' },
+  statsCard: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 16 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  statBlock: { flex: 1, alignItems: 'center' },
+  statNumber: { fontSize: 20, fontFamily: 'DMSans-Bold', color: '#fff' },
+  statLabel: { fontSize: 10, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  statDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
+  criteriaText: { fontSize: 11, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.35)', textAlign: 'center' },
+
+  section: { paddingHorizontal: Spacing.xxl, marginTop: Spacing.xl },
+  sectionTitle: { fontSize: 16, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary, marginBottom: Spacing.md },
+  sectionTitleInline: { fontSize: 15, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  seeAll: { fontSize: 13, fontFamily: 'DMSans-Medium', color: Colors.blue500 },
+  sectionLabel: { fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.textTertiary, textTransform: 'uppercase' as const, letterSpacing: 0.8, marginBottom: 8 },
+
+  // RM
+  rmCard: { flexDirection: 'row' as const, alignItems: 'center' as const, backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1, borderColor: Colors.gray200, padding: 12, gap: 10 },
+  rmAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.blue500, alignItems: 'center' as const, justifyContent: 'center' as const },
+  rmInitials: { fontSize: 13, fontFamily: 'DMSans-Bold', color: '#fff' },
+  rmInfo: { flex: 1 },
+  rmName: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  rmRole: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
+  callChip: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: Colors.blue500, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  callChipOff: { backgroundColor: Colors.gray100 },
+  callChipText: { fontSize: 12, fontFamily: 'DMSans-Medium', color: '#fff' },
+  callChipTextOff: { color: Colors.gray400 },
+
+  // Journey
+  journeyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.gray200, borderRadius: 14, padding: 14 },
+  journeyHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  journeyBadge: { backgroundColor: Colors.blue50, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: Colors.blue200 },
+  journeyBadgeText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.blue500 },
+
+  journeyCollapsed: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, backgroundColor: Colors.blue50, borderRadius: 12, borderWidth: 1, borderColor: Colors.blue100, padding: 10 },
+  journeyActiveDotWrap: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  journeyPulseRing: { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: Colors.blue300 },
+  journeyCollapsedContent: { flex: 1 },
+  journeyCollapsedBold: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.blue700 },
+  journeyCollapsedSub: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.blue400, marginTop: 1 },
+  miniScanTrack: { width: 32, height: 3, backgroundColor: Colors.blue100, borderRadius: 2, overflow: 'hidden' as const },
+  miniScanDot: { position: 'absolute' as const, width: 10, height: 3, borderRadius: 2, backgroundColor: Colors.blue400 },
+
+  journeyCard: { backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1, borderColor: Colors.gray200, padding: 14, marginTop: 8 },
+  journeyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, position: 'relative' as const },
+  journeyLine: { position: 'absolute' as const, left: 12, top: 30, width: 1, height: 16, backgroundColor: Colors.gray200 },
+  journeyLineActive: { backgroundColor: Colors.blue400 },
+  journeyDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.gray100, borderWidth: 1, borderColor: Colors.gray200, alignItems: 'center' as const, justifyContent: 'center' as const },
+  journeyDotActive: { backgroundColor: Colors.blue500, borderColor: Colors.blue500 },
+  journeyDotInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  journeyDotDone: { backgroundColor: '#22C55E', borderColor: '#22C55E' },
+  journeyLabel: { flex: 1, fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
+  journeyLabelActive: { fontFamily: 'DMSans-Medium', color: Colors.textPrimary },
+  journeyLabelDone: { color: Colors.textSecondary },
+  currentBadge: { backgroundColor: Colors.blue50, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: Colors.blue200 },
+  currentBadgeText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.blue500 },
+
+  // Properties
+  propertiesScroll: { marginHorizontal: -Spacing.xxl, paddingHorizontal: Spacing.xxl },
+  propertyCard: { width: 220, backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1, borderColor: Colors.gray200, marginRight: 12, overflow: 'hidden' as const },
+  propertyImage: { height: 110, justifyContent: 'flex-start' as const },
+  propertyImageIcon: { position: 'absolute' as const, bottom: 10, right: 10 },
+  newBadge: { backgroundColor: Colors.blue500, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, margin: 8, alignSelf: 'flex-start' as const },
+  newBadgeText: { fontSize: 9, fontFamily: 'DMSans-Bold', color: '#fff', letterSpacing: 0.5 },
+  propertyContent: { padding: 12 },
+  propertyName: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  propertyArea: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1 },
+  propertyMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  propertyPrice: { fontSize: 15, fontFamily: 'DMSans-Bold', color: Colors.blue600 },
+  propertySize: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
+  propertyTags: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  propertyTag: { backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  propertyTagText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: '#16A34A' },
+
+  // Alerts
+  alertCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.gray200, borderRadius: 12, padding: 12, marginBottom: 8 },
+  alertIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center' as const, justifyContent: 'center' as const },
+  alertContent: { flex: 1 },
+  alertTitle: { fontSize: 13, fontFamily: 'DMSans-Medium', color: Colors.textPrimary },
+  alertSub: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1 },
+
+  // Footer
+  footerBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.lg, paddingVertical: Spacing.sm },
+  footerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  footerText: { fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textTertiary },
 });

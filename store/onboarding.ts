@@ -11,7 +11,7 @@ export interface OnboardingState {
   timeline: string;
   briefText: string;
   needsLoan: boolean;
-  notifyVia: 'push' | 'whatsapp' | 'email';
+  notifyVia: string[];
 
   setPersona: (persona: PersonaType) => void;
   setLocations: (locations: string[]) => void;
@@ -22,7 +22,7 @@ export interface OnboardingState {
   setTimeline: (timeline: string) => void;
   setBriefText: (text: string) => void;
   setNeedsLoan: (val: boolean) => void;
-  setNotifyVia: (via: 'push' | 'whatsapp' | 'email') => void;
+  toggleNotifyVia: (channel: string) => void;
   reset: () => void;
 }
 
@@ -36,7 +36,7 @@ const initialState = {
   timeline: '',
   briefText: '',
   needsLoan: false,
-  notifyVia: 'push' as const,
+  notifyVia: ['push'] as string[],
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -63,6 +63,11 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setTimeline: (timeline) => set({ timeline }),
   setBriefText: (briefText) => set({ briefText }),
   setNeedsLoan: (needsLoan) => set({ needsLoan }),
-  setNotifyVia: (notifyVia) => set({ notifyVia }),
+  toggleNotifyVia: (channel) =>
+    set((state) => ({
+      notifyVia: state.notifyVia.includes(channel)
+        ? state.notifyVia.filter((c) => c !== channel)
+        : [...state.notifyVia, channel],
+    })),
   reset: () => set(initialState),
 }));
