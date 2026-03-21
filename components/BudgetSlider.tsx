@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   budgetDisplay: {
     fontSize: 26,
     fontFamily: 'DMSans-Bold',
-    color: Colors.blue600,
+    color: Colors.terra600,
     marginBottom: 2,
   },
   emiText: {
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   activeTrack: {
     position: 'absolute',
     height: 5,
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
     borderRadius: 3,
   },
   thumb: {
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: THUMB_SIZE / 2,
     backgroundColor: Colors.white,
     borderWidth: 3,
-    borderColor: Colors.blue500,
+    borderColor: Colors.terra500,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   thumbActive: {
-    borderColor: Colors.blue700,
+    borderColor: Colors.terra600,
     transform: [{ scale: 1.1 }],
   },
   ticks: {
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tickLineActive: {
-    backgroundColor: Colors.blue400,
+    backgroundColor: Colors.terra400,
   },
   tickLabel: {
     fontSize: 9,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
   tickLabelActive: {
-    color: Colors.blue500,
+    color: Colors.terra500,
     fontFamily: 'DMSans-Medium',
   },
   hint: {
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   toggleOn: {
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
   },
   toggleKnob: {
     width: 16,

@@ -129,7 +129,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.blue800,
+    backgroundColor: Colors.navy800,
     paddingHorizontal: Spacing.xxl,
   },
   topSection: {
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   promiseBold: {
-    color: Colors.blue100,
+    color: Colors.warm100,
     fontFamily: 'DMSans-Medium',
   },
 

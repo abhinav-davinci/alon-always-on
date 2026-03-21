@@ -55,7 +55,7 @@ export default function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? Colors.white : Colors.blue500}
+          color={variant === 'primary' ? Colors.white : Colors.terra500}
         />
       ) : (
         <Text
@@ -85,15 +85,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   primary: {
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
   },
   primaryWhite: {
     backgroundColor: Colors.white,
   },
   secondary: {
-    backgroundColor: Colors.blue50,
+    backgroundColor: Colors.terra50,
     borderWidth: 1,
-    borderColor: Colors.blue200,
+    borderColor: Colors.terra200,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -108,12 +108,12 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   primaryWhiteText: {
-    color: Colors.blue500,
+    color: Colors.terra500,
   },
   secondaryText: {
-    color: Colors.blue500,
+    color: Colors.terra500,
   },
   ghostText: {
-    color: Colors.blue500,
+    color: Colors.terra500,
   },
 });

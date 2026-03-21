@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: Colors.gray200,
+    backgroundColor: Colors.warm200,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 10,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: Colors.warm100,
   },
   title: {
     fontSize: 16,
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -37,7 +37,7 @@ export default function PurposeGrid({ selected, onSelect }: PurposeGridProps) {
             <View style={[styles.iconWrap, isSelected && styles.iconWrapSelected]}>
               <Icon
                 size={18}
-                color={isSelected ? Colors.blue500 : Colors.gray400}
+                color={isSelected ? Colors.terra500 : Colors.warm400}
                 strokeWidth={1.8}
               />
             </View>
@@ -67,22 +67,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: Colors.white,
     borderWidth: 1.5,
-    borderColor: Colors.gray200,
+    borderColor: Colors.warm200,
   },
   cellSelected: {
-    backgroundColor: Colors.blue50,
-    borderColor: Colors.blue500,
+    backgroundColor: Colors.terra50,
+    borderColor: Colors.terra500,
   },
   iconWrap: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrapSelected: {
-    backgroundColor: Colors.blue100,
+    backgroundColor: Colors.terra100,
   },
   label: {
     fontSize: 13,
@@ -90,6 +90,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   labelSelected: {
-    color: Colors.blue600,
+    color: Colors.terra600,
   },
 });

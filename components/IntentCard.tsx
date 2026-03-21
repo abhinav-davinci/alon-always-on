@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   titleSelected: {
-    color: Colors.blue700,
+    color: Colors.navy700,
   },
   subtitle: {
     ...Typography.caption,
@@ -106,6 +106,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   subtitleSelected: {
-    color: Colors.blue500,
+    color: Colors.terra400,
   },
 });

@@ -1,8 +1,13 @@
 export const Colors = {
-  // Primary blue palette
-  blue900: '#0A1A4A',
-  blue800: '#102365',
-  blue700: '#1A3A8F',
+  // Trust Architecture — Primary palette
+  // Prussian navy: institutional trust, depth
+  navy900: '#060F24',
+  navy800: '#0D1F4A',
+  navy700: '#142E5C',
+  navy600: '#1B3D6E',
+  navy500: '#244D82',
+
+  // Blue — kept for interactive/selection states
   blue600: '#2146B8',
   blue500: '#2952D8',
   blue400: '#4A72E8',
@@ -11,21 +16,42 @@ export const Colors = {
   blue100: '#E0EAFF',
   blue50: '#F0F5FF',
 
-  // Neutrals
+  // Terracotta — brand accent, CTAs, identity
+  terra600: '#B8451E',
+  terra500: '#D95F2B',
+  terra400: '#E8774A',
+  terra300: '#F0A080',
+  terra200: '#F8D0BC',
+  terra100: '#FDF0EA',
+  terra50: '#FEF7F3',
+
+  // Ember — action highlight
+  ember: '#FF8C42',
+
+  // Warm neutrals
   white: '#FFFFFF',
+  cream: '#F5F0E8',
+  warm50: '#FAF8F4',
+  warm100: '#F0EDE6',
+  warm200: '#E0D8CC',
+  warm300: '#C8BFB0',
+  warm400: '#A89E8E',
+  warm500: '#7A7264',
+  warm600: '#5C554A',
+  warm700: '#3D3832',
+  warm800: '#2C2A27',
+
+  // Cool grays — kept for functional UI (inputs, disabled states)
   gray50: '#F8F9FC',
   gray100: '#F0F1F5',
   gray200: '#E2E4EB',
   gray300: '#C8CBD6',
   gray400: '#9CA1B3',
   gray500: '#6B7189',
-  gray600: '#4A4F63',
-  gray700: '#2D3142',
-  gray800: '#1A1D2E',
-  gray900: '#0D0F1A',
+
   black: '#000000',
 
-  // Accent
+  // Status colors
   green500: '#22C55E',
   green100: '#DCFCE7',
   amber500: '#F59E0B',
@@ -34,14 +60,17 @@ export const Colors = {
 
   // Semantic
   background: '#FFFFFF',
-  surface: '#F8F9FC',
-  textPrimary: '#1A1D2E',
-  textSecondary: '#6B7189',
-  textTertiary: '#9CA1B3',
-  border: '#E2E4EB',
+  surface: '#F5F0E8',
+  textPrimary: '#0D1F4A',
+  textSecondary: '#5C554A',
+  textTertiary: '#A89E8E',
+  border: '#E0D8CC',
 
   // Voice screen
   voiceBg: '#0d1117',
+
+  // Activation glow
+  activationGlow: '#E8A84C',
 };
 
 export const Typography = {
@@ -142,23 +171,23 @@ export const Radius = {
 
 export const Shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#0D1F4A',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: '#0D1F4A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: '#0D1F4A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 5,
   },

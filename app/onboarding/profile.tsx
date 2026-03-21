@@ -183,12 +183,12 @@ export default function ProfileScreen() {
                 onPress={() => setSheetField(row.label)}
                 activeOpacity={0.6}
               >
-                <Icon size={16} color={Colors.blue500} strokeWidth={1.8} />
+                <Icon size={16} color={Colors.terra500} strokeWidth={1.8} />
                 <View style={styles.rowContent}>
                   <Text style={styles.rowValue}>{displayValue}</Text>
                   <Text style={styles.rowLabel}>{row.label}</Text>
                 </View>
-                <Pencil size={14} color={Colors.gray300} strokeWidth={1.8} />
+                <Pencil size={14} color={Colors.warm300} strokeWidth={1.8} />
               </TouchableOpacity>
             );
           })}
@@ -238,7 +238,7 @@ export default function ProfileScreen() {
             >
               <SlidersHorizontal
                 size={13}
-                color={Colors.blue500}
+                color={Colors.terra500}
                 strokeWidth={1.8}
               />
               <Text style={styles.secondaryActionText}>I'll set my own</Text>
@@ -251,7 +251,7 @@ export default function ProfileScreen() {
               onPress={() => router.push('/onboarding/voice')}
               activeOpacity={0.7}
             >
-              <Mic size={13} color={Colors.blue500} strokeWidth={1.8} />
+              <Mic size={13} color={Colors.terra500} strokeWidth={1.8} />
               <Text style={styles.secondaryActionText}>Voice brief</Text>
             </TouchableOpacity>
           </View>
@@ -411,15 +411,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
+    borderBottomColor: Colors.warm100,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: Colors.warm200,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   chatBubble: {
     flex: 1,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     borderRadius: 14,
     borderTopLeftRadius: 4,
     paddingHorizontal: 12,
@@ -486,14 +486,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.gray200,
+    borderColor: Colors.warm200,
     marginBottom: Spacing.xxxl,
     overflow: 'hidden',
   },
   cardHeader: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
   },
   cardHeaderText: {
     fontSize: 10,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   profileRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: Colors.warm100,
   },
   rowContent: {
     flex: 1,
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
   },
   briefRow: {
     borderTopWidth: 1,
-    borderTopColor: Colors.gray100,
+    borderTopColor: Colors.warm100,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 12,
@@ -562,12 +562,12 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     fontSize: 13,
     fontFamily: 'DMSans-Medium',
-    color: Colors.blue500,
+    color: Colors.terra500,
   },
   secondaryDivider: {
     width: 1,
     height: 14,
-    backgroundColor: Colors.gray200,
+    backgroundColor: Colors.warm200,
     marginHorizontal: 8,
   },
   briefInput: {
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     minHeight: 68,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     borderRadius: 8,
   },
   sheetSectionLabel: {

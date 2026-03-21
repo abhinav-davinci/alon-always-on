@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderRadius: Radius.full,
-    backgroundColor: Colors.gray50,
+    backgroundColor: Colors.cream,
     borderWidth: 1.5,
-    borderColor: Colors.gray200,
+    borderColor: Colors.warm200,
   },
   pillSelected: {
     backgroundColor: Colors.blue50,
@@ -91,6 +91,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   pillTextSelected: {
-    color: Colors.blue600,
+    color: Colors.blue500,
   },
 });

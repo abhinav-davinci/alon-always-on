@@ -132,7 +132,7 @@ export default function IntentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1F3FA0',
+    backgroundColor: Colors.navy700,
     paddingHorizontal: Spacing.xxl,
   },
   topBar: {

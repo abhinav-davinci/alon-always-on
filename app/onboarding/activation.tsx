@@ -376,7 +376,7 @@ export default function ActivationScreen() {
                 >
                   <Icon
                     size={13}
-                    color={isActive ? Colors.blue300 : 'rgba(255,255,255,0.35)'}
+                    color={isActive ? Colors.terra300 : 'rgba(255,255,255,0.35)'}
                     strokeWidth={1.8}
                   />
                   <Text style={[styles.notifyChipText, isActive && styles.notifyChipTextActive]}>
@@ -406,7 +406,7 @@ export default function ActivationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0E1B3D',
+    backgroundColor: Colors.navy800,
   },
   topBar: {
     paddingHorizontal: Spacing.xl,
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   signalRing: {
     position: 'absolute',
     borderWidth: 1.5,
-    borderColor: '#E8A84C',
+    borderColor: Colors.activationGlow,
   },
   signalRing1: {
     width: 80,
@@ -562,8 +562,8 @@ const styles = StyleSheet.create({
     borderColor: '#22C55E',
   },
   stepDotActive: {
-    backgroundColor: Colors.blue500,
-    borderColor: Colors.blue400,
+    backgroundColor: Colors.terra500,
+    borderColor: Colors.terra400,
   },
   stepDotInner: {
     width: 6,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 3,
     borderRadius: 2,
-    backgroundColor: Colors.blue400,
+    backgroundColor: Colors.terra400,
   },
 
   // Progress
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.blue400,
+    backgroundColor: Colors.terra400,
     borderRadius: 2,
   },
   progressLabel: {
@@ -663,8 +663,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   notifyChipActive: {
-    borderColor: Colors.blue400,
-    backgroundColor: 'rgba(41,82,216,0.2)',
+    borderColor: Colors.terra400,
+    backgroundColor: 'rgba(217,95,43,0.2)',
   },
   notifyChipText: {
     fontSize: 12,
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
   },
   notifyChipTextActive: {
-    color: Colors.blue300,
+    color: Colors.terra300,
   },
 
   // Always on
