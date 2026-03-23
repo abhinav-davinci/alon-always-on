@@ -43,6 +43,7 @@ import {
   Mail,
 } from 'lucide-react-native';
 import AlonAvatar from '../../components/AlonAvatar';
+import JourneyCard from '../../components/JourneyCard';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import { formatBudget } from '../../constants/locations';
@@ -180,105 +181,8 @@ export default function DashboardScreen() {
           </Animated.View>
         </View>
 
-        {/* ── 2. Relationship Manager ── */}
-        <Animated.View style={styles.section} entering={FadeIn.delay(500).duration(400)}>
-          <Text style={styles.sectionLabel}>YOUR ADVISOR</Text>
-          <View style={styles.rmCard}>
-            <View style={styles.rmAvatar}>
-              <Text style={styles.rmInitials}>PS</Text>
-            </View>
-            <View style={styles.rmInfo}>
-              <Text style={styles.rmName}>Priya Sharma</Text>
-              <Text style={styles.rmRole}>Property Advisor · Pune</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.callChip, !bizHours && styles.callChipOff]}
-              onPress={() => bizHours && Linking.openURL('tel:+919876543210')}
-              activeOpacity={bizHours ? 0.7 : 1}
-            >
-              {bizHours ? (
-                <Phone size={12} color="#fff" strokeWidth={2} />
-              ) : (
-                <PhoneOff size={12} color={Colors.gray400} strokeWidth={2} />
-              )}
-              <Text style={[styles.callChipText, !bizHours && styles.callChipTextOff]}>
-                {bizHours ? 'Call' : '10–7pm'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
-        {/* ── 3. Journey — collapsible ── */}
-        <Animated.View style={styles.section} entering={FadeIn.delay(600).duration(400)}>
-          <TouchableOpacity
-            style={styles.journeyHeader}
-            onPress={() => setJourneyExpanded(!journeyExpanded)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.journeyHeaderLeft}>
-              <Text style={styles.sectionTitleInline}>Your home journey</Text>
-              <View style={styles.journeyBadge}>
-                <Text style={styles.journeyBadgeText}>{currentIndex + 1} of 8</Text>
-              </View>
-            </View>
-            {journeyExpanded ? (
-              <ChevronUp size={18} color={Colors.gray400} strokeWidth={2} />
-            ) : (
-              <ChevronDown size={18} color={Colors.gray400} strokeWidth={2} />
-            )}
-          </TouchableOpacity>
-
-          {!journeyExpanded && currentStage && (
-            <View style={styles.journeyCollapsed}>
-              <View style={styles.journeyActiveDotWrap}>
-                <Animated.View style={[styles.journeyPulseRing, dotStyle]} />
-                <View style={styles.journeyDotActive}>
-                  <View style={styles.journeyDotInner} />
-                </View>
-              </View>
-              <View style={styles.journeyCollapsedContent}>
-                <Text style={styles.journeyCollapsedBold}>Searching...</Text>
-                <Text style={styles.journeyCollapsedSub}>ALON is scanning properties for you</Text>
-              </View>
-              <View style={styles.miniScanTrack}>
-                <Animated.View style={[styles.miniScanDot, scanStyle]} />
-              </View>
-            </View>
-          )}
-
-          {journeyExpanded && (
-            <View style={styles.journeyCard}>
-              {JOURNEY_STAGES.map((stage, i) => {
-                const Icon = stage.icon;
-                const isActive = stage.status === 'active';
-                const isDone = stage.status === 'done';
-                const isLast = i === JOURNEY_STAGES.length - 1;
-                return (
-                  <View key={stage.key} style={styles.journeyRow}>
-                    {!isLast && (
-                      <View style={[styles.journeyLine, (isActive || isDone) && styles.journeyLineActive]} />
-                    )}
-                    <View style={[styles.journeyDot, isActive && styles.journeyDotActive, isDone && styles.journeyDotDone]}>
-                      {isDone ? (
-                        <Check size={10} color="#fff" strokeWidth={3} />
-                      ) : (
-                        <Icon size={11} color={isActive ? '#fff' : Colors.gray400} strokeWidth={1.8} />
-                      )}
-                    </View>
-                    <Text style={[styles.journeyLabel, isActive && styles.journeyLabelActive, isDone && styles.journeyLabelDone]}>
-                      {stage.label}
-                    </Text>
-                    {isActive && (
-                      <View style={styles.currentBadge}>
-                        <Text style={styles.currentBadgeText}>Current</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </Animated.View>
+        {/* ── 2. Property Journey ── */}
+        <JourneyCard />
 
         {/* ── 4. Top Matches ── */}
         <Animated.View style={styles.section} entering={FadeIn.delay(700).duration(400)}>
