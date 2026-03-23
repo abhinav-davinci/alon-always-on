@@ -32,7 +32,7 @@ export default function AlertCard({
       {action && (
         <View style={styles.actionContainer}>
           <Text style={styles.actionText}>{action}</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.blue500} />
+          <Ionicons name="chevron-forward" size={14} color={Colors.terra500} />
         </View>
       )}
     </TouchableOpacity>
@@ -72,6 +72,6 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...Typography.smallMedium,
-    color: Colors.blue500,
+    color: Colors.terra500,
   },
 });

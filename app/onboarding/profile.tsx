@@ -49,6 +49,13 @@ import {
   formatBudget,
 } from '../../constants/locations';
 
+const PURPOSE_ITEMS_MAP: Record<string, string> = {
+  self: 'Live in it',
+  invest: 'Invest',
+  family: 'Family',
+  work: 'Work hub',
+};
+
 const ROW_ICONS: Record<string, typeof MapPin> = {
   Location: MapPin,
   Type: Building2,
@@ -193,19 +200,23 @@ export default function ProfileScreen() {
             );
           })}
 
-          {/* Brief inline — part of the card */}
+          {/* Brief section */}
           <View
             ref={briefRef}
             style={styles.briefRow}
             onLayout={() => {}}
           >
-            <Text style={styles.briefLabel}>Your brief to ALON</Text>
+            <Text style={styles.briefTitle}>Anything ALON must know?</Text>
+            <Text style={styles.briefSubtitle}>
+              Builders you trust or avoid, deal-breakers, must-haves —{' '}
+              <Text style={styles.briefHighlight}>your direct brief.</Text>
+            </Text>
             <TextInput
               style={styles.briefInput}
-              placeholder="e.g. Need parking, avoid ground floor, only RERA-registered..."
+              placeholder="e.g. Only established builders, need parking, avoid ground floor, open to Wakad if Baner is over budget..."
               placeholderTextColor={Colors.textTertiary}
               multiline
-              numberOfLines={2}
+              numberOfLines={3}
               textAlignVertical="top"
               value={store.briefText}
               onChangeText={store.setBriefText}
@@ -226,7 +237,7 @@ export default function ProfileScreen() {
         >
           <Button
             title="Yes, this feels right →"
-            onPress={() => router.push('/onboarding/activation')}
+            onPress={() => router.push('/onboarding/signup')}
             variant="primary"
           />
 
@@ -373,9 +384,15 @@ export default function ProfileScreen() {
         onClose={() => setSheetField(null)}
       >
         <PurposeGrid
-          selected={store.purpose === 'Self use' ? 'self' : store.purpose === 'Investment' ? 'invest' : store.purpose}
+          selected={
+            store.purpose === 'Self use' || store.purpose === 'Live in it' ? 'self'
+            : store.purpose === 'Investment' || store.purpose === 'Invest' ? 'invest'
+            : store.purpose === 'Family' ? 'family'
+            : store.purpose === 'Work hub' ? 'work'
+            : store.purpose
+          }
           onSelect={(id) => {
-            const label = PURPOSE_OPTIONS.find((o) => o.id === id)?.label || id;
+            const label = PURPOSE_ITEMS_MAP[id] || id;
             store.setPurpose(label);
           }}
         />
@@ -531,16 +548,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.warm100,
     paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
-  briefLabel: {
-    fontSize: 11,
-    fontFamily: 'DMSans-Medium',
+  briefTitle: {
+    fontSize: 15,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  briefSubtitle: {
+    fontSize: 12,
+    fontFamily: 'DMSans-Regular',
     color: Colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 6,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  briefHighlight: {
+    color: Colors.terra500,
+    fontFamily: 'DMSans-Medium',
   },
   ctas: {
     gap: Spacing.lg,
@@ -574,12 +600,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'DMSans-Regular',
     color: Colors.textPrimary,
-    lineHeight: 19,
-    minHeight: 68,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: Colors.cream,
-    borderRadius: 8,
+    lineHeight: 20,
+    minHeight: 88,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.warm200,
+    borderRadius: 12,
   },
   sheetSectionLabel: {
     fontSize: 12,

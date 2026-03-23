@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     color: Colors.green500,
   },
   statusActive: {
-    color: Colors.blue600,
+    color: Colors.terra600,
   },
   statusPending: {
     color: Colors.textTertiary,
@@ -142,14 +142,14 @@ const styles = StyleSheet.create({
     color: Colors.green500,
   },
   liveBadge: {
-    backgroundColor: Colors.blue100,
+    backgroundColor: Colors.terra100,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
   },
   liveBadgeText: {
     ...Typography.small,
-    color: Colors.blue600,
+    color: Colors.terra600,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
     borderRadius: 3,
   },
   progressText: {
     ...Typography.smallMedium,
-    color: Colors.blue600,
+    color: Colors.terra600,
   },
   eta: {
     ...Typography.small,

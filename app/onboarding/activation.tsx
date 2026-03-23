@@ -139,7 +139,7 @@ export default function ActivationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
-  const { locations, propertySize, budget, purpose, propertyType, notifyVia, toggleNotifyVia } =
+  const { locations, propertySize, budget, purpose, propertyType, notifyVia, toggleNotifyVia, userName } =
     useOnboardingStore();
 
   // Hero animation values
@@ -296,7 +296,7 @@ export default function ActivationScreen() {
 
         {/* Title */}
         <Animated.View style={[styles.titleSection, titleStyle]}>
-          <Text style={styles.title}>ALON is on it.</Text>
+          <Text style={styles.title}>{userName ? `${userName.split(' ')[0]}, ALON is on it.` : 'ALON is on it.'}</Text>
           <Text style={styles.subtitle}>
             Scanning 12L+ listings and verifying RERA data — just for you.
           </Text>

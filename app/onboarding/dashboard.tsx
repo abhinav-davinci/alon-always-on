@@ -91,7 +91,7 @@ function Counter({ target, delay = 0 }: { target: number; delay?: number }) {
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { locations, propertySize, budget, propertyType, notifyVia, toggleNotifyVia } = useOnboardingStore();
+  const { locations, propertySize, budget, propertyType, notifyVia, toggleNotifyVia, userName } = useOnboardingStore();
   const bizHours = isBusinessHours();
   const [journeyExpanded, setJourneyExpanded] = useState(false);
 
@@ -151,7 +151,7 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
+              <Text style={styles.greeting}>{getGreeting()}{userName ? `, ${userName.split(' ')[0]}` : ''}</Text>
               <View style={styles.statusRow}>
                 <Animated.View style={[styles.activeDot, dotStyle]} />
                 <Text style={styles.statusLabel}>ALON is active</Text>

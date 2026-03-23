@@ -9,6 +9,9 @@ export interface OnboardingState {
   budget: { min: number; max: number };
   purpose: string;
   timeline: string;
+  userName: string;
+  userPhone: string;
+  isVerified: boolean;
   briefText: string;
   needsLoan: boolean;
   notifyVia: string[];
@@ -20,6 +23,9 @@ export interface OnboardingState {
   setBudget: (budget: { min: number; max: number }) => void;
   setPurpose: (purpose: string) => void;
   setTimeline: (timeline: string) => void;
+  setUserName: (name: string) => void;
+  setUserPhone: (phone: string) => void;
+  setIsVerified: (verified: boolean) => void;
   setBriefText: (text: string) => void;
   setNeedsLoan: (val: boolean) => void;
   toggleNotifyVia: (channel: string) => void;
@@ -34,6 +40,9 @@ const initialState = {
   budget: { min: 5000000, max: 12000000 },
   purpose: '',
   timeline: '',
+  userName: '',
+  userPhone: '',
+  isVerified: false,
   briefText: '',
   needsLoan: false,
   notifyVia: ['push'] as string[],
@@ -61,6 +70,9 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setBudget: (budget) => set({ budget }),
   setPurpose: (purpose) => set({ purpose }),
   setTimeline: (timeline) => set({ timeline }),
+  setUserName: (userName) => set({ userName }),
+  setUserPhone: (userPhone) => set({ userPhone }),
+  setIsVerified: (isVerified) => set({ isVerified }),
   setBriefText: (briefText) => set({ briefText }),
   setNeedsLoan: (needsLoan) => set({ needsLoan }),
   toggleNotifyVia: (channel) =>

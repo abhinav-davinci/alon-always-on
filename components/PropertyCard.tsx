@@ -62,19 +62,19 @@ const styles = StyleSheet.create({
   },
   imagePlaceholder: {
     height: 140,
-    backgroundColor: Colors.blue100,
+    backgroundColor: Colors.warm100,
     alignItems: 'center',
     justifyContent: 'center',
   },
   imagePlaceholderText: {
     ...Typography.caption,
-    color: Colors.blue400,
+    color: Colors.terra400,
   },
   newBadge: {
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.sm,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   price: {
     ...Typography.bodyMedium,
-    color: Colors.blue600,
+    color: Colors.terra600,
   },
   size: {
     ...Typography.caption,

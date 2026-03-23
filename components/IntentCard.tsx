@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   cardSelected: {
-    borderColor: Colors.blue500,
-    backgroundColor: Colors.blue50,
+    borderColor: Colors.terra500,
+    backgroundColor: Colors.terra50,
   },
   icon: {
     fontSize: 28,

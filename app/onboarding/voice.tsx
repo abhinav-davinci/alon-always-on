@@ -174,6 +174,6 @@ const styles = StyleSheet.create({
   },
   switchLinkText: {
     ...Typography.captionMedium,
-    color: Colors.blue300,
+    color: Colors.terra300,
   },
 });

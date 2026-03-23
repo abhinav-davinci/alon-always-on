@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: Colors.blue400,
+    borderColor: Colors.terra400,
   },
   orb: {
     width: 120,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: Colors.blue500,
+    backgroundColor: Colors.terra500,
   },
   stateLabel: {
     ...Typography.bodyMedium,

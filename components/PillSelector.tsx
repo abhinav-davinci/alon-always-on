@@ -83,14 +83,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.warm200,
   },
   pillSelected: {
-    backgroundColor: Colors.blue50,
-    borderColor: Colors.blue500,
+    backgroundColor: Colors.terra50,
+    borderColor: Colors.terra500,
   },
   pillText: {
     ...Typography.captionMedium,
     color: Colors.textSecondary,
   },
   pillTextSelected: {
-    color: Colors.blue500,
+    color: Colors.terra600,
   },
 });
