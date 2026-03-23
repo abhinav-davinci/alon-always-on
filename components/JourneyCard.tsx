@@ -3,11 +3,18 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  TouchableOpacity,
 } from 'react-native';
+import Animated, {
+  FadeInUp,
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import {
   Search,
   ListChecks,
@@ -19,13 +26,13 @@ import {
   Key,
   CheckCircle2,
 } from 'lucide-react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 
-const ITEM_HEIGHT = 46;
-const VISIBLE_COUNT = 3;
+const ITEM_HEIGHT = 44;
+const VISIBLE_COUNT = 5;
 const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT;
+const CENTER_OFFSET = ITEM_HEIGHT * 2; // padding to center first/last item
 
 interface Stage {
   num: number;
@@ -39,10 +46,10 @@ interface Stage {
 const STAGES: Stage[] = [
   { num: 1, label: 'Search', icon: Search, status: 'active',
     alonDoes: 'Scanning 12L+ listings filtered by RERA, builder trust & price history',
-    youDo: 'Set criteria & areas — done ✓' },
+    youDo: 'Set criteria & preferred areas — done' },
   { num: 2, label: 'Shortlist', icon: ListChecks, status: 'pending',
     alonDoes: 'Curates top 5 with price-vs-market comparison & track record',
-    youDo: 'Pick your top 2–3 favorites' },
+    youDo: 'Pick your top 2-3 favorites' },
   { num: 3, label: 'Site Visits', icon: MapPin, status: 'pending',
     alonDoes: 'Books visits with your number hidden + inspection checklist',
     youDo: 'Share your available time slots' },
@@ -51,34 +58,115 @@ const STAGES: Stage[] = [
     youDo: 'Make the final call — always yours' },
   { num: 5, label: 'Finance', icon: Landmark, status: 'pending',
     alonDoes: 'Compares loan offers from 10+ banks, finds best rates',
-    youDo: 'Share basic income details' },
+    youDo: 'Share basic income details for pre-approval' },
   { num: 6, label: 'Legal', icon: Scale, status: 'pending',
     alonDoes: 'Flags risky clauses, verifies title & RERA compliance',
-    youDo: 'Upload the draft agreement' },
+    youDo: 'Upload the draft agreement when received' },
   { num: 7, label: 'Negotiate', icon: Handshake, status: 'pending',
     alonDoes: 'Finds your leverage from comparable sales data',
-    youDo: "Negotiate using ALON's insights" },
+    youDo: "Negotiate price using ALON's market insights" },
   { num: 8, label: 'Possession', icon: Key, status: 'pending',
-    alonDoes: 'Complete checklist — documents, inspections, transfers',
-    youDo: 'Inspect, accept & get your keys 🏡' },
+    alonDoes: 'Complete checklist — documents, inspections, meter transfers',
+    youDo: 'Inspect, accept & collect your keys' },
 ];
+
+// Individual wheel item with animated transforms
+function WheelItem({ stage, index, scrollY, onPress }: {
+  stage: Stage;
+  index: number;
+  scrollY: any;
+  onPress: () => void;
+}) {
+  const isDone = stage.status === 'done';
+  const isActive = stage.status === 'active';
+
+  const animStyle = useAnimatedStyle(() => {
+    const center = scrollY.value;
+    const itemCenter = index * ITEM_HEIGHT;
+    const distance = Math.abs(center - itemCenter);
+    const normalizedDist = distance / ITEM_HEIGHT;
+
+    // Scale: 1 at center, 0.88 at ±1, 0.78 at ±2
+    const scale = interpolate(
+      normalizedDist,
+      [0, 1, 2],
+      [1, 0.9, 0.8],
+      Extrapolation.CLAMP
+    );
+
+    // Opacity: 1 at center, 0.35 at ±1, 0.12 at ±2
+    const opacity = interpolate(
+      normalizedDist,
+      [0, 1, 2, 3],
+      [1, 0.4, 0.15, 0.05],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  const isSelectedStyle = useAnimatedStyle(() => {
+    const center = scrollY.value;
+    const itemCenter = index * ITEM_HEIGHT;
+    const distance = Math.abs(center - itemCenter);
+    // 1 when selected (distance < half item), 0 otherwise
+    const isSelected = distance < ITEM_HEIGHT * 0.5 ? 1 : 0;
+    return {
+      backgroundColor: isSelected ? Colors.terra500 : (isActive ? Colors.terra300 : Colors.warm100),
+    };
+  });
+
+  return (
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      <Animated.View style={[styles.wheelItem, animStyle]}>
+        <Animated.View style={[styles.numDot, isSelectedStyle]}>
+          {isDone ? (
+            <CheckCircle2 size={11} color="#fff" strokeWidth={2.5} />
+          ) : (
+            <Text style={styles.numText}>{stage.num}</Text>
+          )}
+        </Animated.View>
+        <Text style={styles.wheelLabel}>{stage.label}</Text>
+        {isActive && (
+          <View style={styles.nowIndicator}>
+            <View style={styles.nowPulse} />
+          </View>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
 
 export default function JourneyCard() {
   const haptics = useHaptics();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<Animated.ScrollView>(null);
   const [selected, setSelected] = useState(0);
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const handleMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(STAGES.length - 1, index));
     setSelected(clamped);
-    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
+    haptics.selection();
+  }, []);
+
+  const scrollToIndex = useCallback((index: number) => {
+    scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+    setSelected(index);
     haptics.selection();
   }, []);
 
   const stage = STAGES[selected];
-  const Icon = stage.icon;
 
   return (
     <View style={styles.outer}>
@@ -90,76 +178,62 @@ export default function JourneyCard() {
         </View>
       </View>
 
-      {/* Card */}
       <View style={styles.card}>
-        {/* Wheel area */}
+        {/* ── Wheel ── */}
         <View style={styles.wheelWrap}>
-          {/* Selection highlight — cream bg with terra left border */}
-          <View style={styles.selectionBar}>
-            <View style={styles.selectionAccent} />
+          {/* Aperture lines — two thin lines marking the selection zone */}
+          <View style={[styles.apertureLine, { top: CENTER_OFFSET - 1 }]} />
+          <View style={[styles.apertureLine, { top: CENTER_OFFSET + ITEM_HEIGHT }]} />
+
+          {/* Terra accent on left of selection zone */}
+          <View style={styles.selectionAccent} />
+
+          {/* Top fade mask */}
+          <View style={styles.fadeTop} pointerEvents="none">
+            <View style={[styles.fadeBand, { opacity: 0.95 }]} />
+            <View style={[styles.fadeBand, { opacity: 0.6 }]} />
+            <View style={[styles.fadeBand, { opacity: 0.2 }]} />
           </View>
 
-          <ScrollView
+          {/* Bottom fade mask */}
+          <View style={styles.fadeBottom} pointerEvents="none">
+            <View style={[styles.fadeBand, { opacity: 0.2 }]} />
+            <View style={[styles.fadeBand, { opacity: 0.6 }]} />
+            <View style={[styles.fadeBand, { opacity: 0.95 }]} />
+          </View>
+
+          <Animated.ScrollView
             ref={scrollRef}
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
+            onScroll={scrollHandler}
             onMomentumScrollEnd={handleMomentumEnd}
+            scrollEventThrottle={16}
             style={{ height: WHEEL_HEIGHT }}
             contentContainerStyle={{
-              paddingTop: ITEM_HEIGHT, // 1 item above center
-              paddingBottom: ITEM_HEIGHT, // 1 item below center
+              paddingTop: CENTER_OFFSET,
+              paddingBottom: CENTER_OFFSET,
             }}
           >
-            {STAGES.map((s, i) => {
-              const isSelected = i === selected;
-              const isDone = s.status === 'done';
-              const isActive = s.status === 'active';
-
-              return (
-                <TouchableOpacity
-                  key={s.num}
-                  style={styles.wheelItem}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated: true });
-                    setSelected(i);
-                    haptics.selection();
-                  }}
-                >
-                  <View style={[
-                    styles.numDot,
-                    isSelected && styles.numDotSelected,
-                    isDone && styles.numDotDone,
-                    isActive && !isSelected && styles.numDotActive,
-                  ]}>
-                    {isDone ? (
-                      <CheckCircle2 size={11} color="#fff" strokeWidth={2.5} />
-                    ) : (
-                      <Text style={[styles.numText, (isSelected || isActive) && styles.numTextLight]}>{s.num}</Text>
-                    )}
-                  </View>
-
-                  <Text style={[
-                    styles.label,
-                    isSelected && styles.labelSelected,
-                  ]}>{s.label}</Text>
-
-                  {isActive && isSelected && (
-                    <View style={styles.nowBadge}>
-                      <View style={styles.nowPulse} />
-                      <Text style={styles.nowText}>Now</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+            {STAGES.map((s, i) => (
+              <WheelItem
+                key={s.num}
+                stage={s}
+                index={i}
+                scrollY={scrollY}
+                onPress={() => scrollToIndex(i)}
+              />
+            ))}
+          </Animated.ScrollView>
         </View>
 
-        {/* Detail — vertically stacked, no redundant header */}
-        <Animated.View key={stage.num} style={styles.detail} entering={FadeIn.duration(180)}>
-          {/* ALON does */}
+        {/* ── Detail ── */}
+        <Animated.View
+          key={stage.num}
+          style={styles.detail}
+          entering={FadeInUp.duration(200).springify().damping(18)}
+        >
           <View style={styles.roleBlock}>
             <View style={styles.alonPill}>
               <Text style={styles.alonPillText}>ALON</Text>
@@ -167,10 +241,8 @@ export default function JourneyCard() {
             <Text style={styles.roleText}>{stage.alonDoes}</Text>
           </View>
 
-          {/* Dashed divider */}
-          <View style={styles.dashedLine} />
+          <View style={styles.separator} />
 
-          {/* Your part */}
           <View style={styles.roleBlock}>
             <View style={styles.youPill}>
               <Text style={styles.youPillText}>YOUR PART</Text>
@@ -178,11 +250,10 @@ export default function JourneyCard() {
             <Text style={styles.roleText}>{stage.youDo}</Text>
           </View>
 
-          {/* Next hint */}
           <Text style={styles.nextHint}>
             {selected < 7
-              ? `Next: ${STAGES[selected + 1].label} →`
-              : 'The final step — your new home awaits 🏡'}
+              ? `Next: ${STAGES[selected + 1].label} \u2192`
+              : 'The final step — your new home awaits'}
           </Text>
         </Animated.View>
       </View>
@@ -220,7 +291,6 @@ const styles = StyleSheet.create({
     color: Colors.terra500,
   },
 
-  // Card
   card: {
     backgroundColor: Colors.white,
     borderRadius: 16,
@@ -232,86 +302,90 @@ const styles = StyleSheet.create({
   // Wheel
   wheelWrap: {
     position: 'relative',
+    overflow: 'hidden',
   },
-  selectionBar: {
+
+  // Two thin aperture lines
+  apertureLine: {
     position: 'absolute',
-    top: ITEM_HEIGHT, // 1 item from top = center
-    left: 8,
-    right: 8,
-    height: ITEM_HEIGHT,
-    backgroundColor: Colors.terra50,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.terra200,
-    zIndex: 0,
-    flexDirection: 'row',
+    left: 14,
+    right: 14,
+    height: 1,
+    backgroundColor: Colors.warm200,
+    zIndex: 5,
   },
+
+  // Terra left accent in selection zone
   selectionAccent: {
+    position: 'absolute',
+    top: CENTER_OFFSET + 6,
+    left: 14,
     width: 3,
+    height: ITEM_HEIGHT - 12,
     backgroundColor: Colors.terra500,
     borderRadius: 2,
-    marginVertical: 8,
-    marginLeft: 2,
+    zIndex: 6,
   },
+
+  // Edge fade masks (white → transparent)
+  fadeTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: CENTER_OFFSET - 4,
+    zIndex: 4,
+    justifyContent: 'flex-start',
+  },
+  fadeBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: CENTER_OFFSET - 4,
+    zIndex: 4,
+    justifyContent: 'flex-end',
+  },
+  fadeBand: {
+    height: (CENTER_OFFSET - 4) / 3,
+    backgroundColor: '#fff',
+  },
+
+  // Wheel items
   wheelItem: {
     height: ITEM_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    gap: 10,
-    zIndex: 1,
+    paddingHorizontal: 22,
+    gap: 12,
   },
   numDot: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.warm100,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  numDotSelected: {
-    backgroundColor: Colors.terra500,
-  },
-  numDotDone: {
-    backgroundColor: '#22C55E',
-  },
-  numDotActive: {
-    backgroundColor: Colors.terra300,
   },
   numText: {
     fontSize: 11,
     fontFamily: 'DMSans-SemiBold',
-    color: Colors.warm400,
-  },
-  numTextLight: {
     color: '#fff',
   },
-  label: {
+  wheelLabel: {
     flex: 1,
-    fontSize: 15,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textTertiary,
-  },
-  labelSelected: {
-    fontFamily: 'DMSans-SemiBold',
     fontSize: 16,
+    fontFamily: 'DMSans-SemiBold',
     color: Colors.textPrimary,
   },
-  nowBadge: {
+  nowIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   nowPulse: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
     backgroundColor: Colors.terra500,
-  },
-  nowText: {
-    fontSize: 10,
-    fontFamily: 'DMSans-SemiBold',
-    color: Colors.terra500,
   },
 
   // Detail
@@ -319,7 +393,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.warm100,
     padding: 14,
-    gap: 0,
   },
   roleBlock: {
     gap: 6,
@@ -358,7 +431,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
-  dashedLine: {
+  separator: {
     height: 1,
     backgroundColor: Colors.warm100,
     marginVertical: 10,
