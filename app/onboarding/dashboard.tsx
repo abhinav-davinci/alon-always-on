@@ -59,9 +59,9 @@ const JOURNEY_STAGES = [
 ] as Array<{ key: string; label: string; icon: typeof Search; status: 'done' | 'active' | 'pending' }>;
 
 const DEMO_PROPERTIES = [
-  { name: 'Godrej Hillside', area: 'Baner', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=250&fit=crop' },
-  { name: 'Pride World City', area: 'Balewadi', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&h=250&fit=crop' },
-  { name: 'Kolte Patil 24K', area: 'Wakad', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=250&fit=crop' },
+  { id: 'godrej-hillside', name: 'Godrej Hillside', area: 'Baner', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=250&fit=crop' },
+  { id: 'pride-world-city', name: 'Pride World City', area: 'Balewadi', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&h=250&fit=crop' },
+  { id: 'kolte-patil-24k', name: 'Kolte Patil 24K', area: 'Wakad', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=250&fit=crop' },
 ];
 
 function isBusinessHours(): boolean {
@@ -290,7 +290,7 @@ export default function DashboardScreen() {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.propertiesScroll}>
             {DEMO_PROPERTIES.map((p) => (
-              <View key={p.name} style={styles.propertyCard}>
+              <TouchableOpacity key={p.name} style={styles.propertyCard} activeOpacity={0.85} onPress={() => router.push({ pathname: '/onboarding/property-detail', params: { id: p.id } })}>
                 <View style={styles.propertyImage}>
                   <Image
                     source={{ uri: p.image }}
@@ -318,7 +318,7 @@ export default function DashboardScreen() {
                     ))}
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </Animated.View>

@@ -7,11 +7,11 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 
 const PROPERTIES = [
-  { name: 'Godrej Hillside', area: 'Baner, Pune', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=300&fit=crop' },
-  { name: 'Pride World City', area: 'Balewadi, Pune', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=300&fit=crop' },
-  { name: 'Kolte Patil 24K', area: 'Wakad, Pune', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=300&fit=crop' },
-  { name: 'Sobha Dream Acres', area: 'Hinjewadi, Pune', price: '₹1.05 Cr', size: '2 BHK · 1,180 sq.ft', tags: ['RERA ✓', 'New Launch'], isNew: true, image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=300&fit=crop' },
-  { name: 'Panchshil Towers', area: 'Kharadi, Pune', price: '₹1.42 Cr', size: '3 BHK · 1,520 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: false, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=300&fit=crop' },
+  { id: 'godrej-hillside', name: 'Godrej Hillside', area: 'Baner, Pune', price: '₹1.35 Cr', size: '3 BHK · 1,450 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: true, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=300&fit=crop' },
+  { id: 'pride-world-city', name: 'Pride World City', area: 'Balewadi, Pune', price: '₹1.18 Cr', size: '3 BHK · 1,320 sq.ft', tags: ['RERA ✓', 'Ready'], isNew: true, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&h=300&fit=crop' },
+  { id: 'kolte-patil-24k', name: 'Kolte Patil 24K', area: 'Wakad, Pune', price: '₹98 L', size: '2 BHK · 1,050 sq.ft', tags: ['RERA ✓'], isNew: false, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=300&fit=crop' },
+  { id: 'sobha-dream-acres', name: 'Sobha Dream Acres', area: 'Hinjewadi, Pune', price: '₹1.05 Cr', size: '2 BHK · 1,180 sq.ft', tags: ['RERA ✓', 'New Launch'], isNew: true, image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=300&fit=crop' },
+  { id: 'panchshil-towers', name: 'Panchshil Towers', area: 'Kharadi, Pune', price: '₹1.42 Cr', size: '3 BHK · 1,520 sq.ft', tags: ['RERA ✓', 'Premium'], isNew: false, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=300&fit=crop' },
 ];
 
 export default function PropertiesScreen() {
@@ -41,7 +41,7 @@ export default function PropertiesScreen() {
             key={p.name}
             entering={FadeInDown.delay(i * 80).duration(300)}
           >
-            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => router.push({ pathname: '/onboarding/property-detail', params: { id: p.id } })}>
               <View style={styles.cardImage}>
                 <Image source={{ uri: p.image }} style={styles.cardImg} resizeMode="cover" />
                 {p.isNew && (

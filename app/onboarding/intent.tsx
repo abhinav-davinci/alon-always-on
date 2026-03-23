@@ -84,7 +84,7 @@ export default function IntentScreen() {
       >
         <Text style={styles.chatText}>
           Hey — I'm <Text style={styles.chatBold}>ALON</Text>, your personal
-          property scout. What's bringing you here today?
+          property assistant. What's bringing you here today?
         </Text>
       </Animated.View>
 
