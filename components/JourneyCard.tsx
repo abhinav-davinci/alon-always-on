@@ -32,33 +32,51 @@ interface Stage {
   status: 'done' | 'active' | 'pending';
   alonDetail: string;
   yourDetail: string;
+  ctaLabel: string;
+  ctaInfo: string;
 }
 
 const STAGES: Stage[] = [
   { num: 1, label: 'Search', yourTask: 'Set criteria', alonTask: 'Scanning', status: 'active',
     alonDetail: 'Scanning 12L+ listings by RERA & trust score',
-    yourDetail: 'Set criteria & areas — done' },
+    yourDetail: 'Set criteria & areas — done',
+    ctaLabel: 'Shortlist now →',
+    ctaInfo: 'We found 5 matches based on your preferences. Shortlist to proceed.' },
   { num: 2, label: 'Shortlist', yourTask: 'Pick favorites', alonTask: 'Curating', status: 'pending',
     alonDetail: 'Curates top 5 with price-vs-market comparison',
-    yourDetail: 'Pick your top 2-3 favorites' },
+    yourDetail: 'Pick your top 2-3 favorites',
+    ctaLabel: 'View top matches →',
+    ctaInfo: 'ALON has curated your top matches. Review and pick favorites.' },
   { num: 3, label: 'Site Visits', yourTask: 'Share slots', alonTask: 'Booking', status: 'pending',
     alonDetail: 'Books visits, number hidden + checklist',
-    yourDetail: 'Share your available time slots' },
+    yourDetail: 'Share your available time slots',
+    ctaLabel: 'Schedule a visit →',
+    ctaInfo: 'Share your availability and ALON will book visits for you.' },
   { num: 4, label: 'Compare', yourTask: 'Your call', alonTask: 'Analyzing', status: 'pending',
     alonDetail: 'Side-by-side with real transaction data',
-    yourDetail: 'Make the final call — always yours' },
+    yourDetail: 'Make the final call — always yours',
+    ctaLabel: 'Compare properties →',
+    ctaInfo: 'ALON will build a side-by-side comparison for your shortlist.' },
   { num: 5, label: 'Finance', yourTask: 'Share docs', alonTask: 'Best rates', status: 'pending',
     alonDetail: 'Compares loans from 10+ banks',
-    yourDetail: 'Share income details for pre-approval' },
+    yourDetail: 'Share income details for pre-approval',
+    ctaLabel: 'Check loan options →',
+    ctaInfo: 'Get pre-approved with the best rates from 10+ banks.' },
   { num: 6, label: 'Legal', yourTask: 'Upload draft', alonTask: 'Verifying', status: 'pending',
     alonDetail: 'Flags risky clauses, verifies RERA',
-    yourDetail: 'Upload the draft agreement' },
+    yourDetail: 'Upload the draft agreement',
+    ctaLabel: 'Start legal check →',
+    ctaInfo: 'Upload your agreement and ALON will flag any concerns.' },
   { num: 7, label: 'Negotiate', yourTask: 'Use data', alonTask: 'Leverage', status: 'pending',
     alonDetail: 'Finds leverage from comparable sales',
-    yourDetail: "Negotiate using ALON's insights" },
+    yourDetail: "Negotiate using ALON's insights",
+    ctaLabel: 'Get negotiation data →',
+    ctaInfo: 'ALON will prepare market data to strengthen your position.' },
   { num: 8, label: 'Possession', yourTask: 'Collect keys', alonTask: 'Checklist', status: 'pending',
     alonDetail: 'Complete checklist — docs to transfers',
-    yourDetail: 'Inspect, accept & collect your keys' },
+    yourDetail: 'Inspect, accept & collect your keys',
+    ctaLabel: 'View possession checklist →',
+    ctaInfo: 'Everything you need to check before collecting your keys.' },
 ];
 
 function WheelRow({ stage, index, scrollY }: { stage: Stage; index: number; scrollY: any }) {
@@ -181,20 +199,27 @@ export default function JourneyCard() {
           </Animated.ScrollView>
         </View>
 
-        {/* Detail — compact, 1 line each */}
+        {/* Detail — side by side: YOU (left) | ALON (right) — matches wheel column order */}
         <Animated.View key={stage.num} style={styles.detail} entering={FadeIn.duration(150)}>
-          <View style={styles.detailRow}>
-            <View style={styles.alonPill}><Text style={styles.alonPillText}>ALON</Text></View>
-            <Text style={styles.detailText} numberOfLines={1}>{stage.alonDetail}</Text>
+          <View style={styles.detailColumns}>
+            <View style={styles.detailCol}>
+              <View style={styles.youPill}><Text style={styles.youPillText}>YOU</Text></View>
+              <Text style={styles.detailText}>{stage.yourDetail}</Text>
+            </View>
+            <View style={styles.detailColDivider} />
+            <View style={styles.detailCol}>
+              <View style={styles.alonPill}><Text style={styles.alonPillText}>ALON</Text></View>
+              <Text style={styles.detailText}>{stage.alonDetail}</Text>
+            </View>
           </View>
-          <View style={styles.detailDivider} />
-          <View style={styles.detailRow}>
-            <View style={styles.youPill}><Text style={styles.youPillText}>YOU</Text></View>
-            <Text style={styles.detailText} numberOfLines={1}>{stage.yourDetail}</Text>
+
+          {/* Contextual CTA */}
+          <View style={styles.ctaSection}>
+            <Text style={styles.ctaInfo}>{stage.ctaInfo}</Text>
+            <TouchableOpacity style={styles.ctaButton} activeOpacity={0.85}>
+              <Text style={styles.ctaButtonText}>{stage.ctaLabel}</Text>
+            </TouchableOpacity>
           </View>
-          {selected < 7 && (
-            <Text style={styles.nextHint}>Next: {STAGES[selected + 1].label} →</Text>
-          )}
         </Animated.View>
       </View>
     </View>
@@ -235,12 +260,17 @@ const styles = StyleSheet.create({
 
   // Detail
   detail: { borderTopWidth: 1, borderTopColor: Colors.warm100, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  alonPill: { backgroundColor: Colors.navy800, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  detailColumns: { flexDirection: 'row' as const },
+  detailCol: { flex: 1, gap: 6 },
+  detailColDivider: { width: 1, backgroundColor: Colors.warm100, marginHorizontal: 10 },
+  alonPill: { backgroundColor: Colors.navy800, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, alignSelf: 'flex-start' as const },
   alonPillText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.activationGlow, letterSpacing: 0.4 },
-  youPill: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  youPill: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, alignSelf: 'flex-start' as const },
   youPillText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.terra500, letterSpacing: 0.4 },
-  detailText: { flex: 1, fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, lineHeight: 16 },
-  detailDivider: { height: 1, backgroundColor: Colors.warm100, marginVertical: 6 },
-  nextHint: { fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.terra400, textAlign: 'center', marginTop: 8 },
+  detailText: { fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, lineHeight: 16 },
+  // CTA section
+  ctaSection: { marginTop: 12, borderTopWidth: 1, borderTopColor: Colors.warm100, paddingTop: 10 },
+  ctaInfo: { fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, lineHeight: 17, marginBottom: 10, textAlign: 'center' },
+  ctaButton: { backgroundColor: Colors.terra500, paddingVertical: 12, borderRadius: 10, alignItems: 'center' as const },
+  ctaButtonText: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: '#fff' },
 });
