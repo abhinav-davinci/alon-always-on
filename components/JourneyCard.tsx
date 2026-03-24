@@ -16,6 +16,7 @@ import Animated, {
   Extrapolation,
   runOnJS,
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 
@@ -43,10 +44,10 @@ const STAGES: Stage[] = [
     ctaLabel: 'Shortlist now →',
     ctaInfo: 'We found 5 matches based on your preferences. Shortlist to proceed.' },
   { num: 2, label: 'Shortlist', yourTask: 'Pick favorites', alonTask: 'Curating', status: 'pending',
-    alonDetail: 'Curates top 5 with price-vs-market comparison',
-    yourDetail: 'Pick your top 2-3 favorites',
-    ctaLabel: 'View top matches →',
-    ctaInfo: 'ALON has curated your top matches. Review and pick favorites.' },
+    alonDetail: 'Checks conflicts, RERA & curates top 5',
+    yourDetail: 'Pick favorites or check your own property',
+    ctaLabel: 'Check a property →',
+    ctaInfo: 'ALON checks RERA records, court disputes & builder history to protect your investment.' },
   { num: 3, label: 'Site Visits', yourTask: 'Share slots', alonTask: 'Booking', status: 'pending',
     alonDetail: 'Books visits, number hidden + checklist',
     yourDetail: 'Share your available time slots',
@@ -113,6 +114,7 @@ function WheelRow({ stage, index, scrollY }: { stage: Stage; index: number; scro
 }
 
 export default function JourneyCard() {
+  const router = useRouter();
   const haptics = useHaptics();
   const scrollRef = useRef<Animated.ScrollView>(null);
   const [selected, setSelected] = useState(0);
@@ -216,7 +218,16 @@ export default function JourneyCard() {
           {/* Contextual CTA */}
           <View style={styles.ctaSection}>
             <Text style={styles.ctaInfo}>{stage.ctaInfo}</Text>
-            <TouchableOpacity style={styles.ctaButton} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (stage.num === 2) {
+                  router.push('/onboarding/conflict-check');
+                }
+                haptics.light();
+              }}
+            >
               <Text style={styles.ctaButtonText}>{stage.ctaLabel}</Text>
             </TouchableOpacity>
           </View>
