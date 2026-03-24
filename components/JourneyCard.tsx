@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -104,7 +104,7 @@ export default function JourneyCard() {
   const onTick = useCallback((index: number) => {
     if (index !== lastSnapped.current) {
       lastSnapped.current = index;
-      haptics.selection();
+      haptics.light(); // Stronger than selection — mimics Apple's picker tick
     }
   }, []);
 
