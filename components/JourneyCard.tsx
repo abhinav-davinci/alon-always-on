@@ -218,18 +218,34 @@ export default function JourneyCard() {
           {/* Contextual CTA */}
           <View style={styles.ctaSection}>
             <Text style={styles.ctaInfo}>{stage.ctaInfo}</Text>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                if (stage.num === 2) {
-                  router.push('/onboarding/conflict-check');
-                }
-                haptics.light();
-              }}
-            >
-              <Text style={styles.ctaButtonText}>{stage.ctaLabel}</Text>
-            </TouchableOpacity>
+
+            {/* Shortlist step gets two CTAs */}
+            {stage.num === 2 ? (
+              <View style={styles.dualCta}>
+                <TouchableOpacity
+                  style={styles.ctaButtonSecondary}
+                  activeOpacity={0.8}
+                  onPress={() => { router.push('/onboarding/conflict-check'); haptics.light(); }}
+                >
+                  <Text style={styles.ctaButtonSecondaryText}>Check my property</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.ctaButton}
+                  activeOpacity={0.85}
+                  onPress={() => { router.push('/onboarding/verified-list'); haptics.light(); }}
+                >
+                  <Text style={styles.ctaButtonText}>ALON's verified list</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.ctaButton}
+                activeOpacity={0.85}
+                onPress={() => haptics.light()}
+              >
+                <Text style={styles.ctaButtonText}>{stage.ctaLabel}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       </View>
@@ -282,6 +298,9 @@ const styles = StyleSheet.create({
   // CTA section
   ctaSection: { marginTop: 12, borderTopWidth: 1, borderTopColor: Colors.warm100, paddingTop: 10 },
   ctaInfo: { fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, lineHeight: 17, marginBottom: 10, textAlign: 'center' },
-  ctaButton: { backgroundColor: Colors.terra500, paddingVertical: 12, borderRadius: 10, alignItems: 'center' as const },
-  ctaButtonText: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: '#fff' },
+  dualCta: { flexDirection: 'row' as const, gap: 8 },
+  ctaButtonSecondary: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' as const, borderWidth: 1.5, borderColor: Colors.warm200, backgroundColor: Colors.white },
+  ctaButtonSecondaryText: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  ctaButton: { flex: 1, backgroundColor: Colors.terra500, paddingVertical: 12, borderRadius: 10, alignItems: 'center' as const },
+  ctaButtonText: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: '#fff' },
 });
