@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,111 +14,83 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 
-const ITEM_HEIGHT = 40;
-const VISIBLE_COUNT = 5;
+const ITEM_HEIGHT = 42;
+const VISIBLE_COUNT = 3;
 const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT;
-const CENTER_OFFSET = ITEM_HEIGHT * 2;
+const CENTER_OFFSET = ITEM_HEIGHT; // 1 item padding — minimal whitespace
 
 interface Stage {
   num: number;
   label: string;
+  yourTask: string;
+  alonTask: string;
   status: 'done' | 'active' | 'pending';
-  alonDoes: string;
-  youDo: string;
+  alonDetail: string;
+  yourDetail: string;
 }
 
 const STAGES: Stage[] = [
-  { num: 1, label: 'Search', status: 'active',
-    alonDoes: 'Scanning 12L+ listings filtered by RERA, builder trust & price history',
-    youDo: 'Set criteria & preferred areas — done' },
-  { num: 2, label: 'Shortlist', status: 'pending',
-    alonDoes: 'Curates top 5 with price-vs-market comparison & track record',
-    youDo: 'Pick your top 2-3 favorites' },
-  { num: 3, label: 'Site Visits', status: 'pending',
-    alonDoes: 'Books visits with your number hidden + inspection checklist',
-    youDo: 'Share your available time slots' },
-  { num: 4, label: 'Compare', status: 'pending',
-    alonDoes: 'Side-by-side view with real transaction data, not listed prices',
-    youDo: 'Make the final call — always yours' },
-  { num: 5, label: 'Finance', status: 'pending',
-    alonDoes: 'Compares loan offers from 10+ banks, finds best rates',
-    youDo: 'Share basic income details for pre-approval' },
-  { num: 6, label: 'Legal', status: 'pending',
-    alonDoes: 'Flags risky clauses, verifies title & RERA compliance',
-    youDo: 'Upload the draft agreement when received' },
-  { num: 7, label: 'Negotiate', status: 'pending',
-    alonDoes: 'Finds your leverage from comparable sales data',
-    youDo: "Negotiate price using ALON's market insights" },
-  { num: 8, label: 'Possession', status: 'pending',
-    alonDoes: 'Complete checklist — documents, inspections, meter transfers',
-    youDo: 'Inspect, accept & collect your keys' },
+  { num: 1, label: 'Search', yourTask: 'Set criteria', alonTask: 'Scanning', status: 'active',
+    alonDetail: 'Scanning 12L+ listings by RERA & trust score',
+    yourDetail: 'Set criteria & areas — done' },
+  { num: 2, label: 'Shortlist', yourTask: 'Pick favorites', alonTask: 'Curating', status: 'pending',
+    alonDetail: 'Curates top 5 with price-vs-market comparison',
+    yourDetail: 'Pick your top 2-3 favorites' },
+  { num: 3, label: 'Site Visits', yourTask: 'Share slots', alonTask: 'Booking', status: 'pending',
+    alonDetail: 'Books visits, number hidden + checklist',
+    yourDetail: 'Share your available time slots' },
+  { num: 4, label: 'Compare', yourTask: 'Your call', alonTask: 'Analyzing', status: 'pending',
+    alonDetail: 'Side-by-side with real transaction data',
+    yourDetail: 'Make the final call — always yours' },
+  { num: 5, label: 'Finance', yourTask: 'Share docs', alonTask: 'Best rates', status: 'pending',
+    alonDetail: 'Compares loans from 10+ banks',
+    yourDetail: 'Share income details for pre-approval' },
+  { num: 6, label: 'Legal', yourTask: 'Upload draft', alonTask: 'Verifying', status: 'pending',
+    alonDetail: 'Flags risky clauses, verifies RERA',
+    yourDetail: 'Upload the draft agreement' },
+  { num: 7, label: 'Negotiate', yourTask: 'Use data', alonTask: 'Leverage', status: 'pending',
+    alonDetail: 'Finds leverage from comparable sales',
+    yourDetail: "Negotiate using ALON's insights" },
+  { num: 8, label: 'Possession', yourTask: 'Collect keys', alonTask: 'Checklist', status: 'pending',
+    alonDetail: 'Complete checklist — docs to transfers',
+    yourDetail: 'Inspect, accept & collect your keys' },
 ];
 
-// Individual wheel item with 3D cylinder transforms
-function WheelItem({ stage, index, scrollY, onPress }: {
-  stage: Stage;
-  index: number;
-  scrollY: any;
-  onPress: () => void;
-}) {
+function WheelRow({ stage, index, scrollY }: { stage: Stage; index: number; scrollY: any }) {
   const animStyle = useAnimatedStyle(() => {
     const center = scrollY.value;
     const itemCenter = index * ITEM_HEIGHT;
-    const distance = (center - itemCenter) / ITEM_HEIGHT; // signed: negative = above, positive = below
+    const distance = (center - itemCenter) / ITEM_HEIGHT;
 
-    // 3D rotation — items tilt away like on a cylinder
-    const rotateX = interpolate(
-      distance,
-      [-3, -2, -1, 0, 1, 2, 3],
-      [60, 45, 22, 0, -22, -45, -60],
-      Extrapolation.CLAMP
-    );
-
-    // Scale — slight reduction as items move away
-    const scale = interpolate(
-      Math.abs(distance),
-      [0, 1, 2, 3],
-      [1, 0.97, 0.93, 0.88],
-      Extrapolation.CLAMP
-    );
-
-    // Opacity — smooth fade
-    const opacity = interpolate(
-      Math.abs(distance),
-      [0, 1, 2, 3],
-      [1, 0.5, 0.2, 0.05],
-      Extrapolation.CLAMP
-    );
-
-    // Vertical compression — items compress toward center as they rotate
-    const translateY = interpolate(
-      distance,
-      [-3, -2, -1, 0, 1, 2, 3],
-      [-8, -5, -2, 0, 2, 5, 8],
-      Extrapolation.CLAMP
-    );
+    const rotateX = interpolate(distance, [-2, -1, 0, 1, 2], [50, 24, 0, -24, -50], Extrapolation.CLAMP);
+    const scale = interpolate(Math.abs(distance), [0, 1, 2], [1, 0.95, 0.88], Extrapolation.CLAMP);
+    const opacity = interpolate(Math.abs(distance), [0, 1, 2], [1, 0.4, 0.08], Extrapolation.CLAMP);
+    const translateY = interpolate(distance, [-2, -1, 0, 1, 2], [-6, -3, 0, 3, 6], Extrapolation.CLAMP);
 
     return {
       opacity,
-      transform: [
-        { perspective: 800 },
-        { rotateX: `${rotateX}deg` },
-        { scale },
-        { translateY },
-      ],
+      transform: [{ perspective: 800 }, { rotateX: `${rotateX}deg` }, { scale }, { translateY }],
     };
   });
 
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-      <Animated.View style={[styles.wheelItem, animStyle]}>
-        <Text style={styles.wheelText}>{stage.label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
+    <Animated.View style={[styles.wheelRow, animStyle]}>
+      <Text style={styles.sideTextLeft} numberOfLines={1}>{stage.yourTask}</Text>
+      <View style={styles.centerCol}>
+        <Text style={styles.centerText}>{stage.label}</Text>
+        {stage.status === 'active' && (
+          <View style={styles.currentTag}>
+            <Text style={styles.currentTagText}>Current</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.sideTextRight} numberOfLines={1}>{stage.alonTask}</Text>
+    </Animated.View>
   );
 }
 
@@ -127,37 +99,39 @@ export default function JourneyCard() {
   const scrollRef = useRef<Animated.ScrollView>(null);
   const [selected, setSelected] = useState(0);
   const scrollY = useSharedValue(0);
-  const lastIndex = useRef(0);
+  const lastSnapped = useRef(0);
+
+  const onTick = useCallback((index: number) => {
+    if (index !== lastSnapped.current) {
+      lastSnapped.current = index;
+      haptics.selection();
+    }
+  }, []);
 
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+      const index = Math.round(e.contentOffset.y / ITEM_HEIGHT);
+      const clamped = Math.max(0, Math.min(7, index));
+      runOnJS(onTick)(clamped);
     },
   });
 
   const handleMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(STAGES.length - 1, index));
-    if (clamped !== lastIndex.current) {
-      lastIndex.current = clamped;
-      haptics.selection();
-    }
-    setSelected(clamped);
+    const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    setSelected(Math.max(0, Math.min(7, index)));
   }, []);
 
-  const scrollToIndex = useCallback((index: number) => {
-    scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-    setSelected(index);
+  const scrollToIndex = useCallback((i: number) => {
+    scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated: true });
+    setSelected(i);
     haptics.selection();
-    lastIndex.current = index;
   }, []);
 
   const stage = STAGES[selected];
 
   return (
     <View style={styles.outer}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your property journey</Text>
         <View style={styles.counter}>
@@ -166,25 +140,26 @@ export default function JourneyCard() {
       </View>
 
       <View style={styles.card}>
-        {/* ── Wheel ── */}
+        {/* Column headers */}
+        <View style={styles.colHeaders}>
+          <Text style={styles.colHeaderLeft}>Your task</Text>
+          <Text style={styles.colHeaderCenter}>Steps</Text>
+          <Text style={styles.colHeaderRight}>ALON's task</Text>
+        </View>
+
+        {/* Wheel */}
         <View style={styles.wheelContainer}>
-          {/* Selection highlight — cream filled rounded rect (Apple-style) */}
           <View style={styles.selectionRect} />
 
-          {/* Top edge fade */}
+          {/* Fade top */}
           <View style={styles.fadeTop} pointerEvents="none">
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0.97 }]} />
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0.7 }]} />
+            <View style={[styles.fadeBand, { flex: 1, opacity: 0.85 }]} />
             <View style={[styles.fadeBand, { flex: 1, opacity: 0.3 }]} />
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0 }]} />
           </View>
-
-          {/* Bottom edge fade */}
+          {/* Fade bottom */}
           <View style={styles.fadeBottom} pointerEvents="none">
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0 }]} />
             <View style={[styles.fadeBand, { flex: 1, opacity: 0.3 }]} />
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0.7 }]} />
-            <View style={[styles.fadeBand, { flex: 1, opacity: 0.97 }]} />
+            <View style={[styles.fadeBand, { flex: 1, opacity: 0.85 }]} />
           </View>
 
           <Animated.ScrollView
@@ -196,50 +171,30 @@ export default function JourneyCard() {
             onMomentumScrollEnd={handleMomentumEnd}
             scrollEventThrottle={16}
             style={{ height: WHEEL_HEIGHT }}
-            contentContainerStyle={{
-              paddingTop: CENTER_OFFSET,
-              paddingBottom: CENTER_OFFSET,
-            }}
+            contentContainerStyle={{ paddingTop: CENTER_OFFSET, paddingBottom: CENTER_OFFSET }}
           >
             {STAGES.map((s, i) => (
-              <WheelItem
-                key={s.num}
-                stage={s}
-                index={i}
-                scrollY={scrollY}
-                onPress={() => scrollToIndex(i)}
-              />
+              <TouchableOpacity key={s.num} activeOpacity={0.8} onPress={() => scrollToIndex(i)}>
+                <WheelRow stage={s} index={i} scrollY={scrollY} />
+              </TouchableOpacity>
             ))}
           </Animated.ScrollView>
         </View>
 
-        {/* ── Detail ── */}
-        <Animated.View
-          key={stage.num}
-          style={styles.detail}
-          entering={FadeIn.duration(180)}
-        >
-          <View style={styles.roleBlock}>
-            <View style={styles.alonPill}>
-              <Text style={styles.alonPillText}>ALON</Text>
-            </View>
-            <Text style={styles.roleText}>{stage.alonDoes}</Text>
+        {/* Detail — compact, 1 line each */}
+        <Animated.View key={stage.num} style={styles.detail} entering={FadeIn.duration(150)}>
+          <View style={styles.detailRow}>
+            <View style={styles.alonPill}><Text style={styles.alonPillText}>ALON</Text></View>
+            <Text style={styles.detailText} numberOfLines={1}>{stage.alonDetail}</Text>
           </View>
-
-          <View style={styles.separator} />
-
-          <View style={styles.roleBlock}>
-            <View style={styles.youPill}>
-              <Text style={styles.youPillText}>YOUR PART</Text>
-            </View>
-            <Text style={styles.roleText}>{stage.youDo}</Text>
+          <View style={styles.detailDivider} />
+          <View style={styles.detailRow}>
+            <View style={styles.youPill}><Text style={styles.youPillText}>YOU</Text></View>
+            <Text style={styles.detailText} numberOfLines={1}>{stage.yourDetail}</Text>
           </View>
-
-          <Text style={styles.nextHint}>
-            {selected < 7
-              ? `Next: ${STAGES[selected + 1].label} \u2192`
-              : 'The final step \u2014 your new home awaits'}
-          </Text>
+          {selected < 7 && (
+            <Text style={styles.nextHint}>Next: {STAGES[selected + 1].label} →</Text>
+          )}
         </Animated.View>
       </View>
     </View>
@@ -247,152 +202,45 @@ export default function JourneyCard() {
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    paddingHorizontal: Spacing.xxl,
-    marginTop: Spacing.xl,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: 'DMSans-SemiBold',
-    color: Colors.textPrimary,
-  },
-  counter: {
-    backgroundColor: Colors.terra50,
-    borderWidth: 1,
-    borderColor: Colors.terra200,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  counterText: {
-    fontSize: 11,
-    fontFamily: 'DMSans-SemiBold',
-    color: Colors.terra500,
-  },
+  outer: { paddingHorizontal: Spacing.xxl, marginTop: Spacing.xl },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  headerTitle: { fontSize: 16, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  counter: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  counterText: { fontSize: 11, fontFamily: 'DMSans-SemiBold', color: Colors.terra500 },
 
-  // Card
-  card: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    overflow: 'hidden',
-  },
+  card: { backgroundColor: Colors.white, borderRadius: 16, borderWidth: 1, borderColor: Colors.warm200, overflow: 'hidden' },
+
+  // Column headers — aligned with wheel columns
+  colHeaders: { flexDirection: 'row', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 2 },
+  colHeaderLeft: { flex: 1, fontSize: 9, fontFamily: 'DMSans-Medium', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  colHeaderCenter: { flex: 1, fontSize: 9, fontFamily: 'DMSans-Medium', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+  colHeaderRight: { flex: 1, fontSize: 9, fontFamily: 'DMSans-Medium', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' },
 
   // Wheel
-  wheelContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
+  wheelContainer: { position: 'relative', overflow: 'hidden' },
+  selectionRect: { position: 'absolute', top: CENTER_OFFSET, left: 8, right: 8, height: ITEM_HEIGHT, backgroundColor: Colors.cream, borderRadius: 10, borderWidth: 1, borderColor: Colors.warm200, zIndex: 0 },
 
-  // Apple-style selection highlight — filled rect, no lines
-  selectionRect: {
-    position: 'absolute',
-    top: CENTER_OFFSET,
-    left: 10,
-    right: 10,
-    height: ITEM_HEIGHT,
-    backgroundColor: Colors.cream,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    zIndex: 0,
-  },
+  fadeTop: { position: 'absolute', top: 0, left: 0, right: 0, height: CENTER_OFFSET, zIndex: 4 },
+  fadeBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: CENTER_OFFSET, zIndex: 4 },
+  fadeBand: { backgroundColor: '#fff' },
 
-  // Edge fade masks
-  fadeTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: CENTER_OFFSET,
-    zIndex: 4,
-  },
-  fadeBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: CENTER_OFFSET,
-    zIndex: 4,
-  },
-  fadeBand: {
-    backgroundColor: '#fff',
-  },
-
-  // Wheel items — text only, no circles
-  wheelItem: {
-    height: ITEM_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  wheelText: {
-    fontSize: 18,
-    fontFamily: 'DMSans-SemiBold',
-    color: Colors.textPrimary,
-    textAlign: 'center',
-  },
+  // Wheel row
+  wheelRow: { height: ITEM_HEIGHT, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, zIndex: 1 },
+  sideTextLeft: { flex: 1, fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textSecondary },
+  sideTextRight: { flex: 1, fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textSecondary, textAlign: 'right' },
+  centerCol: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5 },
+  centerText: { fontSize: 16, fontFamily: 'DMSans-Bold', color: Colors.textPrimary },
+  currentTag: { backgroundColor: Colors.terra500, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 },
+  currentTagText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: '#fff', letterSpacing: 0.3 },
 
   // Detail
-  detail: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.warm100,
-    padding: 14,
-  },
-  roleBlock: {
-    gap: 5,
-  },
-  alonPill: {
-    backgroundColor: Colors.navy800,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
-    alignSelf: 'flex-start',
-  },
-  alonPillText: {
-    fontSize: 9,
-    fontFamily: 'DMSans-Bold',
-    color: Colors.activationGlow,
-    letterSpacing: 0.5,
-  },
-  youPill: {
-    backgroundColor: Colors.terra50,
-    borderWidth: 1,
-    borderColor: Colors.terra200,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
-    alignSelf: 'flex-start',
-  },
-  youPillText: {
-    fontSize: 9,
-    fontFamily: 'DMSans-Bold',
-    color: Colors.terra500,
-    letterSpacing: 0.5,
-  },
-  roleText: {
-    fontSize: 13,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: Colors.warm100,
-    marginVertical: 10,
-  },
-  nextHint: {
-    fontSize: 11,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: 12,
-  },
+  detail: { borderTopWidth: 1, borderTopColor: Colors.warm100, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  alonPill: { backgroundColor: Colors.navy800, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  alonPillText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.activationGlow, letterSpacing: 0.4 },
+  youPill: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  youPillText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.terra500, letterSpacing: 0.4 },
+  detailText: { flex: 1, fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, lineHeight: 16 },
+  detailDivider: { height: 1, backgroundColor: Colors.warm100, marginVertical: 6 },
+  nextHint: { fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.terra400, textAlign: 'center', marginTop: 8 },
 });

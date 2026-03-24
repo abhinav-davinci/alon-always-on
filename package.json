@@ -12,6 +12,7 @@
     "@expo/vector-icons": "15.0.3",
     "@react-native/normalize-colors": "^0.81.5",
     "expo": "54.0.4",
+    "expo-av": "^16.0.8",
     "expo-constants": "18.0.8",
     "expo-font": "14.0.8",
     "expo-haptics": "15.0.7",
