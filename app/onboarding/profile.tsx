@@ -32,6 +32,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import AlonAvatar from '../../components/AlonAvatar';
+import LocationPicker from '../../components/LocationPicker';
 import BottomSheet from '../../components/BottomSheet';
 import PillSelector from '../../components/PillSelector';
 import BudgetSlider from '../../components/BudgetSlider';
@@ -272,17 +273,15 @@ export default function ProfileScreen() {
 
       {/* ── Bottom Sheets ── */}
 
-      {/* Location */}
+      {/* Location — with search */}
       <BottomSheet
         visible={sheetField === 'Location'}
         title="Where in Pune?"
         onClose={() => setSheetField(null)}
       >
-        <PillSelector
-          options={PUNE_LOCATIONS}
+        <LocationPicker
           selected={store.locations}
           onSelect={store.setLocations}
-          multiSelect
         />
         <View style={{ marginTop: 20 }}>
           <Button

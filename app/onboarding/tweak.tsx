@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Colors, Typography, Spacing } from '../../constants/theme';
 import PillSelector from '../../components/PillSelector';
+import LocationPicker from '../../components/LocationPicker';
 import BudgetSlider from '../../components/BudgetSlider';
 import PurposeGrid from '../../components/PurposeGrid';
 import Button from '../../components/Button';
@@ -57,14 +58,12 @@ export default function TweakScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Location */}
+        {/* Location — with search */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Where in Pune?</Text>
-          <PillSelector
-            options={PUNE_LOCATIONS}
+          <LocationPicker
             selected={locations}
             onSelect={setLocations}
-            multiSelect
           />
         </View>
 
