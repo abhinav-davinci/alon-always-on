@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import {
-  Search, ListChecks, MapPin, GitCompare, Landmark,
-  Scale, Handshake, Key, CheckCircle2, ChevronDown, ChevronUp,
-} from 'lucide-react-native';
+import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react-native';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -14,26 +11,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
-
-interface Stage {
-  num: number;
-  label: string;
-  icon: typeof Search;
-  status: 'done' | 'active' | 'pending';
-  alonTask: string;
-  yourTask: string;
-}
-
-const STAGES: Stage[] = [
-  { num: 1, label: 'Search', icon: Search, status: 'active', alonTask: 'Scanning 12L+ listings by RERA & trust', yourTask: 'Set criteria — done' },
-  { num: 2, label: 'Shortlist', icon: ListChecks, status: 'pending', alonTask: 'Curates top 5, checks conflicts', yourTask: 'Pick your favorites' },
-  { num: 3, label: 'Site Visits', icon: MapPin, status: 'pending', alonTask: 'Books visits, number hidden', yourTask: 'Share time slots' },
-  { num: 4, label: 'Compare', icon: GitCompare, status: 'pending', alonTask: 'Side-by-side real transaction data', yourTask: 'Make the final call' },
-  { num: 5, label: 'Finance', icon: Landmark, status: 'pending', alonTask: 'Best rates from 10+ banks', yourTask: 'Share income details' },
-  { num: 6, label: 'Legal', icon: Scale, status: 'pending', alonTask: 'Flags risky clauses, verifies RERA', yourTask: 'Upload draft agreement' },
-  { num: 7, label: 'Negotiate', icon: Handshake, status: 'pending', alonTask: 'Market leverage from sales data', yourTask: "Use ALON's insights" },
-  { num: 8, label: 'Possession', icon: Key, status: 'pending', alonTask: 'Full checklist — docs to transfers', yourTask: 'Inspect & collect keys' },
-];
+import { useOnboardingStore } from '../store/onboarding';
+import { SHORTLIST_PROPERTIES } from '../constants/properties';
+import { STAGES } from '../constants/stages';
 
 interface JourneyAccordionProps {
   onStageChange?: (stage: string) => void;
@@ -41,8 +21,36 @@ interface JourneyAccordionProps {
 
 export default function JourneyAccordion({ onStageChange }: JourneyAccordionProps) {
   const haptics = useHaptics();
+  const { scheduledVisits, likedPropertyIds } = useOnboardingStore();
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [collapsed, setCollapsed] = useState(true);
+
+  // Dynamically update stages based on user actions
+  const likedNames = React.useMemo(
+    () => SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id)).map((p) => p.name),
+    [likedPropertyIds]
+  );
+
+  const stages = React.useMemo(() => {
+    return STAGES.map((stage) => {
+      if (stage.label === 'Shortlist' && likedPropertyIds.length > 0) {
+        return {
+          ...stage,
+          status: 'active' as const,
+          alonTask: `${likedPropertyIds.length} shortlisted — ${likedNames.join(', ')}`,
+        };
+      }
+      if (stage.label === 'Site Visits' && scheduledVisits.length > 0) {
+        const names = scheduledVisits.map((v) => v.propertyName).join(', ');
+        return {
+          ...stage,
+          status: 'active' as const,
+          alonTask: `${scheduledVisits.length} visit${scheduledVisits.length > 1 ? 's' : ''} scheduled — ${names}`,
+        };
+      }
+      return stage;
+    });
+  }, [scheduledVisits, likedPropertyIds, likedNames]);
 
   // Pulsing dot for active scanning
   const pulseOpacity = useSharedValue(1);
@@ -57,7 +65,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
   const toggleStage = (index: number) => {
     haptics.selection();
     setExpandedIndex(index);
-    onStageChange?.(STAGES[index].label);
+    onStageChange?.(stages[index].label);
   };
 
   return (
@@ -72,7 +80,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
         <View style={styles.headerRight}>
           <View style={styles.progressPill}>
             <Text style={styles.progressText}>
-              {STAGES.filter(s => s.status === 'done').length + 1} of {STAGES.length}
+              {stages.filter(s => s.status === 'done').length + 1} of {stages.length}
             </Text>
           </View>
           {collapsed ? (
@@ -91,18 +99,18 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
           activeOpacity={0.7}
         >
           <View style={styles.collapsedLeft}>
-            {(() => { const Icon = STAGES[expandedIndex].icon; return (
-              <View style={styles.dotActive}>
+            {(() => { const Icon = stages[expandedIndex].icon; return (
+              <View style={[styles.dot, styles.dotActive]}>
                 <Icon size={11} color="#fff" strokeWidth={1.8} />
               </View>
             ); })()}
             <View style={styles.collapsedInfo}>
               <Text style={styles.collapsedLabel}>
-                {STAGES[expandedIndex].num}. {STAGES[expandedIndex].label}
+                {stages[expandedIndex].num}. {stages[expandedIndex].label}
               </Text>
               <View style={styles.scanningRow}>
                 <Animated.View style={[styles.scanningDot, pulseStyle]} />
-                <Text style={styles.scanningText}>{STAGES[expandedIndex].alonTask}</Text>
+                <Text style={styles.scanningText}>{stages[expandedIndex].alonTask}</Text>
               </View>
             </View>
           </View>
@@ -114,7 +122,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
       {!collapsed && (
         <ScrollView style={styles.accordionScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
         <View style={styles.accordion}>
-          {STAGES.map((stage, i) => {
+          {stages.map((stage, i) => {
             const Icon = stage.icon;
             const isExpanded = i === expandedIndex;
             const isDone = stage.status === 'done';
@@ -129,7 +137,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
                   activeOpacity={0.7}
                 >
                   {/* Connector line */}
-                  {i < STAGES.length - 1 && (
+                  {i < stages.length - 1 && (
                     <View style={[styles.connector, (isDone || isActive) && styles.connectorActive]} />
                   )}
 
@@ -157,24 +165,14 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
                   </Text>
 
                   {/* Status */}
-                  {isActive && <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>Current</Text></View>}
                   {isDone && <Text style={styles.doneText}>Done</Text>}
                 </TouchableOpacity>
 
-                {/* Expanded detail */}
+                {/* Expanded subtitle — ALON's task for this stage */}
                 {isExpanded && (
-                  <Animated.View style={styles.detail} entering={FadeIn.duration(200)}>
-                    <View style={styles.detailSplit}>
-                      <View style={styles.detailCol}>
-                        <View style={styles.youTag}><Text style={styles.youTagText}>YOU</Text></View>
-                        <Text style={styles.detailText}>{stage.yourTask}</Text>
-                      </View>
-                      <View style={styles.detailDivider} />
-                      <View style={styles.detailCol}>
-                        <View style={styles.alonTag}><Text style={styles.alonTagText}>ALON</Text></View>
-                        <Text style={styles.detailText}>{stage.alonTask}</Text>
-                      </View>
-                    </View>
+                  <Animated.View style={styles.detailSubtitle} entering={FadeIn.duration(200)}>
+                    <Animated.View style={[styles.scanningDot, isActive && pulseStyle]} />
+                    <Text style={styles.detailText}>{stage.alonTask}</Text>
                   </Animated.View>
                 )}
               </View>
@@ -249,18 +247,13 @@ const styles = StyleSheet.create({
   stageLabelExpanded: { fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
   stageLabelDone: { color: Colors.textSecondary },
 
-  activeBadge: { backgroundColor: Colors.terra500, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
-  activeBadgeText: { fontSize: 9, fontFamily: 'DMSans-Bold', color: '#fff' },
   doneText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: '#22C55E' },
 
-  // Detail
-  detail: { paddingHorizontal: 14, paddingBottom: 12, backgroundColor: Colors.cream },
-  detailSplit: { flexDirection: 'row' },
-  detailCol: { flex: 1, gap: 4 },
-  detailDivider: { width: 1, backgroundColor: Colors.warm200, marginHorizontal: 8 },
-  youTag: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 3, alignSelf: 'flex-start' },
-  youTagText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.terra500, letterSpacing: 0.3 },
-  alonTag: { backgroundColor: Colors.navy800, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 3, alignSelf: 'flex-start' },
-  alonTagText: { fontSize: 8, fontFamily: 'DMSans-Bold', color: Colors.activationGlow, letterSpacing: 0.3 },
-  detailText: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, lineHeight: 15 },
+  // Detail subtitle
+  detailSubtitle: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingBottom: 10, paddingLeft: 46,
+    backgroundColor: Colors.cream,
+  },
+  detailText: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, lineHeight: 15 },
 });

@@ -7,10 +7,12 @@ import {
   TextInput,
   TouchableOpacity,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
-import { Mic, ArrowUp } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Mic, ArrowUp, Layers, ChevronRight, Maximize2 } from 'lucide-react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
   FadeInUp,
@@ -22,14 +24,20 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import AlonAvatar from './AlonAvatar';
+import ChatPropertyCarousel from './ChatPropertyCarousel';
+import StagePinnedContent from './StagePinnedContent';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
+import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
+import { useOnboardingStore } from '../store/onboarding';
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'alon' | 'card';
+  type: 'user' | 'alon' | 'card' | 'property-carousel';
   text?: string;
   card?: { title: string; items: string[] };
+  properties?: Property[];
+  isScanning?: boolean;
   timestamp: number;
 }
 
@@ -48,6 +56,18 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
   Negotiate: ['Fair price analysis', 'Negotiation strategy', 'Market leverage data'],
   Possession: ['Possession checklist', 'Document list', 'Transfer process'],
+};
+
+// Stage-specific pill labels
+const STAGE_PILL_LABELS: Record<string, string> = {
+  Search: 'matches',
+  Shortlist: 'shortlisted',
+  'Site Visits': 'visits planned',
+  Compare: 'comparing',
+  Finance: 'in review',
+  Legal: 'under legal check',
+  Negotiate: 'negotiating',
+  Possession: 'in process',
 };
 
 // Demo responses
@@ -96,25 +116,165 @@ const DEFAULT_RESPONSE = {
 };
 
 export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
+  const router = useRouter();
   const haptics = useHaptics();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'alon',
-      text: "I'm actively scanning for your perfect property. Tap a suggestion below or ask me anything.",
+      text: "I'm actively scanning for your perfect property. Sit tight — I'm checking RERA records, builder trust scores, and price trends across 12L+ listings.",
+      isScanning: true,
       timestamp: Date.now(),
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [displayedText, setDisplayedText] = useState('');
   const [statusText, setStatusText] = useState('');
   const [usedPrompts, setUsedPrompts] = useState<Set<string>>(new Set());
+  const [showShortlistPill, setShowShortlistPill] = useState(false);
+  const scanFlowDone = useRef(false);
+  const { likedPropertyIds, scheduledVisits, chatExpanded, setChatExpanded } = useOnboardingStore();
+  const scrollOffsetY = useRef(0);
+
+  // Pull-down gesture to collapse full-screen chat
+  const pullDownGesture = Gesture.Pan()
+    .activeOffsetY(10)
+    .failOffsetY(-5)
+    .enabled(chatExpanded)
+    .onEnd((e) => {
+      // Only collapse if scrolled near top and dragged down enough
+      if (scrollOffsetY.current < 10 && e.translationY > 80) {
+        setChatExpanded(false);
+        haptics.light();
+      }
+    })
+    .runOnJS(true);
+
+  const onScrollChat = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+  };
+  const lastVisitCount = useRef(scheduledVisits.length);
+  const lastLikedCount = useRef(likedPropertyIds.length);
 
   const prompts = STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
+  const pillLabel = STAGE_PILL_LABELS[stage] || 'matches';
 
-  // Send button animation
+  // Reset used prompts when stage changes
+  useEffect(() => {
+    setUsedPrompts(new Set());
+  }, [stage]);
+
+  // ── Scanning pulse animation (for initial message) ──
+  const scanPulse = useSharedValue(1);
+  const scanBarPos = useSharedValue(0);
+
+  useEffect(() => {
+    scanPulse.value = withRepeat(
+      withTiming(0.3, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      -1, true
+    );
+    scanBarPos.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1, true
+    );
+  }, []);
+
+  const scanPulseStyle = useAnimatedStyle(() => ({ opacity: scanPulse.value }));
+  const SCAN_TRACK_WIDTH = 140;
+  const SCAN_BAR_WIDTH = 24;
+  const scanBarStyle = useAnimatedStyle(() => {
+    'worklet';
+    return { transform: [{ translateX: scanBarPos.value * (SCAN_TRACK_WIDTH - SCAN_BAR_WIDTH) }] };
+  });
+
+  // ── Auto scanning flow: show properties after 3.5s ──
+  useEffect(() => {
+    if (scanFlowDone.current) return;
+    scanFlowDone.current = true;
+
+    const timer = setTimeout(() => {
+      // Stop scanning on the initial message
+      setMessages((prev) =>
+        prev.map((m) => (m.id === '1' ? { ...m, isScanning: false } : m))
+      );
+
+      // Add the "found" message
+      const foundMsg: ChatMessage = {
+        id: 'scan-result-text',
+        type: 'alon',
+        text: `Found ${SHORTLIST_PROPERTIES.length} properties matching your criteria. Swipe through — I've added my take on each one.`,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, foundMsg]);
+
+      // Add the carousel after a short delay
+      setTimeout(() => {
+        const carouselMsg: ChatMessage = {
+          id: 'scan-result-carousel',
+          type: 'property-carousel',
+          properties: SHORTLIST_PROPERTIES,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, carouselMsg]);
+        setShowShortlistPill(true);
+        haptics.success();
+
+        // After carousel, add "still scanning" message
+        setTimeout(() => {
+          const stillScanningMsg: ChatMessage = {
+            id: 'still-scanning',
+            type: 'alon',
+            text: "I'm still scanning — these are your best matches so far. I'll check for new listings, price drops, and freshly verified properties. Expect an updated list in about 2 hours.",
+            isScanning: true,
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, stillScanningMsg]);
+        }, 1200);
+      }, 400);
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // ── React to new scheduled visits ──
+  useEffect(() => {
+    if (scheduledVisits.length > lastVisitCount.current) {
+      const latest = scheduledVisits[scheduledVisits.length - 1];
+      const visitMsg: ChatMessage = {
+        id: `visit-${Date.now()}`,
+        type: 'alon',
+        text: `Got it! I've scheduled your visit to ${latest.propertyName} for ${latest.date} at ${latest.time}. Your number stays hidden — the builder will only see a reference ID. I'll send you a reminder before the visit.`,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, visitMsg]);
+      haptics.success();
+    }
+    lastVisitCount.current = scheduledVisits.length;
+  }, [scheduledVisits.length]);
+
+  // ── React to new liked properties ──
+  useEffect(() => {
+    if (likedPropertyIds.length > lastLikedCount.current) {
+      const newId = likedPropertyIds[likedPropertyIds.length - 1];
+      const property = SHORTLIST_PROPERTIES.find((p) => p.id === newId);
+      if (property) {
+        const likeMsg: ChatMessage = {
+          id: `like-${Date.now()}`,
+          type: 'alon',
+          text: `Nice pick! ${property.name} has been added to your shortlist. You now have ${likedPropertyIds.length} shortlisted propert${likedPropertyIds.length > 1 ? 'ies' : 'y'}.`,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, likeMsg]);
+      }
+    }
+    lastLikedCount.current = likedPropertyIds.length;
+  }, [likedPropertyIds.length]);
+
+  // ── Send button animation ──
   const sendScale = useSharedValue(1);
   const sendAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: sendScale.value }] }));
 
@@ -122,7 +282,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
     sendScale.value = withTiming(inputText.trim() ? 1.05 : 0.95, { duration: 150 });
   }, [!!inputText.trim()]);
 
-  // Typing indicator animation
+  // ── Typing indicator animation ──
   const dot1 = useSharedValue(0.3);
   const dot2 = useSharedValue(0.3);
   const dot3 = useSharedValue(0.3);
@@ -146,6 +306,18 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const d1Style = useAnimatedStyle(() => ({ opacity: dot1.value }));
   const d2Style = useAnimatedStyle(() => ({ opacity: dot2.value }));
   const d3Style = useAnimatedStyle(() => ({ opacity: dot3.value }));
+
+  // ── Pill pulse for new properties ──
+  const pillPulse = useSharedValue(1);
+  useEffect(() => {
+    if (showShortlistPill) {
+      pillPulse.value = withSequence(
+        withTiming(1.06, { duration: 200 }),
+        withTiming(1, { duration: 200 })
+      );
+    }
+  }, [showShortlistPill]);
+  const pillAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: pillPulse.value }] }));
 
   const sendMessage = useCallback((text: string) => {
     if (isGenerating) return;
@@ -212,14 +384,35 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 
   return (
     <View style={styles.container}>
+      {/* Expand bar — only in normal (non-expanded) mode */}
+      {!chatExpanded && (
+        <TouchableOpacity
+          style={styles.expandBar}
+          onPress={() => setChatExpanded(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.expandBarLeft}>
+            <View style={styles.expandBarDot} />
+            <Text style={styles.expandBarText}>Chat with ALON</Text>
+          </View>
+          <Maximize2 size={14} color={Colors.textTertiary} strokeWidth={2} />
+        </TouchableOpacity>
+      )}
+
       {/* Messages */}
+      <GestureDetector gesture={pullDownGesture}>
       <ScrollView
         ref={scrollRef}
         style={styles.messagesScroll}
-        contentContainerStyle={styles.messagesContent}
+        contentContainerStyle={[styles.messagesContent, chatExpanded && styles.messagesContentExpanded]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={onScrollChat}
+        scrollEventThrottle={16}
       >
+        {/* Pinned content for current stage (full-screen only) */}
+        {chatExpanded && <StagePinnedContent stage={stage} />}
+
         {messages.map((msg) => {
           if (msg.type === 'user') {
             return (
@@ -236,8 +429,29 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                 </View>
                 <View style={styles.alonBubble}>
                   <Text style={styles.alonText}>{msg.text}</Text>
+                  {/* Scanning indicator */}
+                  {msg.isScanning && (
+                    <View style={styles.scanIndicator}>
+                      <View style={styles.scanRow}>
+                        <Animated.View style={[styles.scanDot, scanPulseStyle]} />
+                        <Text style={styles.scanStatusText}>Scanning 12L+ listings...</Text>
+                      </View>
+                      <View style={styles.scanTrack}>
+                        <Animated.View style={[styles.scanBar, scanBarStyle]} />
+                      </View>
+                    </View>
+                  )}
                 </View>
               </Animated.View>
+            );
+          }
+          if (msg.type === 'property-carousel' && msg.properties) {
+            return (
+              <ChatPropertyCarousel
+                key={msg.id}
+                properties={msg.properties}
+                onViewAll={() => router.push('/onboarding/shortlist')}
+              />
             );
           }
           if (msg.type === 'card' && msg.card) {
@@ -273,6 +487,28 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           </Animated.View>
         )}
       </ScrollView>
+      </GestureDetector>
+
+      {/* ── Persistent shortlist pill ── */}
+      {showShortlistPill && (
+        <Animated.View entering={FadeIn.duration(250)}>
+          <Pressable
+            onPress={() => { haptics.light(); router.push('/onboarding/shortlist'); }}
+            style={({ pressed }) => [styles.shortlistPill, pressed && styles.shortlistPillPressed]}
+          >
+            <Animated.View style={[styles.shortlistPillInner, pillAnimStyle]}>
+              <Layers size={13} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.shortlistPillText}>
+                {SHORTLIST_PROPERTIES.length} {pillLabel}
+                {likedPropertyIds.length > 0 ? ` · ${likedPropertyIds.length} liked` : ''}
+              </Text>
+              <View style={styles.shortlistPillDivider} />
+              <Text style={styles.shortlistPillAction}>View all</Text>
+              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2.5} />
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Suggestive prompts */}
       {!isGenerating && prompts.some(p => !usedPrompts.has(p)) && (
@@ -322,6 +558,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           </TouchableOpacity>
         </Animated.View>
       </View>
+
     </View>
   );
 }
@@ -329,8 +566,24 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
+  // Expand bar
+  expandBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.warm100,
+    backgroundColor: Colors.warm50,
+  },
+  expandBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  expandBarDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  expandBarText: { fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textSecondary },
+
   messagesScroll: { flex: 1 },
   messagesContent: { flexGrow: 1, justifyContent: 'flex-end' as const, paddingHorizontal: Spacing.xxl, paddingTop: Spacing.md, paddingBottom: Spacing.md },
+  messagesContentExpanded: { justifyContent: 'flex-start' as const },
 
   // User bubble
   userBubble: {
@@ -358,9 +611,23 @@ const styles = StyleSheet.create({
   },
   alonText: { fontSize: 14, fontFamily: 'DMSans-Regular', color: Colors.textPrimary, lineHeight: 20 },
 
+  // Scanning indicator inside ALON bubble
+  scanIndicator: { marginTop: 8, gap: 6 },
+  scanRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  scanDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.terra500 },
+  scanStatusText: { fontSize: 11, fontFamily: 'DMSans-Medium', color: Colors.terra400, fontStyle: 'italic' },
+  scanTrack: {
+    height: 3, backgroundColor: Colors.terra100, borderRadius: 2,
+    overflow: 'hidden', width: 140,
+  },
+  scanBar: {
+    width: 24, height: 3, borderRadius: 2,
+    backgroundColor: Colors.terra400,
+  },
+
   // Card bubble
   cardBubble: {
-    marginLeft: 32,
+    marginLeft: 30,
     backgroundColor: Colors.white,
     borderRadius: 12,
     borderWidth: 1,
@@ -386,6 +653,39 @@ const styles = StyleSheet.create({
   typingDots: { flexDirection: 'row', gap: 4 },
   typingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.terra500 },
   generatingStatus: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, fontStyle: 'italic' },
+
+  // ── Shortlist pill ──
+  shortlistPill: {
+    alignSelf: 'center',
+    marginVertical: 4,
+  },
+  shortlistPillPressed: { opacity: 0.8 },
+  shortlistPillInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.terra50,
+    borderWidth: 1,
+    borderColor: Colors.terra200,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  shortlistPillText: {
+    fontSize: 12,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textPrimary,
+  },
+  shortlistPillDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: Colors.terra200,
+  },
+  shortlistPillAction: {
+    fontSize: 12,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.terra500,
+  },
 
   // Prompts
   promptsScroll: { maxHeight: 48, borderTopWidth: 1, borderTopColor: Colors.warm100 },

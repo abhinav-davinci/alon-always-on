@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PersonaType, PERSONA_DEFAULTS } from '../constants/personas';
+import { UserProperty } from '../constants/properties';
 
 export interface OnboardingState {
   persona: PersonaType | null;
@@ -15,6 +16,11 @@ export interface OnboardingState {
   briefText: string;
   needsLoan: boolean;
   notifyVia: string[];
+  likedPropertyIds: string[];
+  scheduledVisits: Array<{ propertyId: string; propertyName: string; date: string; time: string }>;
+  userProperties: UserProperty[];
+  chatExpanded: boolean;
+  activeStage: string;
 
   setPersona: (persona: PersonaType) => void;
   setLocations: (locations: string[]) => void;
@@ -29,6 +35,12 @@ export interface OnboardingState {
   setBriefText: (text: string) => void;
   setNeedsLoan: (val: boolean) => void;
   toggleNotifyVia: (channel: string) => void;
+  toggleLikedProperty: (id: string) => void;
+  addScheduledVisit: (visit: { propertyId: string; propertyName: string; date: string; time: string }) => void;
+  addUserProperty: (property: UserProperty) => void;
+  removeUserProperty: (id: string) => void;
+  setChatExpanded: (val: boolean) => void;
+  setActiveStage: (stage: string) => void;
   reset: () => void;
 }
 
@@ -46,6 +58,11 @@ const initialState = {
   briefText: '',
   needsLoan: false,
   notifyVia: ['push'] as string[],
+  likedPropertyIds: [] as string[],
+  scheduledVisits: [] as Array<{ propertyId: string; propertyName: string; date: string; time: string }>,
+  userProperties: [] as UserProperty[],
+  chatExpanded: false,
+  activeStage: 'Search',
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -81,5 +98,24 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         ? state.notifyVia.filter((c) => c !== channel)
         : [...state.notifyVia, channel],
     })),
+  toggleLikedProperty: (id) =>
+    set((state) => ({
+      likedPropertyIds: state.likedPropertyIds.includes(id)
+        ? state.likedPropertyIds.filter((pid) => pid !== id)
+        : [...state.likedPropertyIds, id],
+    })),
+  addScheduledVisit: (visit) =>
+    set((state) => ({
+      scheduledVisits: [
+        ...state.scheduledVisits.filter((v) => v.propertyId !== visit.propertyId),
+        visit,
+      ],
+    })),
+  addUserProperty: (property) =>
+    set((state) => ({ userProperties: [...state.userProperties, property] })),
+  removeUserProperty: (id) =>
+    set((state) => ({ userProperties: state.userProperties.filter((p) => p.id !== id) })),
+  setChatExpanded: (chatExpanded) => set({ chatExpanded }),
+  setActiveStage: (activeStage) => set({ activeStage }),
   reset: () => set(initialState),
 }));
