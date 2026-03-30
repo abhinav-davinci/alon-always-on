@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  runOnJS,
   Easing,
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
@@ -14,6 +16,7 @@ import { useHaptics } from '../hooks/useHaptics';
 import { useOnboardingStore } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { STAGES } from '../constants/stages';
+import StageStrip from './StageStrip';
 
 interface JourneyAccordionProps {
   onStageChange?: (stage: string) => void;
@@ -21,9 +24,9 @@ interface JourneyAccordionProps {
 
 export default function JourneyAccordion({ onStageChange }: JourneyAccordionProps) {
   const haptics = useHaptics();
-  const { scheduledVisits, likedPropertyIds } = useOnboardingStore();
-  const [expandedIndex, setExpandedIndex] = useState(0);
-  const [collapsed, setCollapsed] = useState(true);
+  const { scheduledVisits, likedPropertyIds, activeStage, setActiveStage } = useOnboardingStore();
+  const [expanded, setExpanded] = useState(false);
+  const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
   // Dynamically update stages based on user actions
   const likedNames = React.useMemo(
@@ -52,7 +55,8 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
     });
   }, [scheduledVisits, likedPropertyIds, likedNames]);
 
-  // Pulsing dot for active scanning
+
+  // Pulsing dot for detail subtitle
   const pulseOpacity = useSharedValue(1);
   React.useEffect(() => {
     pulseOpacity.value = withRepeat(
@@ -62,124 +66,184 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
   }, []);
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulseOpacity.value }));
 
-  const toggleStage = (index: number) => {
-    haptics.selection();
-    setExpandedIndex(index);
-    onStageChange?.(stages[index].label);
+  const getBadge = (label: string): number | null => {
+    if (label === 'Search') return SHORTLIST_PROPERTIES.length;
+    if (label === 'Shortlist') return likedPropertyIds.length || null;
+    if (label === 'Site Visits') return scheduledVisits.length || null;
+    return null;
   };
+
+  const hasActivity = (label: string): boolean => {
+    if (label === 'Search') return true;
+    if (label === 'Shortlist') return likedPropertyIds.length > 0;
+    if (label === 'Site Visits') return scheduledVisits.length > 0;
+    return false;
+  };
+
+  const selectStage = useCallback((index: number) => {
+    haptics.selection();
+    setActiveStage(stages[index].label);
+    onStageChange?.(stages[index].label);
+  }, [stages]);
+
+  // ── Vertical drag in accordion ──
+  const rowPositions = useRef<number[]>([]);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const lastTickIdx = useRef(activeIndex);
+
+  const onRowLayout = useCallback((index: number, y: number) => {
+    rowPositions.current[index] = y;
+  }, []);
+
+  const findNearestIndex = useCallback((translationY: number): number => {
+    // Use direction + distance to determine target
+    const direction = translationY > 0 ? 1 : -1;
+    const steps = Math.round(Math.abs(translationY) / 44); // ~44px per row avg
+    const newIdx = activeIndex + direction * Math.max(steps, 0);
+    return Math.max(0, Math.min(newIdx, STAGES.length - 1));
+  }, [activeIndex]);
+
+  const onDragTick = useCallback((idx: number) => {
+    if (idx !== lastTickIdx.current && idx >= 0 && idx < STAGES.length) {
+      lastTickIdx.current = idx;
+      haptics.light();
+      setDragOverIndex(idx);
+    }
+  }, []);
+
+  const onDragEndJS = useCallback((idx: number) => {
+    const clamped = Math.max(0, Math.min(idx, STAGES.length - 1));
+    setDragOverIndex(null);
+    selectStage(clamped);
+    lastTickIdx.current = clamped;
+  }, [selectStage]);
+
+  const accordionPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-15, 15])
+    .onUpdate((e) => {
+      const idx = findNearestIndex(e.translationY);
+      runOnJS(onDragTick)(idx);
+    })
+    .onEnd((e) => {
+      const idx = findNearestIndex(e.translationY);
+      runOnJS(onDragEndJS)(idx);
+    })
+    .runOnJS(true);
 
   return (
     <View style={styles.container}>
-      {/* Header with collapse toggle */}
+      {/* Header */}
       <TouchableOpacity
         style={styles.header}
-        onPress={() => { setCollapsed(!collapsed); haptics.light(); }}
+        onPress={() => { setExpanded(!expanded); haptics.light(); }}
         activeOpacity={0.7}
       >
         <Text style={styles.headerTitle}>Your property journey</Text>
         <View style={styles.headerRight}>
           <View style={styles.progressPill}>
             <Text style={styles.progressText}>
-              {stages.filter(s => s.status === 'done').length + 1} of {stages.length}
+              {stages.filter(s => s.status === 'done' || s.status === 'active').length} of {stages.length}
             </Text>
           </View>
-          {collapsed ? (
-            <ChevronDown size={16} color={Colors.textTertiary} strokeWidth={2} />
-          ) : (
+          {expanded ? (
             <ChevronUp size={16} color={Colors.textTertiary} strokeWidth={2} />
+          ) : (
+            <ChevronDown size={16} color={Colors.textTertiary} strokeWidth={2} />
           )}
         </View>
       </TouchableOpacity>
 
-      {/* Collapsed state — compact current stage with live status */}
-      {collapsed && (
-        <TouchableOpacity
-          style={styles.collapsedRow}
-          onPress={() => { setCollapsed(false); haptics.light(); }}
-          activeOpacity={0.7}
-        >
-          <View style={styles.collapsedLeft}>
-            {(() => { const Icon = stages[expandedIndex].icon; return (
-              <View style={[styles.dot, styles.dotActive]}>
-                <Icon size={11} color="#fff" strokeWidth={1.8} />
-              </View>
-            ); })()}
-            <View style={styles.collapsedInfo}>
-              <Text style={styles.collapsedLabel}>
-                {stages[expandedIndex].num}. {stages[expandedIndex].label}
-              </Text>
-              <View style={styles.scanningRow}>
-                <Animated.View style={[styles.scanningDot, pulseStyle]} />
-                <Text style={styles.scanningText}>{stages[expandedIndex].alonTask}</Text>
-              </View>
-            </View>
+      {/* ── Collapsed: Fluid stage strip with glass bubble ── */}
+      {!expanded && (
+        <View style={styles.stripContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            <StageStrip compact />
+          </ScrollView>
+          {/* Active stage detail */}
+          <View style={styles.stageDetail}>
+            <Animated.View style={[styles.scanningDot, pulseStyle]} />
+            <Text style={styles.detailText} numberOfLines={2}>
+              {stages[activeIndex >= 0 ? activeIndex : 0].alonTask}
+            </Text>
           </View>
-          <ChevronDown size={14} color={Colors.textTertiary} strokeWidth={2} />
-        </TouchableOpacity>
+        </View>
       )}
 
-      {/* Expanded — full accordion (scrollable, capped height) */}
-      {!collapsed && (
-        <ScrollView style={styles.accordionScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-        <View style={styles.accordion}>
-          {stages.map((stage, i) => {
-            const Icon = stage.icon;
-            const isExpanded = i === expandedIndex;
-            const isDone = stage.status === 'done';
-            const isActive = stage.status === 'active';
+      {/* ── Expanded: Full accordion with vertical drag ── */}
+      {expanded && (
+        <GestureDetector gesture={accordionPanGesture}>
+          <View>
+            <ScrollView style={styles.accordionScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              <View style={styles.accordion}>
+                {stages.map((stage, i) => {
+                  const Icon = stage.icon;
+                  const isSelected = activeIndex === i;
+                  const isDone = stage.status === 'done';
+                  const isStageActive = stage.status === 'active';
+                  const isDragOver = dragOverIndex === i;
 
-            return (
-              <View key={stage.num}>
-                {/* Stage row */}
-                <TouchableOpacity
-                  style={[styles.stageRow, isExpanded && styles.stageRowExpanded]}
-                  onPress={() => toggleStage(i)}
-                  activeOpacity={0.7}
-                >
-                  {/* Connector line */}
-                  {i < stages.length - 1 && (
-                    <View style={[styles.connector, (isDone || isActive) && styles.connectorActive]} />
-                  )}
+                  return (
+                    <View key={stage.num}>
+                      <TouchableOpacity
+                        style={[
+                          styles.stageRow,
+                          isSelected && styles.stageRowSelected,
+                          isDragOver && !isSelected && styles.stageRowDragOver,
+                        ]}
+                        onPress={() => selectStage(i)}
+                        activeOpacity={0.7}
+                      >
+                        {i < stages.length - 1 && (
+                          <View style={[styles.connector, (isDone || isStageActive) && styles.connectorActive]} />
+                        )}
 
-                  {/* Dot */}
-                  <View style={[
-                    styles.dot,
-                    isActive && styles.dotActive,
-                    isDone && styles.dotDone,
-                    isExpanded && !isDone && !isActive && styles.dotExpanded,
-                  ]}>
-                    {isDone ? (
-                      <CheckCircle2 size={10} color="#fff" strokeWidth={2.5} />
-                    ) : (
-                      <Icon size={11} color={isActive || isExpanded ? '#fff' : Colors.warm400} strokeWidth={1.8} />
-                    )}
-                  </View>
+                        <View style={[
+                          styles.dot,
+                          isStageActive && styles.dotActive,
+                          isDone && styles.dotDone,
+                          isSelected && !isDone && !isStageActive && styles.dotSelected,
+                          (isSelected || isDragOver) && styles.dotGlow,
+                          isDragOver && !isSelected && !isDone && !isStageActive && styles.dotDragOver,
+                        ]}>
+                          {isDone ? (
+                            <CheckCircle2 size={10} color="#fff" strokeWidth={2.5} />
+                          ) : (
+                            <Icon size={11} color={isStageActive || isSelected || isDragOver ? '#fff' : Colors.warm400} strokeWidth={1.8} />
+                          )}
+                        </View>
 
-                  {/* Label */}
-                  <Text style={[
-                    styles.stageLabel,
-                    isExpanded && styles.stageLabelExpanded,
-                    isDone && styles.stageLabelDone,
-                  ]}>
-                    {stage.num}. {stage.label}
-                  </Text>
+                        <Text style={[
+                          styles.stageLabel,
+                          isSelected && styles.stageLabelSelected,
+                          isDragOver && !isSelected && styles.stageLabelDragOver,
+                          isDone && styles.stageLabelDone,
+                        ]}>
+                          {stage.num}. {stage.label}
+                        </Text>
 
-                  {/* Status */}
-                  {isDone && <Text style={styles.doneText}>Done</Text>}
-                </TouchableOpacity>
+                        {isStageActive && !isSelected && (
+                          <View style={styles.activityDot} />
+                        )}
+                        {isDone && <Text style={styles.doneText}>Done</Text>}
+                      </TouchableOpacity>
 
-                {/* Expanded subtitle — ALON's task for this stage */}
-                {isExpanded && (
-                  <Animated.View style={styles.detailSubtitle} entering={FadeIn.duration(200)}>
-                    <Animated.View style={[styles.scanningDot, isActive && pulseStyle]} />
-                    <Text style={styles.detailText}>{stage.alonTask}</Text>
-                  </Animated.View>
-                )}
+                      {isSelected && (
+                        <Animated.View style={styles.accordionDetail} entering={FadeIn.duration(200)}>
+                          <Animated.View style={[styles.scanningDot, isStageActive && pulseStyle]} />
+                          <Text style={styles.detailText}>{stage.alonTask}</Text>
+                        </Animated.View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
-            );
-          })}
-        </View>
-        </ScrollView>
+            </ScrollView>
+          </View>
+        </GestureDetector>
       )}
     </View>
   );
@@ -191,6 +255,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
 
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -202,30 +267,42 @@ const styles = StyleSheet.create({
   progressPill: { backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   progressText: { fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.terra500 },
 
-  // Collapsed
-  collapsedRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+  // Strip container with tinted background
+  stripContainer: {
+    backgroundColor: Colors.cream,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    overflow: 'hidden',
+    marginHorizontal: -4,
   },
-  collapsedLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  collapsedInfo: { flex: 1, gap: 2 },
-  collapsedLabel: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
-  scanningRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  scanningDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.terra500 },
-  scanningText: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
 
-  // Accordion
-  accordionScroll: { maxHeight: 280 },
+  // Active stage detail line below strip
+  stageDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm200,
+  },
+  scanningDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.terra500 },
+  detailText: { flex: 1, fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, lineHeight: 15 },
+
+  // ── Accordion (expanded) ──
+  accordionScroll: { maxHeight: 300 },
   accordion: {
     backgroundColor: Colors.white, borderRadius: 14,
     borderWidth: 1, borderColor: Colors.warm200, overflow: 'hidden',
+    position: 'relative',
   },
   stageRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingVertical: 10, position: 'relative',
   },
-  stageRowExpanded: { backgroundColor: Colors.cream },
+  stageRowSelected: { backgroundColor: Colors.cream },
+  stageRowDragOver: { backgroundColor: Colors.terra50 },
 
   connector: {
     position: 'absolute', left: 24, top: 32, width: 1, height: 16,
@@ -240,20 +317,29 @@ const styles = StyleSheet.create({
   },
   dotActive: { backgroundColor: Colors.terra500, borderColor: Colors.terra500 },
   dotDone: { backgroundColor: '#22C55E', borderColor: '#22C55E' },
-  dotExpanded: { backgroundColor: Colors.navy800, borderColor: Colors.navy800 },
-  dotInner: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
+  dotSelected: { backgroundColor: Colors.navy800, borderColor: Colors.navy800 },
+  dotDragOver: { backgroundColor: Colors.terra400, borderColor: Colors.terra400 },
+  dotGlow: {
+    shadowColor: Colors.terra500,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
 
   stageLabel: { flex: 1, fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
-  stageLabelExpanded: { fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  stageLabelSelected: { fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  stageLabelDragOver: { fontFamily: 'DMSans-Medium', color: Colors.terra600 },
   stageLabelDone: { color: Colors.textSecondary },
-
+  activityDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: Colors.terra500,
+  },
   doneText: { fontSize: 10, fontFamily: 'DMSans-Medium', color: '#22C55E' },
 
-  // Detail subtitle
-  detailSubtitle: {
+  accordionDetail: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingBottom: 10, paddingLeft: 46,
     backgroundColor: Colors.cream,
   },
-  detailText: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, lineHeight: 15 },
 });

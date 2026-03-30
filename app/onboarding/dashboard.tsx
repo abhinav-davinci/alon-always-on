@@ -143,12 +143,10 @@ export default function DashboardScreen() {
 
       {/* ══ ZONE 2: Journey Accordion (hides when expanded) ══ */}
       <Animated.View style={journeyAnimStyle}>
-        <View style={styles.journeyDivider} />
-        <JourneyAccordion onStageChange={(s) => useOnboardingStore.getState().setActiveStage(s)} />
+        <JourneyAccordion />
       </Animated.View>
 
       {/* ══ ZONE 3: ALON Chat ══ */}
-      {!chatExpanded && <View style={styles.chatDivider} />}
       <KeyboardAvoidingView
         style={styles.chatZone}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -211,10 +209,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.terra500, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
   },
   addNowText: { fontSize: 10, fontFamily: 'DMSans-SemiBold', color: '#fff' },
-
-  // Dividers
-  journeyDivider: { height: 1, backgroundColor: Colors.warm100, marginTop: Spacing.md },
-  chatDivider: { height: 1, backgroundColor: Colors.warm100, marginTop: Spacing.sm },
 
   // Chat zone
   chatZone: { flex: 1 },

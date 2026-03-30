@@ -439,65 +439,64 @@ export default function PropertyDetailScreen() {
 
       {/* Sticky bottom CTAs */}
       <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 12 }]}>
-        {connectExpanded ? (
-          /* ── Expanded: full-width Call | Message | Close ── */
-          <View style={styles.connectExpandedRow}>
-            <TouchableOpacity
-              style={styles.connectOption}
-              activeOpacity={0.7}
-              onPress={() => { haptics.medium(); Linking.openURL('tel:+919876543210'); }}
-            >
-              <View style={[styles.connectOptionIcon, { backgroundColor: '#E8F5E9' }]}>
-                <Phone size={18} color="#22C55E" strokeWidth={2} />
-              </View>
-              <Text style={styles.connectOptionLabel}>Call</Text>
-              <Text style={styles.connectOptionSub}>Direct line</Text>
-            </TouchableOpacity>
+        <View style={styles.ctaRow}>
+          {connectExpanded ? (
+            <>
+              {/* Call button */}
+              <TouchableOpacity
+                style={styles.ctaCall}
+                activeOpacity={0.85}
+                onPress={() => { haptics.medium(); Linking.openURL('tel:+919876543210'); }}
+              >
+                <Phone size={16} color="#22C55E" strokeWidth={2} />
+                <Text style={styles.ctaCallText}>Call</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.connectOption}
-              activeOpacity={0.7}
-              onPress={() => { haptics.light(); Linking.openURL('sms:+919876543210'); }}
-            >
-              <View style={[styles.connectOptionIcon, { backgroundColor: Colors.terra50 }]}>
-                <MessageCircle size={18} color={Colors.terra500} strokeWidth={2} />
-              </View>
-              <Text style={styles.connectOptionLabel}>Message</Text>
-              <Text style={styles.connectOptionSub}>Via SMS</Text>
-            </TouchableOpacity>
+              {/* Message button */}
+              <TouchableOpacity
+                style={styles.ctaMessage}
+                activeOpacity={0.85}
+                onPress={() => { haptics.light(); Linking.openURL('sms:+919876543210'); }}
+              >
+                <MessageCircle size={16} color={Colors.terra500} strokeWidth={2} />
+                <Text style={styles.ctaMessageText}>Message</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.connectCloseBtn}
-              activeOpacity={0.7}
-              onPress={() => setConnectExpanded(false)}
-            >
-              <X size={16} color={Colors.textTertiary} strokeWidth={2.5} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          /* ── Default: Instant Connect + Schedule Visit ── */
-          <View style={styles.ctaRow}>
-            <TouchableOpacity
-              style={styles.ctaConnect}
-              activeOpacity={0.85}
-              onPress={() => { haptics.light(); setConnectExpanded(true); }}
-            >
-              <Animated.View style={zapStyle}>
-                <Zap size={15} color={Colors.terra500} strokeWidth={2.2} fill={Colors.terra100} />
-              </Animated.View>
-              <Text style={styles.ctaConnectText}>Instant Connect</Text>
-            </TouchableOpacity>
+              {/* Close */}
+              <TouchableOpacity
+                style={styles.ctaClose}
+                activeOpacity={0.7}
+                onPress={() => setConnectExpanded(false)}
+              >
+                <X size={16} color={Colors.textTertiary} strokeWidth={2.5} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {/* Instant Connect */}
+              <TouchableOpacity
+                style={styles.ctaConnect}
+                activeOpacity={0.85}
+                onPress={() => { haptics.light(); setConnectExpanded(true); }}
+              >
+                <Animated.View style={zapStyle}>
+                  <Zap size={15} color={Colors.terra500} strokeWidth={2.2} fill={Colors.terra100} />
+                </Animated.View>
+                <Text style={styles.ctaConnectText}>Connect</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.ctaPrimary}
-              activeOpacity={0.85}
-              onPress={() => { haptics.light(); setScheduleSheetOpen(true); }}
-            >
-              <Calendar size={16} color="#fff" strokeWidth={2} />
-              <Text style={styles.ctaPrimaryText}>Schedule Visit</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              {/* Schedule Visit */}
+              <TouchableOpacity
+                style={styles.ctaPrimary}
+                activeOpacity={0.85}
+                onPress={() => { haptics.light(); setScheduleSheetOpen(true); }}
+              >
+                <Calendar size={16} color="#fff" strokeWidth={2} />
+                <Text style={styles.ctaPrimaryText}>Schedule Visit</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Schedule Visit Sheet */}
@@ -902,21 +901,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.warm100,
   },
-
-  // Default CTA row
   ctaRow: {
     flexDirection: 'row',
     gap: 8,
   },
 
-  // Instant Connect — collapsed
+  // Instant Connect (default)
   ctaConnect: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 14,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: Colors.terra200,
@@ -924,42 +921,44 @@ const styles = StyleSheet.create({
   },
   ctaConnectText: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.terra600 },
 
-  // Instant Connect — expanded (full width)
-  connectExpandedRow: {
+  // Call button (expanded)
+  ctaCall: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: '#BBF7D0',
+  },
+  ctaCallText: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: '#16A34A' },
+
+  // Message button (expanded)
+  ctaMessage: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: Colors.terra50,
+    borderWidth: 1.5,
+    borderColor: Colors.terra200,
+  },
+  ctaMessageText: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.terra600 },
+
+  // Close button (expanded)
+  ctaClose: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: Colors.warm50,
     borderWidth: 1.5,
     borderColor: Colors.warm200,
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  connectOption: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 3,
-  },
-  connectOptionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  connectOptionLabel: { fontSize: 12, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
-  connectOptionSub: { fontSize: 9, fontFamily: 'DMSans-Regular', color: Colors.textTertiary },
-  connectCloseBtn: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.warm100,
     alignItems: 'center',
     justifyContent: 'center',
   },

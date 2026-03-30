@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALON Light Mode — Marketing Cyan vs Trust Architecture | Comparison</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0D1F4A;
+    color: #F5F0E8;
+    padding: 40px 20px;
+  }
+
+  .page-header {
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto 60px;
+  }
+
+  .page-header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 42px;
+    line-height: 1.2;
+    margin-bottom: 12px;
+    color: #fff;
+  }
+
+  .page-header h1 span { color: #D95F2B; }
+
+  .page-header p {
+    font-size: 16px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+
+  .badge-internal { background: rgba(217,95,43,0.15); color: #E8774A; }
+  .badge-reject { background: rgba(239,68,68,0.15); color: #EF4444; }
+  .badge-recommend { background: rgba(34,197,94,0.15); color: #22C55E; }
+
+  /* ─── COUNTERPOINTS SECTION ─── */
+  .counterpoints {
+    max-width: 900px;
+    margin: 0 auto 80px;
+  }
+
+  .counterpoints h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .counter-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    transition: background 0.2s;
+  }
+
+  .counter-card:hover { background: rgba(255,255,255,0.06); }
+
+  .counter-num {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(217,95,43,0.15);
+    color: #D95F2B;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    line-height: 28px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .counter-title {
+    font-weight: 700;
+    font-size: 17px;
+    color: #fff;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+  }
+
+  .counter-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.7);
+    padding-left: 40px;
+  }
+
+  .counter-body strong { color: rgba(255,255,255,0.9); }
+
+  .scenario-box {
+    background: rgba(255,255,255,0.04);
+    border-left: 3px solid #D95F2B;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin-top: 12px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+
+  .scenario-box b { color: rgba(255,255,255,0.85); }
+
+  /* ─── SWATCH COMPARISON ─── */
+  .swatch-compare {
+    max-width: 900px;
+    margin: 0 auto 80px;
+  }
+
+  .swatch-compare h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .swatch-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .swatch-group h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 12px;
+  }
+
+  .swatch-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .swatch {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 4px;
+    font-size: 8px;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ─── PHONE MOCK COMPARISON ─── */
+  .comparison-section {
+    max-width: 1100px;
+    margin: 0 auto 80px;
+  }
+
+  .comparison-section h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .comparison-section .subtitle {
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 40px;
+  }
+
+  .phone-row {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .phone-wrapper {
+    text-align: center;
+  }
+
+  .phone-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .phone-label.reject { color: #EF4444; }
+  .phone-label.recommend { color: #22C55E; }
+
+  .phone {
+    width: 320px;
+    height: 692px;
+    border-radius: 40px;
+    overflow: hidden;
+    border: 6px solid #1a1a2e;
+    background: #fff;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .phone .notch {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 28px;
+    background: #1a1a2e;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone .status-bar {
+    height: 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 24px 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* ─── MARKETING CYAN THEME ─── */
+  .cyan-theme .header-zone {
+    background: #0F172A;
+    padding: 16px 20px 16px;
+    border-radius: 0 0 20px 20px;
+  }
+
+  .cyan-theme .header-zone .greeting {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .cyan-theme .header-zone .status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #22C55E;
+    margin-bottom: 10px;
+  }
+
+  .cyan-theme .header-zone .status .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22C55E;
+  }
+
+  .cyan-theme .header-zone .pref-pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cyan-theme .header-zone .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(20,184,166,0.15);
+    border: 1.5px solid rgba(20,184,166,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 20px;
+    top: 16px;
+  }
+
+  .cyan-theme .header-zone .avatar .eye {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #fff;
+    position: relative;
+  }
+
+  .cyan-theme .header-zone .avatar .eye::after {
+    content: '';
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #14B8A6;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Cyan CTA buttons */
+  .cyan-cta {
+    background: #14B8A6;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    text-align: center;
+  }
+
+  .cyan-pill-selected {
+    background: rgba(20,184,166,0.08);
+    border: 1.5px solid #14B8A6;
+    color: #0D9488;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    margin: 3px;
+  }
+
+  .cyan-pill-unselected {
+    background: #F8FAFC;
+    border: 1.5px solid #E2E8F0;
+    color: #475569;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    margin: 3px;
+  }
+
+  /* ─── TRUST ARCHITECTURE THEME ─── */
+  .trust-theme .header-zone {
+    background: #0D1F4A;
+    padding: 16px 20px 16px;
+    border-radius: 0 0 20px 20px;
+  }
+
+  .trust-theme .header-zone .greeting {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .trust-theme .header-zone .status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #22C55E;
+    margin-bottom: 10px;
+  }
+
+  .trust-theme .header-zone .status .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22C55E;
+  }
+
+  .trust-theme .header-zone .pref-pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .trust-theme .header-zone .add-row {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .trust-theme .header-zone .add-pill {
+    background: #D95F2B;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .trust-theme .header-zone .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(217,95,43,0.06);
+    border: 1.5px solid rgba(217,95,43,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 20px;
+    top: 16px;
+  }
+
+  .trust-theme .header-zone .avatar .eye {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #fff;
+    position: relative;
+  }
+
+  .trust-theme .header-zone .avatar .eye::after {
+    content: '';
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: #D95F2B;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .trust-cta {
+    background: #D95F2B;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    text-align: center;
+  }
+
+  .trust-pill-selected {
+    background: #FEF7F3;
+    border: 1.5px solid #D95F2B;
+    color: #B8451E;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    margin: 3px;
+  }
+
+  .trust-pill-unselected {
+    background: #F5F0E8;
+    border: 1.5px solid #E0D8CC;
+    color: #5C554A;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+    margin: 3px;
+  }
+
+  /* ─── SHARED INNER STYLES ─── */
+  .screen-content {
+    padding: 14px 20px;
+  }
+
+  .journey-card {
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .journey-stage {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .stage-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .stage-text {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .stage-sub {
+    font-size: 10px;
+    color: #9CA1B3;
+    padding-left: 18px;
+  }
+
+  .chat-bubble {
+    border-radius: 4px 14px 14px 14px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .chat-input {
+    border-radius: 24px;
+    padding: 10px 16px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .quick-pills {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .quick-pill {
+    padding: 5px 10px;
+    border-radius: 14px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  /* ─── TWEAK SCREEN INNER ─── */
+  .tweak-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px;
+    border-bottom: 1px solid;
+  }
+
+  .tweak-back {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .tweak-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .tweak-section {
+    padding: 0 20px;
+    margin-top: 20px;
+  }
+
+  .tweak-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .tweak-hint {
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .tweak-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .budget-bar {
+    height: 4px;
+    border-radius: 2px;
+    margin: 10px 0;
+    position: relative;
+  }
+
+  .budget-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: absolute;
+    left: 15%;
+    right: 35%;
+  }
+
+  .budget-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .sticky-cta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 20px 30px;
+    border-top: 1px solid;
+  }
+
+  /* ─── VERDICT BOX ─── */
+  .verdict {
+    max-width: 900px;
+    margin: 0 auto 60px;
+    background: rgba(34,197,94,0.06);
+    border: 1px solid rgba(34,197,94,0.15);
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .verdict h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    color: #22C55E;
+    margin-bottom: 16px;
+  }
+
+  .verdict p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.7;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* ─── PURPOSE GRID ─── */
+  .purpose-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .purpose-card {
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .purpose-icon {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  /* ─── PROPERTY CARD ─── */
+  .prop-card-inner {
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+
+  .prop-thumb {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+
+  .prop-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .prop-loc {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .prop-price {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .match-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- PAGE HEADER                                      -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="page-header">
+  <span class="badge badge-internal">Internal Design Review</span>
+  <h1>Why Marketing's Cyan Light Mode<br><span>Won't Work</span> for ALON</h1>
+  <p>A detailed analysis of the "Light Edition Brand Guide v1.0" (Cyan #14B8A6 accent) versus ALON's Trust Architecture palette — with logic, real scenarios, and side-by-side screen comparisons.</p>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- COUNTERPOINTS                                    -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="counterpoints">
+  <h2>8 Counterpoints with Logic & Scenarios</h2>
+
+  <!-- 1 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">1</span>Brand Split: Two Apps in One</div>
+    <div class="counter-body">
+      The marketing guide uses <strong>Cyan #14B8A6</strong> as the primary accent while our app uses <strong>Terracotta #D95F2B</strong>. These are not variations of the same hue — they're on <strong>opposite sides of the color wheel</strong> (warm vs cool). When a user sees a terracotta CTA on dark mode and a cyan CTA on light mode, they experience <strong>two completely different brands</strong>.
+      <div class="scenario-box">
+        <b>Scenario:</b> A user downloads ALON and opens it at night (dark mode). They see warm terracotta buttons, the familiar ALON eye with its orange iris. Next morning, the phone auto-switches to light mode. Suddenly every button is teal, the entire emotional tone has shifted. They wonder: "Did the app update? Is this the same app?" <b>This is brand confusion, not a theme variant.</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">2</span>Cyan = SaaS / Fintech, Not Real Estate</div>
+    <div class="counter-body">
+      Cyan/teal (#14B8A6) is the <strong>default accent of Tailwind CSS, Stripe, Notion, Vercel, Linear, Slack, and a hundred SaaS dashboards</strong>. It screams "productivity software." Real estate is an <strong>emotional, high-stakes, trust-heavy purchase</strong> — the biggest financial decision most Indians make. Terracotta evokes <strong>earth, brick, home</strong>. Cyan evokes <strong>cloud, code, efficiency</strong>.
+      <div class="scenario-box">
+        <b>Scenario:</b> A homebuyer opens ALON alongside Housing.com and NoBroker. If ALON uses cyan, it looks like a tech dashboard, not a property companion. Terracotta creates an instant <b>category signal</b> — "this app understands homes, not just data."
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">3</span>ALON Avatar Identity Breaks</div>
+    <div class="counter-body">
+      The ALON avatar — our brand mascot — uses a <strong>terracotta iris (#D95F2B)</strong>, <strong>terracotta-tinted rings</strong>, and <strong>warm amber glow</strong>. This is deeply embedded across every screen. In the cyan scheme, the avatar either keeps its terracotta eye (clashing with every cyan element around it) or changes to a cyan eye (destroying the established character identity).
+      <div class="scenario-box">
+        <b>Scenario:</b> The ALON eye sits in the dashboard header, in chat bubbles, on the splash screen, in marketing materials. If we use cyan for light mode, the eye becomes <b>orphaned warm</b> in a cold UI, or we maintain two avatar variants with different eye colors — confusing the one visual element that IS the brand.
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">4</span>Cool Gray Surfaces Kill Warmth</div>
+    <div class="counter-body">
+      The marketing guide uses <strong>#F8FAFC</strong> (cool blue-gray) for surfaces. Our Trust Architecture uses <strong>#F5F0E8</strong> (warm cream). This difference isn't subtle — it shifts the entire emotional register. Cool grays feel <strong>clinical and transactional</strong>. Warm creams feel <strong>welcoming and residential</strong>. In the context of browsing properties — places you'll call home — warmth matters.
+      <div class="scenario-box">
+        <b>Scenario:</b> A user is browsing property cards on the preferences screen. With warm cream backgrounds (#F5F0E8), the unselected pills feel like paper, like a physical document. With cool gray (#F8FAFC), the same pills feel like a spreadsheet cell. <b>The same content, completely different emotional frame.</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">5</span>Trust Architecture Was a Deliberate Choice</div>
+    <div class="counter-body">
+      We chose the Prussian Navy + Terracotta palette specifically to solve a <strong>design tension unique to ALON</strong>: bridging "AI-cold" (the agent, verification, data) with "purchase-warm" (home, family, investment). Cyan <strong>doubles down on the cold side</strong> — it says "I am a tool" instead of "I understand your home journey." The Trust Architecture palette was designed to signal: <strong>"Yes, I'm intelligent AND I care about your biggest purchase."</strong>
+      <div class="scenario-box">
+        <b>Scenario:</b> During the 8-stage journey, ALON moves from analytical (search, shortlist) to deeply personal (negotiation, possession). Terracotta carries emotional weight across all stages. Cyan feels fine for "Search" but becomes <b>tonally inappropriate for "Possession"</b> — the moment you get your home keys shouldn't feel like completing a Jira ticket.
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">6</span>Navy Inconsistency (#0F172A vs #0D1F4A)</div>
+    <div class="counter-body">
+      The marketing guide uses <strong>#0F172A</strong> (Slate 900 from Tailwind) as their navy. Our codebase uses <strong>#0D1F4A</strong> (Prussian navy — a warmer, bluer, more distinctive dark). These are <strong>different navies</strong>. #0F172A is a generic dark that appears in thousands of websites. #0D1F4A is a curated Prussian navy that pairs specifically with terracotta for the "institutional trust" signal.
+      <div class="scenario-box">
+        <b>Scenario:</b> If we ship with the marketing's Slate 900, our dark header (#0F172A) on light mode looks like every Tailwind starter template. Our Prussian navy (#0D1F4A) is <b>recognizably ALON</b> — even a 2-pixel header stripe would identify the brand.
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">7</span>Selection States Lose Meaning</div>
+    <div class="counter-body">
+      In our current system, <strong>terracotta = user's choice/action</strong> and <strong>blue = system/interactive state</strong>. This creates a clear semantic distinction. The cyan guide makes <strong>cyan = everything</strong> — CTAs, highlights, accents, selected pills. When one color does everything, nothing has semantic meaning. Users can't quickly distinguish "I chose this" from "the system suggests this."
+      <div class="scenario-box">
+        <b>Scenario:</b> On the preferences screen, selected property types (user action) should feel different from ALON's AI suggestions (system intelligence). With Trust Architecture, <b>terracotta = your choice, blue = ALON's pick</b>. With cyan for everything, there's no visual language for this distinction — and we lose one of our strongest UX signals.
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="counter-card">
+    <div class="counter-title"><span class="counter-num">8</span>Indian Market Differentiation</div>
+    <div class="counter-body">
+      Every major Indian proptech app — Housing.com, 99acres, NoBroker, Square Yards — uses <strong>blues, greens, or teals</strong>. Cyan puts ALON directly into that visual cluster. Terracotta is <strong>unprecedented in Indian proptech</strong>. In a market where brand recall drives repeat usage, looking like everyone else is the fastest way to be forgotten.
+      <div class="scenario-box">
+        <b>Scenario:</b> A buyer has 4 property apps installed. They're all some shade of blue/teal. ALON with terracotta is the <b>only warm icon</b> on their home screen. Without looking at labels, they know which one is ALON. <b>With cyan, we become the fifth blue icon.</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- COLOR SWATCH COMPARISON                          -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="swatch-compare">
+  <h2>Color Palette: Side by Side</h2>
+  <div class="swatch-row">
+    <div class="swatch-group">
+      <h3 style="color:#EF4444;">Marketing Cyan (Rejected)</h3>
+      <div class="swatch-grid">
+        <div class="swatch" style="background:#FFFFFF;color:#666;border:1px solid #ddd;">#FFF</div>
+        <div class="swatch" style="background:#F8FAFC;color:#666;">#F8FAFC</div>
+        <div class="swatch" style="background:#14B8A6;color:#fff;">#14B8A6</div>
+        <div class="swatch" style="background:#0F172A;color:#fff;">#0F172A</div>
+        <div class="swatch" style="background:#2DD4BF;color:#fff;">#2DD4BF</div>
+        <div class="swatch" style="background:#CCFBF1;color:#666;">#CCFBF1</div>
+      </div>
+    </div>
+    <div class="swatch-group">
+      <h3 style="color:#22C55E;">Trust Architecture (Recommended)</h3>
+      <div class="swatch-grid">
+        <div class="swatch" style="background:#FFFFFF;color:#666;border:1px solid #ddd;">#FFF</div>
+        <div class="swatch" style="background:#F5F0E8;color:#666;">#F5F0E8</div>
+        <div class="swatch" style="background:#D95F2B;color:#fff;">#D95F2B</div>
+        <div class="swatch" style="background:#0D1F4A;color:#fff;">#0D1F4A</div>
+        <div class="swatch" style="background:#FF8C42;color:#fff;">#FF8C42</div>
+        <div class="swatch" style="background:#FDF0EA;color:#666;">#FDF0EA</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- COMPARISON 1: DASHBOARD                          -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <span class="badge badge-internal">Comparison 1 of 3</span>
+  <h2>Dashboard — Chat-First Layout</h2>
+  <p class="subtitle">The screen users see 90% of the time. Brand identity is anchored here.</p>
+
+  <div class="phone-row">
+    <!-- CYAN DASHBOARD -->
+    <div class="phone-wrapper">
+      <div class="phone-label reject">Marketing Cyan</div>
+      <div class="phone cyan-theme">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#0F172A;color:rgba(255,255,255,0.6);">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="header-zone" style="position:relative;">
+          <div class="greeting">Good morning, Abhinav</div>
+          <div class="status"><div class="dot"></div> ALON is active</div>
+          <div class="pref-pill">Kharadi, Viman Nagar · Apartment · 2 BHK · 60L–1.2Cr</div>
+          <div class="avatar"><div class="eye"></div></div>
+        </div>
+
+        <!-- Journey -->
+        <div class="screen-content">
+          <div class="journey-card" style="background:#F8FAFC;border:1px solid #E2E8F0;">
+            <div class="journey-stage">
+              <div class="stage-dot" style="background:#22C55E;"></div>
+              <span class="stage-text" style="color:#0F172A;">Search</span>
+              <span style="font-size:9px;color:#14B8A6;margin-left:auto;">Scanning 847 listings</span>
+            </div>
+            <div style="margin-left:3px;border-left:2px solid #E2E8F0;padding-left:14px;">
+              <div class="journey-stage" style="margin-bottom:4px;">
+                <div class="stage-dot" style="background:#E2E8F0;width:6px;height:6px;"></div>
+                <span style="font-size:11px;color:#64748B;">Shortlisting Data</span>
+              </div>
+              <div class="journey-stage" style="margin-bottom:0;">
+                <div class="stage-dot" style="background:#E2E8F0;width:6px;height:6px;"></div>
+                <span style="font-size:11px;color:#64748B;">Site Visits</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div style="margin-top:4px;">
+            <div class="chat-bubble" style="background:#F8FAFC;color:#0F172A;border:1px solid #E2E8F0;">
+              I found 3 properties in Kharadi matching your 2 BHK, 60L–1.2Cr range. Want me to show details?
+            </div>
+
+            <div class="quick-pills">
+              <span class="quick-pill" style="background:#CCFBF1;color:#0D9488;border:1px solid #99F6E4;">Show me</span>
+              <span class="quick-pill" style="background:#CCFBF1;color:#0D9488;border:1px solid #99F6E4;">Add filter</span>
+              <span class="quick-pill" style="background:#CCFBF1;color:#0D9488;border:1px solid #99F6E4;">Site visits</span>
+            </div>
+
+            <!-- Property card in cyan -->
+            <div class="prop-card-inner" style="background:#F8FAFC;border:1px solid #E2E8F0;">
+              <div class="prop-thumb" style="background:linear-gradient(135deg,#CCFBF1,#99F6E4);"></div>
+              <div class="prop-name" style="color:#0F172A;">Godrej Infinity, Kharadi</div>
+              <div class="prop-loc" style="color:#64748B;">2 BHK · 1,050 sqft · East facing</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="prop-price" style="color:#0F172A;">₹87.5L</div>
+                <div class="match-badge" style="background:#CCFBF1;color:#0D9488;">92% match</div>
+              </div>
+            </div>
+
+            <div class="chat-input" style="background:#F8FAFC;border:1px solid #E2E8F0;color:#64748B;">
+              <span>🎙</span> Ask ALON anything...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUST ARCHITECTURE DASHBOARD -->
+    <div class="phone-wrapper">
+      <div class="phone-label recommend">Trust Architecture</div>
+      <div class="phone trust-theme">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#0D1F4A;color:rgba(255,255,255,0.6);">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="header-zone" style="position:relative;">
+          <div class="greeting">Good morning, Abhinav</div>
+          <div class="status"><div class="dot"></div> ALON is active</div>
+          <div class="pref-pill">Kharadi, Viman Nagar · Apartment · 2 BHK · 60L–1.2Cr</div>
+          <div class="add-row">
+            Got a shortlisted property?
+            <div class="add-pill">+ Add now</div>
+          </div>
+          <div class="avatar"><div class="eye"></div></div>
+        </div>
+
+        <!-- Journey -->
+        <div class="screen-content">
+          <div class="journey-card" style="background:#fff;border:1px solid #F0EDE6;">
+            <div class="journey-stage">
+              <div class="stage-dot" style="background:#22C55E;"></div>
+              <span class="stage-text" style="color:#0D1F4A;">Search</span>
+              <span style="font-size:9px;color:#D95F2B;margin-left:auto;">Scanning 847 listings</span>
+            </div>
+            <div style="margin-left:3px;border-left:2px solid #F0EDE6;padding-left:14px;">
+              <div class="journey-stage" style="margin-bottom:4px;">
+                <div class="stage-dot" style="background:#F0EDE6;width:6px;height:6px;"></div>
+                <span style="font-size:11px;color:#A89E8E;">Shortlisting Data</span>
+              </div>
+              <div class="journey-stage" style="margin-bottom:0;">
+                <div class="stage-dot" style="background:#F0EDE6;width:6px;height:6px;"></div>
+                <span style="font-size:11px;color:#A89E8E;">Site Visits</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div style="margin-top:4px;">
+            <div class="chat-bubble" style="background:#F5F0E8;color:#0D1F4A;">
+              I found 3 properties in Kharadi matching your 2 BHK, 60L–1.2Cr range. Want me to show details?
+            </div>
+
+            <div class="quick-pills">
+              <span class="quick-pill" style="background:#FEF7F3;color:#B8451E;border:1px solid #F8D0BC;">Show me</span>
+              <span class="quick-pill" style="background:#FEF7F3;color:#B8451E;border:1px solid #F8D0BC;">Add filter</span>
+              <span class="quick-pill" style="background:#FEF7F3;color:#B8451E;border:1px solid #F8D0BC;">Site visits</span>
+            </div>
+
+            <!-- Property card in trust -->
+            <div class="prop-card-inner" style="background:#fff;border:1px solid #E0D8CC;">
+              <div class="prop-thumb" style="background:linear-gradient(135deg,#FDF0EA,#F8D0BC);"></div>
+              <div class="prop-name" style="color:#0D1F4A;">Godrej Infinity, Kharadi</div>
+              <div class="prop-loc" style="color:#5C554A;">2 BHK · 1,050 sqft · East facing</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="prop-price" style="color:#0D1F4A;">₹87.5L</div>
+                <div class="match-badge" style="background:#FEF7F3;color:#D95F2B;">92% match</div>
+              </div>
+            </div>
+
+            <div class="chat-input" style="background:#F5F0E8;border:1px solid #E0D8CC;color:#A89E8E;">
+              <span>🎙</span> Ask ALON anything...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- COMPARISON 2: PREFERENCES / TWEAK                -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <span class="badge badge-internal">Comparison 2 of 3</span>
+  <h2>Preferences — Refine Your Search</h2>
+  <p class="subtitle">Heavy interaction screen: pills, sliders, grids. Color carries the selection language.</p>
+
+  <div class="phone-row">
+    <!-- CYAN PREFERENCES -->
+    <div class="phone-wrapper">
+      <div class="phone-label reject">Marketing Cyan</div>
+      <div class="phone" style="background:#fff;">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#fff;color:#0F172A;">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="tweak-topbar" style="border-color:#E2E8F0;">
+          <div class="tweak-back" style="background:#F8FAFC;border:1px solid #E2E8F0;color:#475569;">‹</div>
+          <div class="tweak-title" style="color:#0F172A;">Refine your search</div>
+          <div style="width:32px;"></div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0F172A;">Where in Pune?</div>
+          <div class="tweak-pills">
+            <span class="cyan-pill-selected">Kharadi</span>
+            <span class="cyan-pill-selected">Viman Nagar</span>
+            <span class="cyan-pill-unselected">Hinjewadi</span>
+            <span class="cyan-pill-unselected">Wakad</span>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0F172A;">Property type</div>
+          <div class="tweak-hint" style="color:#64748B;">Residential</div>
+          <div class="tweak-pills">
+            <span class="cyan-pill-selected">Apartment</span>
+            <span class="cyan-pill-unselected">Villa</span>
+            <span class="cyan-pill-unselected">Penthouse</span>
+            <span class="cyan-pill-unselected">Row House</span>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0F172A;">Budget</div>
+          <div class="budget-label" style="color:#14B8A6;"><span>₹60L</span><span>₹1.2Cr</span></div>
+          <div class="budget-bar" style="background:#E2E8F0;">
+            <div class="budget-fill" style="background:linear-gradient(90deg,#14B8A6,#2DD4BF);border-radius:2px;"></div>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0F172A;">What's this for?</div>
+          <div class="purpose-grid">
+            <div class="purpose-card" style="background:rgba(20,184,166,0.08);border:1.5px solid #14B8A6;color:#0D9488;">
+              <div class="purpose-icon">🏠</div>Self use
+            </div>
+            <div class="purpose-card" style="background:#F8FAFC;border:1.5px solid #E2E8F0;color:#475569;">
+              <div class="purpose-icon">📈</div>Investment
+            </div>
+            <div class="purpose-card" style="background:#F8FAFC;border:1.5px solid #E2E8F0;color:#475569;">
+              <div class="purpose-icon">👨‍👩‍👧</div>Family
+            </div>
+            <div class="purpose-card" style="background:#F8FAFC;border:1.5px solid #E2E8F0;color:#475569;">
+              <div class="purpose-icon">💼</div>Work
+            </div>
+          </div>
+        </div>
+
+        <div class="sticky-cta" style="background:#fff;border-color:#E2E8F0;">
+          <div class="cyan-cta">Find my matches →</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUST PREFERENCES -->
+    <div class="phone-wrapper">
+      <div class="phone-label recommend">Trust Architecture</div>
+      <div class="phone" style="background:#fff;">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#fff;color:#0D1F4A;">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="tweak-topbar" style="border-color:#F0EDE6;">
+          <div class="tweak-back" style="background:#F5F0E8;border:1px solid #E0D8CC;color:#5C554A;">‹</div>
+          <div class="tweak-title" style="color:#0D1F4A;">Refine your search</div>
+          <div style="width:32px;"></div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0D1F4A;">Where in Pune?</div>
+          <div class="tweak-pills">
+            <span class="trust-pill-selected">Kharadi</span>
+            <span class="trust-pill-selected">Viman Nagar</span>
+            <span class="trust-pill-unselected">Hinjewadi</span>
+            <span class="trust-pill-unselected">Wakad</span>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0D1F4A;">Property type</div>
+          <div class="tweak-hint" style="color:#A89E8E;">Residential</div>
+          <div class="tweak-pills">
+            <span class="trust-pill-selected">Apartment</span>
+            <span class="trust-pill-unselected">Villa</span>
+            <span class="trust-pill-unselected">Penthouse</span>
+            <span class="trust-pill-unselected">Row House</span>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0D1F4A;">Budget</div>
+          <div class="budget-label" style="color:#D95F2B;"><span>₹60L</span><span>₹1.2Cr</span></div>
+          <div class="budget-bar" style="background:#F0EDE6;">
+            <div class="budget-fill" style="background:linear-gradient(90deg,#D95F2B,#FF8C42);border-radius:2px;"></div>
+          </div>
+        </div>
+
+        <div class="tweak-section">
+          <div class="tweak-section-title" style="color:#0D1F4A;">What's this for?</div>
+          <div class="purpose-grid">
+            <div class="purpose-card" style="background:#FEF7F3;border:1.5px solid #D95F2B;color:#B8451E;">
+              <div class="purpose-icon">🏠</div>Self use
+            </div>
+            <div class="purpose-card" style="background:#F5F0E8;border:1.5px solid #E0D8CC;color:#5C554A;">
+              <div class="purpose-icon">📈</div>Investment
+            </div>
+            <div class="purpose-card" style="background:#F5F0E8;border:1.5px solid #E0D8CC;color:#5C554A;">
+              <div class="purpose-icon">👨‍👩‍👧</div>Family
+            </div>
+            <div class="purpose-card" style="background:#F5F0E8;border:1.5px solid #E0D8CC;color:#5C554A;">
+              <div class="purpose-icon">💼</div>Work
+            </div>
+          </div>
+        </div>
+
+        <div class="sticky-cta" style="background:#fff;border-color:#F0EDE6;">
+          <div class="trust-cta">Find my matches →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- COMPARISON 3: PROPERTY SHORTLIST                 -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <span class="badge badge-internal">Comparison 3 of 3</span>
+  <h2>Shortlist — Property Cards</h2>
+  <p class="subtitle">Where trust meets decision-making. The card design language must feel like real estate, not a SaaS table.</p>
+
+  <div class="phone-row">
+    <!-- CYAN SHORTLIST -->
+    <div class="phone-wrapper">
+      <div class="phone-label reject">Marketing Cyan</div>
+      <div class="phone" style="background:#fff;">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#fff;color:#0F172A;">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="tweak-topbar" style="border-color:#E2E8F0;">
+          <div class="tweak-back" style="background:#F8FAFC;border:1px solid #E2E8F0;color:#475569;">‹</div>
+          <div class="tweak-title" style="color:#0F172A;">ALON's Shortlist</div>
+          <div style="width:32px;"></div>
+        </div>
+
+        <div class="screen-content">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            <div style="width:20px;height:20px;border-radius:6px;background:rgba(20,184,166,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;">✓</div>
+            <span style="font-size:11px;color:#14B8A6;font-weight:600;">3 verified properties</span>
+            <span style="font-size:10px;color:#64748B;margin-left:auto;">Updated 2h ago</span>
+          </div>
+
+          <!-- Property 1 -->
+          <div class="prop-card-inner" style="background:#F8FAFC;border:1px solid #E2E8F0;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#94A3B8,#CBD5E1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0F172A;">Godrej Infinity</div>
+            <div class="prop-loc" style="color:#64748B;">Kharadi · 2 BHK · 1,050 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0F172A;">₹87.5L</div>
+              <div class="match-badge" style="background:#CCFBF1;color:#0D9488;">92%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">Legal Clear</span>
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">Builder A+</span>
+            </div>
+          </div>
+
+          <!-- Property 2 -->
+          <div class="prop-card-inner" style="background:#F8FAFC;border:1px solid #E2E8F0;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#94A3B8,#CBD5E1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0F172A;">Panchshil Towers</div>
+            <div class="prop-loc" style="color:#64748B;">Viman Nagar · 2 BHK · 980 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0F172A;">₹1.05Cr</div>
+              <div class="match-badge" style="background:#CCFBF1;color:#0D9488;">88%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:8px;">Legal Pending</span>
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">Builder A</span>
+            </div>
+          </div>
+
+          <!-- Property 3 -->
+          <div class="prop-card-inner" style="background:#F8FAFC;border:1px solid #E2E8F0;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#94A3B8,#CBD5E1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0F172A;">VTP Blue Waters</div>
+            <div class="prop-loc" style="color:#64748B;">Kharadi · 3 BHK · 1,350 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0F172A;">₹1.18Cr</div>
+              <div class="match-badge" style="background:#CCFBF1;color:#0D9488;">85%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">Legal Clear</span>
+              <span style="font-size:9px;background:#CCFBF1;color:#0D9488;padding:2px 6px;border-radius:8px;">Builder A+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRUST SHORTLIST -->
+    <div class="phone-wrapper">
+      <div class="phone-label recommend">Trust Architecture</div>
+      <div class="phone" style="background:#fff;">
+        <div class="notch"></div>
+        <div class="status-bar" style="background:#fff;color:#0D1F4A;">
+          <span>9:41</span><span>...</span>
+        </div>
+        <div class="tweak-topbar" style="border-color:#F0EDE6;">
+          <div class="tweak-back" style="background:#F5F0E8;border:1px solid #E0D8CC;color:#5C554A;">‹</div>
+          <div class="tweak-title" style="color:#0D1F4A;">ALON's Shortlist</div>
+          <div style="width:32px;"></div>
+        </div>
+
+        <div class="screen-content">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            <div style="width:20px;height:20px;border-radius:6px;background:rgba(217,95,43,0.08);display:flex;align-items:center;justify-content:center;font-size:10px;">✓</div>
+            <span style="font-size:11px;color:#D95F2B;font-weight:600;">3 verified properties</span>
+            <span style="font-size:10px;color:#A89E8E;margin-left:auto;">Updated 2h ago</span>
+          </div>
+
+          <!-- Property 1 -->
+          <div class="prop-card-inner" style="background:#fff;border:1px solid #E0D8CC;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#C8BFB0,#E0D8CC);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0D1F4A;">Godrej Infinity</div>
+            <div class="prop-loc" style="color:#5C554A;">Kharadi · 2 BHK · 1,050 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0D1F4A;">₹87.5L</div>
+              <div class="match-badge" style="background:#FEF7F3;color:#D95F2B;">92%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#DCFCE7;color:#166534;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#DCFCE7;color:#166534;padding:2px 6px;border-radius:8px;">Legal Clear</span>
+              <span style="font-size:9px;background:#FEF7F3;color:#B8451E;padding:2px 6px;border-radius:8px;">Builder A+</span>
+            </div>
+          </div>
+
+          <!-- Property 2 -->
+          <div class="prop-card-inner" style="background:#fff;border:1px solid #E0D8CC;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#C8BFB0,#E0D8CC);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0D1F4A;">Panchshil Towers</div>
+            <div class="prop-loc" style="color:#5C554A;">Viman Nagar · 2 BHK · 980 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0D1F4A;">₹1.05Cr</div>
+              <div class="match-badge" style="background:#FEF7F3;color:#D95F2B;">88%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#DCFCE7;color:#166534;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:8px;">Legal Pending</span>
+              <span style="font-size:9px;background:#FEF7F3;color:#B8451E;padding:2px 6px;border-radius:8px;">Builder A</span>
+            </div>
+          </div>
+
+          <!-- Property 3 -->
+          <div class="prop-card-inner" style="background:#fff;border:1px solid #E0D8CC;">
+            <div class="prop-thumb" style="background:linear-gradient(135deg,#C8BFB0,#E0D8CC);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">Property Photo</div>
+            <div class="prop-name" style="color:#0D1F4A;">VTP Blue Waters</div>
+            <div class="prop-loc" style="color:#5C554A;">Kharadi · 3 BHK · 1,350 sqft</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <div class="prop-price" style="color:#0D1F4A;">₹1.18Cr</div>
+              <div class="match-badge" style="background:#FEF7F3;color:#D95F2B;">85%</div>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <span style="font-size:9px;background:#DCFCE7;color:#166534;padding:2px 6px;border-radius:8px;">RERA ✓</span>
+              <span style="font-size:9px;background:#DCFCE7;color:#166534;padding:2px 6px;border-radius:8px;">Legal Clear</span>
+              <span style="font-size:9px;background:#FEF7F3;color:#B8451E;padding:2px 6px;border-radius:8px;">Builder A+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- VERDICT                                          -->
+<!-- ════════════════════════════════════════════════ -->
+<div class="verdict">
+  <span class="badge badge-recommend">Recommendation</span>
+  <h2>Trust Architecture is the Only Viable Light Mode</h2>
+  <p>
+    The cyan palette isn't "wrong" in isolation — it's a perfectly fine SaaS color scheme. But ALON isn't a SaaS product. It's a <strong>real estate companion for the most emotional purchase of someone's life</strong>. The Trust Architecture palette (Prussian Navy + Terracotta + Warm Cream) maintains brand consistency across themes, carries emotional warmth into light surfaces, differentiates ALON in the Indian proptech market, and preserves the semantic color language that makes the app intuitive.
+  </p>
+  <p style="margin-top:16px;">
+    <strong>Action:</strong> Continue with Trust Architecture for light mode. White backgrounds (#FFFFFF), warm cream surfaces (#F5F0E8), Prussian navy text (#0D1F4A), terracotta CTAs (#D95F2B). No need for a separate "light palette" — the Trust Architecture IS the light palette.
+  </p>
+</div>
+
+<div style="text-align:center;padding:40px 0;color:rgba(255,255,255,0.3);font-size:12px;">
+  ALON Internal Design Review · March 2026 · Confidential
+</div>
+
+</body>
+</html>
