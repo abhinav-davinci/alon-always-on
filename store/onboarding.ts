@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { PersonaType, PERSONA_DEFAULTS } from '../constants/personas';
+import { GoalType, PersonaType, PERSONA_DEFAULTS } from '../constants/personas';
 import { UserProperty } from '../constants/properties';
 
 export interface OnboardingState {
+  goal: GoalType | null;
   persona: PersonaType | null;
   locations: string[];
   propertySize: string[];
@@ -22,6 +23,7 @@ export interface OnboardingState {
   chatExpanded: boolean;
   activeStage: string;
 
+  setGoal: (goal: GoalType) => void;
   setPersona: (persona: PersonaType) => void;
   setLocations: (locations: string[]) => void;
   setPropertySize: (sizes: string[]) => void;
@@ -45,6 +47,7 @@ export interface OnboardingState {
 }
 
 const initialState = {
+  goal: null as GoalType | null,
   persona: null as PersonaType | null,
   locations: [] as string[],
   propertySize: [] as string[],
@@ -68,6 +71,7 @@ const initialState = {
 export const useOnboardingStore = create<OnboardingState>((set) => ({
   ...initialState,
 
+  setGoal: (goal) => set({ goal }),
   setPersona: (persona) => {
     const defaults = PERSONA_DEFAULTS[persona];
     set({

@@ -115,7 +115,7 @@ export default function SplashScreen() {
       <Animated.View style={[styles.ctaWrap, ctaStyle]}>
         <Button
           title="Launch ALON →"
-          onPress={() => router.push('/onboarding/intent')}
+          onPress={() => router.push('/onboarding/goal')}
           variant="primaryWhite"
         />
         <Text style={styles.finePrint}>

@@ -3,69 +3,35 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Home, TrendingUp, BarChart3, Building2, ArrowLeftRight, FileSignature, ChevronRight } from 'lucide-react-native';
+import { Home, Building2, ChevronRight } from 'lucide-react-native';
 import AlonAvatar from '../../components/AlonAvatar';
 import { Colors, Spacing } from '../../constants/theme';
-import { PersonaType } from '../../constants/personas';
+import { GoalType } from '../../constants/personas';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
 
-const BUY_INTENTS: { key: PersonaType; icon: typeof Home; title: string; sub: string }[] = [
+const GOALS: { key: GoalType; icon: typeof Home; title: string; sub: string }[] = [
   {
-    key: 'first',
+    key: 'buy',
     icon: Home,
-    title: 'Buying my first home',
-    sub: 'Need a little guidance along the way',
+    title: 'Buying a home',
+    sub: 'First home, upgrade, or investment',
   },
   {
-    key: 'upgrade',
-    icon: TrendingUp,
-    title: 'Upgrading to something bigger',
-    sub: 'I know what I want, need the right match',
-  },
-  {
-    key: 'invest',
-    icon: BarChart3,
-    title: 'Looking for an investment',
-    sub: 'ROI, rental yield, capital appreciation',
-  },
-];
-
-const RENT_INTENTS: { key: PersonaType; icon: typeof Home; title: string; sub: string }[] = [
-  {
-    key: 'rent_new',
+    key: 'rent',
     icon: Building2,
-    title: 'First office or upgrading',
-    sub: 'Finding the right space for your team',
-  },
-  {
-    key: 'rent_change',
-    icon: ArrowLeftRight,
-    title: 'Changing office space',
-    sub: 'Relocating or resizing your current setup',
-  },
-  {
-    key: 'rent_sublease',
-    icon: FileSignature,
-    title: 'Sub-leasing',
-    sub: 'Lease out unused office space',
+    title: 'Renting an office',
+    sub: 'Find, change, or sub-lease office space',
   },
 ];
 
-export default function IntentScreen() {
+export default function GoalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
-  const goal = useOnboardingStore((s) => s.goal);
-  const setPersona = useOnboardingStore((s) => s.setPersona);
-  const [selected, setSelected] = useState<PersonaType | null>(null);
+  const setGoal = useOnboardingStore((s) => s.setGoal);
+  const [selected, setSelected] = useState<GoalType | null>(null);
 
-  const intents = goal === 'rent' ? RENT_INTENTS : BUY_INTENTS;
-  const bubbleText = goal === 'rent'
-    ? "Great — let's find you the perfect office. What best describes your situation?"
-    : "What's bringing you here today?";
-
-  // Reset selection when screen regains focus (back navigation)
   useFocusEffect(
     useCallback(() => {
       setSelected(null);
@@ -73,13 +39,13 @@ export default function IntentScreen() {
   );
 
   const handleSelect = useCallback(
-    (persona: PersonaType) => {
+    (goal: GoalType) => {
       if (selected) return;
       haptics.medium();
-      setSelected(persona);
-      setPersona(persona);
+      setSelected(goal);
+      setGoal(goal);
       setTimeout(() => {
-        router.push('/onboarding/profile');
+        router.push('/onboarding/intent');
       }, 300);
     },
     [selected]
@@ -110,31 +76,32 @@ export default function IntentScreen() {
         entering={FadeIn.delay(200).duration(300)}
       >
         <Text style={styles.chatText}>
-          {bubbleText}
+          Hey — I'm <Text style={styles.chatBold}>ALON</Text>, your personal
+          property assistant. What are you looking for?
         </Text>
       </Animated.View>
 
-      {/* Intent cards */}
+      {/* Goal cards */}
       <View style={styles.cards}>
-        {intents.map((intent, index) => {
-          const Icon = intent.icon;
-          const isSelected = selected === intent.key;
+        {GOALS.map((goal, index) => {
+          const Icon = goal.icon;
+          const isSelected = selected === goal.key;
           return (
             <Animated.View
-              key={intent.key}
-              entering={FadeIn.delay(400 + index * 80).duration(250)}
+              key={goal.key}
+              entering={FadeIn.delay(400 + index * 100).duration(250)}
             >
               <TouchableOpacity
                 style={[styles.card, isSelected && styles.cardSelected]}
-                onPress={() => handleSelect(intent.key)}
+                onPress={() => handleSelect(goal.key)}
                 activeOpacity={0.8}
               >
                 <View style={[styles.cardIcon, isSelected && styles.cardIconSelected]}>
-                  <Icon size={18} color="#fff" strokeWidth={1.8} />
+                  <Icon size={22} color="#fff" strokeWidth={1.6} />
                 </View>
                 <View style={styles.cardTextWrap}>
-                  <Text style={styles.cardTitle}>{intent.title}</Text>
-                  <Text style={styles.cardSub}>{intent.sub}</Text>
+                  <Text style={styles.cardTitle}>{goal.title}</Text>
+                  <Text style={styles.cardSub}>{goal.sub}</Text>
                 </View>
                 <ChevronRight size={16} color="rgba(255,255,255,0.35)" strokeWidth={1.8} />
               </TouchableOpacity>
@@ -145,7 +112,7 @@ export default function IntentScreen() {
 
       {/* Footer */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <Animated.View entering={FadeIn.delay(700).duration(300)}>
+        <Animated.View entering={FadeIn.delay(650).duration(300)}>
           <Text style={styles.footerText}>
             takes under 60 seconds · no account needed
           </Text>
@@ -212,8 +179,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     lineHeight: 22,
   },
+  chatBold: {
+    fontFamily: 'DMSans-Medium',
+  },
   cards: {
-    gap: 10,
+    gap: 12,
   },
   card: {
     flexDirection: 'row',
@@ -221,19 +191,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 12,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    gap: 14,
   },
   cardSelected: {
     backgroundColor: 'rgba(255,255,255,0.18)',
     borderColor: 'rgba(255,255,255,0.35)',
   },
   cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -245,16 +215,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    fontSize: 14,
-    fontFamily: 'DMSans-Medium',
+    fontSize: 16,
+    fontFamily: 'DMSans-SemiBold',
     color: '#fff',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   cardSub: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'DMSans-Regular',
     color: 'rgba(255,255,255,0.45)',
-    lineHeight: 16,
+    lineHeight: 17,
   },
   footer: {
     marginTop: 'auto',
