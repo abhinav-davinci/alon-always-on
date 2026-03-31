@@ -143,7 +143,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
         <View style={styles.headerRight}>
           <View style={styles.progressPill}>
             <Text style={styles.progressText}>
-              {stages.filter(s => s.status === 'done' || s.status === 'active').length} of {stages.length}
+              {stages.length} steps
             </Text>
           </View>
           {expanded ? (
@@ -157,12 +157,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
       {/* ── Collapsed: Fluid stage strip with glass bubble ── */}
       {!expanded && (
         <View style={styles.stripContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            <StageStrip compact />
-          </ScrollView>
+          <StageStrip compact />
           {/* Active stage detail */}
           <View style={styles.stageDetail}>
             <Animated.View style={[styles.scanningDot, pulseStyle]} />
@@ -187,7 +182,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
                   const isDragOver = dragOverIndex === i;
 
                   return (
-                    <View key={stage.num}>
+                    <View key={stage.label}>
                       <TouchableOpacity
                         style={[
                           styles.stageRow,
@@ -198,7 +193,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
                         activeOpacity={0.7}
                       >
                         {i < stages.length - 1 && (
-                          <View style={[styles.connector, (isDone || isStageActive) && styles.connectorActive]} />
+                          <View style={styles.connector} />
                         )}
 
                         <View style={[
@@ -222,7 +217,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
                           isDragOver && !isSelected && styles.stageLabelDragOver,
                           isDone && styles.stageLabelDone,
                         ]}>
-                          {stage.num}. {stage.label}
+                          {stage.label}
                         </Text>
 
                         {isStageActive && !isSelected && (
@@ -308,7 +303,6 @@ const styles = StyleSheet.create({
     position: 'absolute', left: 24, top: 32, width: 1, height: 16,
     backgroundColor: Colors.warm200,
   },
-  connectorActive: { backgroundColor: Colors.terra300 },
 
   dot: {
     width: 22, height: 22, borderRadius: 11,

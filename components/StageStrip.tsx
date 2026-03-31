@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -27,6 +27,8 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   const { activeStage, setActiveStage, likedPropertyIds, scheduledVisits } = useOnboardingStore();
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const containerWidth = useRef(0);
   const pillLayouts = useRef<{ x: number; width: number }[]>([]);
   const bubbleX = useSharedValue(0);
   const bubbleW = useSharedValue(80);
@@ -40,6 +42,15 @@ export default function StageStrip({ compact = false }: StageStripProps) {
     return null;
   };
 
+  const scrollToCenter = useCallback((index: number) => {
+    const layout = pillLayouts.current[index];
+    if (!layout || !scrollRef.current || !containerWidth.current) return;
+    // Center the pill in the visible area
+    const pillCenter = layout.x + padH + layout.width / 2;
+    const scrollTarget = pillCenter - containerWidth.current / 2;
+    scrollRef.current.scrollTo({ x: Math.max(0, scrollTarget), animated: true });
+  }, [padH]);
+
   const snapBubbleTo = useCallback((index: number) => {
     const layout = pillLayouts.current[index];
     if (layout) {
@@ -51,6 +62,7 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   React.useEffect(() => {
     if (measured.current >= STAGES.length) {
       snapBubbleTo(activeIndex);
+      scrollToCenter(activeIndex);
     }
   }, [activeIndex]);
 
@@ -63,8 +75,14 @@ export default function StageStrip({ compact = false }: StageStripProps) {
         bubbleX.value = active.x + padH - BUBBLE_OVERSHOOT;
         bubbleW.value = active.width + BUBBLE_OVERSHOOT * 2;
       }
+      // Initial scroll to active pill
+      scrollToCenter(activeIndex);
     }
-  }, [activeIndex, padH]);
+  }, [activeIndex, padH, scrollToCenter]);
+
+  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    containerWidth.current = e.nativeEvent.layout.width;
+  }, []);
 
   const selectStage = useCallback((index: number) => {
     const label = STAGES[index]?.label;
@@ -83,66 +101,73 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   }));
 
   return (
-    <View style={[styles.container, compact && styles.containerCompact]}>
-      {/* Glass bubble */}
-      <Animated.View
-        style={[
-          styles.bubble,
-          {
-            height: pillHeight + BUBBLE_OVERSHOOT * 2,
-            borderRadius: (pillHeight + BUBBLE_OVERSHOOT * 2) / 2,
-            top: bubbleTop,
-          },
-          bubbleStyle,
-        ]}
-      />
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      onLayout={onContainerLayout}
+    >
+      <View style={[styles.container, compact && styles.containerCompact]}>
+        {/* Glass bubble */}
+        <Animated.View
+          style={[
+            styles.bubble,
+            {
+              height: pillHeight + BUBBLE_OVERSHOOT * 2,
+              borderRadius: (pillHeight + BUBBLE_OVERSHOOT * 2) / 2,
+              top: bubbleTop,
+            },
+            bubbleStyle,
+          ]}
+        />
 
-      {/* Pills */}
-      <View style={styles.pillRow}>
-        {STAGES.map((stage, i) => {
-          const Icon = stage.icon;
-          const badge = getBadge(stage.label);
-          const isActive = activeIndex === i;
-          const hasBadge = badge != null && badge > 0;
+        {/* Pills */}
+        <View style={styles.pillRow}>
+          {STAGES.map((stage, i) => {
+            const Icon = stage.icon;
+            const badge = getBadge(stage.label);
+            const isActive = activeIndex === i;
+            const hasBadge = badge != null && badge > 0;
 
-          return (
-            <Pressable
-              key={stage.label}
-              onPress={() => selectStage(i)}
-              onLayout={(e) => {
-                const { x, width } = e.nativeEvent.layout;
-                onPillLayout(i, x, width);
-              }}
-            >
-              <View style={[styles.pill, { height: pillHeight }, compact && styles.pillCompact]}>
-                <Icon
-                  size={compact ? 10 : 12}
-                  color={isActive ? Colors.terra500 : Colors.warm400}
-                  strokeWidth={isActive ? 2.2 : 1.5}
-                />
-                <Text
-                  style={[
-                    styles.pillText,
-                    compact && styles.pillTextCompact,
-                    isActive && styles.pillTextActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {stage.label}
-                </Text>
-                {hasBadge && (
-                  <View style={[styles.badge, isActive && styles.badgeActive]}>
-                    <Text style={[styles.badgeText, isActive && styles.badgeTextActive]}>
-                      {badge}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
+            return (
+              <Pressable
+                key={stage.label}
+                onPress={() => selectStage(i)}
+                onLayout={(e) => {
+                  const { x, width } = e.nativeEvent.layout;
+                  onPillLayout(i, x, width);
+                }}
+              >
+                <View style={[styles.pill, { height: pillHeight }, compact && styles.pillCompact]}>
+                  <Icon
+                    size={compact ? 10 : 12}
+                    color={isActive ? Colors.terra500 : Colors.warm400}
+                    strokeWidth={isActive ? 2.2 : 1.5}
+                  />
+                  <Text
+                    style={[
+                      styles.pillText,
+                      compact && styles.pillTextCompact,
+                      isActive && styles.pillTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {stage.label}
+                  </Text>
+                  {hasBadge && (
+                    <View style={[styles.badge, isActive && styles.badgeActive]}>
+                      <Text style={[styles.badgeText, isActive && styles.badgeTextActive]}>
+                        {badge}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

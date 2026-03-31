@@ -26,7 +26,6 @@ const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT;
 const CENTER_OFFSET = ITEM_HEIGHT; // 1 item padding — minimal whitespace
 
 interface Stage {
-  num: number;
   label: string;
   yourTask: string;
   alonTask: string;
@@ -38,42 +37,42 @@ interface Stage {
 }
 
 const STAGES: Stage[] = [
-  { num: 1, label: 'Search', yourTask: 'Set criteria', alonTask: 'Scanning', status: 'active',
+  { label: 'Search', yourTask: 'Set criteria', alonTask: 'Scanning', status: 'active',
     alonDetail: 'Scanning 12L+ listings by RERA & trust score',
     yourDetail: 'Set criteria & areas — done',
     ctaLabel: 'Shortlist now →',
     ctaInfo: 'We found 5 matches based on your preferences. Shortlist to proceed.' },
-  { num: 2, label: 'Shortlist', yourTask: 'Pick favorites', alonTask: 'Curating', status: 'pending',
+  { label: 'Shortlist', yourTask: 'Pick favorites', alonTask: 'Curating', status: 'pending',
     alonDetail: 'Checks conflicts, RERA & curates top 5',
     yourDetail: 'Pick favorites or check your own property',
     ctaLabel: 'Check a property →',
     ctaInfo: 'ALON checks RERA records, court disputes & builder history to protect your investment.' },
-  { num: 3, label: 'Site Visits', yourTask: 'Share slots', alonTask: 'Booking', status: 'pending',
+  { label: 'Site Visits', yourTask: 'Share slots', alonTask: 'Booking', status: 'pending',
     alonDetail: 'Books visits, number hidden + checklist',
     yourDetail: 'Share your available time slots',
     ctaLabel: 'Schedule a visit →',
     ctaInfo: 'Share your availability and ALON will book visits for you.' },
-  { num: 4, label: 'Compare', yourTask: 'Your call', alonTask: 'Analyzing', status: 'pending',
+  { label: 'Compare', yourTask: 'Your call', alonTask: 'Analyzing', status: 'pending',
     alonDetail: 'Side-by-side with real transaction data',
     yourDetail: 'Make the final call — always yours',
     ctaLabel: 'Compare properties →',
     ctaInfo: 'ALON will build a side-by-side comparison for your shortlist.' },
-  { num: 5, label: 'Finance', yourTask: 'Share docs', alonTask: 'Best rates', status: 'pending',
+  { label: 'Finance', yourTask: 'Share docs', alonTask: 'Best rates', status: 'pending',
     alonDetail: 'Compares loans from 10+ banks',
     yourDetail: 'Share income details for pre-approval',
     ctaLabel: 'Check loan options →',
     ctaInfo: 'Get pre-approved with the best rates from 10+ banks.' },
-  { num: 6, label: 'Legal', yourTask: 'Upload draft', alonTask: 'Verifying', status: 'pending',
+  { label: 'Legal', yourTask: 'Upload draft', alonTask: 'Verifying', status: 'pending',
     alonDetail: 'Flags risky clauses, verifies RERA',
     yourDetail: 'Upload the draft agreement',
     ctaLabel: 'Start legal check →',
     ctaInfo: 'Upload your agreement and ALON will flag any concerns.' },
-  { num: 7, label: 'Negotiate', yourTask: 'Use data', alonTask: 'Leverage', status: 'pending',
+  { label: 'Negotiate', yourTask: 'Use data', alonTask: 'Leverage', status: 'pending',
     alonDetail: 'Finds leverage from comparable sales',
     yourDetail: "Negotiate using ALON's insights",
     ctaLabel: 'Get negotiation data →',
     ctaInfo: 'ALON will prepare market data to strengthen your position.' },
-  { num: 8, label: 'Possession', yourTask: 'Collect keys', alonTask: 'Checklist', status: 'pending',
+  { label: 'Possession', yourTask: 'Collect keys', alonTask: 'Checklist', status: 'pending',
     alonDetail: 'Complete checklist — docs to transfers',
     yourDetail: 'Inspect, accept & collect your keys',
     ctaLabel: 'View possession checklist →',
@@ -155,7 +154,7 @@ export default function JourneyCard() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your property journey</Text>
         <View style={styles.counter}>
-          <Text style={styles.counterText}>{selected + 1} of 8</Text>
+          <Text style={styles.counterText}>{STAGES.length} steps</Text>
         </View>
       </View>
 
@@ -194,7 +193,7 @@ export default function JourneyCard() {
             contentContainerStyle={{ paddingTop: CENTER_OFFSET, paddingBottom: CENTER_OFFSET }}
           >
             {STAGES.map((s, i) => (
-              <TouchableOpacity key={s.num} activeOpacity={0.8} onPress={() => scrollToIndex(i)}>
+              <TouchableOpacity key={s.label} activeOpacity={0.8} onPress={() => scrollToIndex(i)}>
                 <WheelRow stage={s} index={i} scrollY={scrollY} />
               </TouchableOpacity>
             ))}
@@ -202,7 +201,7 @@ export default function JourneyCard() {
         </View>
 
         {/* Detail — side by side: YOU (left) | ALON (right) — matches wheel column order */}
-        <Animated.View key={stage.num} style={styles.detail} entering={FadeIn.duration(150)}>
+        <Animated.View key={stage.label} style={styles.detail} entering={FadeIn.duration(150)}>
           <View style={styles.detailColumns}>
             <View style={styles.detailCol}>
               <View style={styles.youPill}><Text style={styles.youPillText}>YOU</Text></View>
@@ -220,7 +219,7 @@ export default function JourneyCard() {
             <Text style={styles.ctaInfo}>{stage.ctaInfo}</Text>
 
             {/* Shortlist step gets two CTAs */}
-            {stage.num === 2 ? (
+            {stage.label === 'Shortlist' ? (
               <View style={styles.dualCta}>
                 <TouchableOpacity
                   style={styles.ctaButtonSecondary}
