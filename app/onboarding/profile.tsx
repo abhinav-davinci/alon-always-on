@@ -107,10 +107,16 @@ export default function ProfileScreen() {
 
   const contextLabel =
     store.persona === 'first'
-      ? 'Based on first-time buyers in Pune'
+      ? 'Curated for your first home in Pune'
       : store.persona === 'upgrade'
-      ? 'Based on upgraders in Pune'
-      : 'Based on investors in Pune';
+      ? 'Tailored for your next move in Pune'
+      : store.persona === 'invest'
+      ? 'Optimized for your investment goals in Pune'
+      : store.persona === 'rent_new'
+      ? 'Picked for your first office in Pune'
+      : store.persona === 'rent_change'
+      ? 'Matched to your relocation needs in Pune'
+      : 'Set up for your sub-lease in Pune';
 
   // Get live values from store (so edits reflect immediately)
   const liveValues: Record<string, string> = {
@@ -165,7 +171,7 @@ export default function ProfileScreen() {
           <AlonAvatar size={28} showRings={false} showBlink />
           <View style={styles.chatBubble}>
             <Text style={styles.chatText}>
-              Here's what most buyers like you search for. Does this feel close?
+              I've put together a starting point just for you. Does this feel right?
             </Text>
           </View>
         </Animated.View>
