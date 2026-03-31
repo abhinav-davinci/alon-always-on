@@ -11,7 +11,7 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mic, ArrowUp, Layers, ChevronRight, Maximize2 } from 'lucide-react-native';
+import { Mic, ArrowUp, Layers, ChevronRight, Maximize2, Paperclip, Image, FileText, X } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -133,6 +133,8 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const [statusText, setStatusText] = useState('');
   const [usedPrompts, setUsedPrompts] = useState<Set<string>>(new Set());
   const [showShortlistPill, setShowShortlistPill] = useState(false);
+  const [attachments, setAttachments] = useState<{ id: string; name: string; type: 'image' | 'document' }[]>([]);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const scanFlowDone = useRef(false);
   const { likedPropertyIds, scheduledVisits, chatExpanded, setChatExpanded } = useOnboardingStore();
   const scrollOffsetY = useRef(0);
@@ -159,6 +161,28 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 
   const prompts = STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
   const pillLabel = STAGE_PILL_LABELS[stage] || 'matches';
+
+  // Attachment handlers
+  const pickImage = useCallback(() => {
+    setShowAttachMenu(false);
+    haptics.selection();
+    // Simulate picking an image — in production, use expo-image-picker
+    const id = Date.now().toString();
+    setAttachments(prev => [...prev, { id, name: 'Photo.jpg', type: 'image' }]);
+  }, []);
+
+  const pickDocument = useCallback(() => {
+    setShowAttachMenu(false);
+    haptics.selection();
+    // Simulate picking a document — in production, use expo-document-picker
+    const id = Date.now().toString();
+    setAttachments(prev => [...prev, { id, name: 'Agreement.pdf', type: 'document' }]);
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    haptics.light();
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  }, []);
 
   // Reset used prompts when stage changes
   useEffect(() => {
@@ -530,8 +554,53 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         </ScrollView>
       )}
 
+      {/* Attachment preview */}
+      {attachments.length > 0 && (
+        <View style={styles.attachPreview}>
+          {attachments.map((att) => (
+            <Animated.View key={att.id} style={styles.attachChip} entering={FadeIn.duration(150)}>
+              {att.type === 'image' ? (
+                <Image size={12} color={Colors.terra500} strokeWidth={2} />
+              ) : (
+                <FileText size={12} color={Colors.terra500} strokeWidth={2} />
+              )}
+              <Text style={styles.attachChipText} numberOfLines={1}>{att.name}</Text>
+              <TouchableOpacity onPress={() => removeAttachment(att.id)} hitSlop={8}>
+                <X size={12} color={Colors.textTertiary} strokeWidth={2.5} />
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
+      )}
+
+      {/* Attach menu popover */}
+      {showAttachMenu && (
+        <Animated.View style={styles.attachMenu} entering={FadeInUp.duration(150)}>
+          <TouchableOpacity style={styles.attachMenuItem} onPress={pickImage} activeOpacity={0.7}>
+            <View style={styles.attachMenuIcon}>
+              <Image size={16} color={Colors.terra500} strokeWidth={1.8} />
+            </View>
+            <Text style={styles.attachMenuText}>Photo or image</Text>
+          </TouchableOpacity>
+          <View style={styles.attachMenuDivider} />
+          <TouchableOpacity style={styles.attachMenuItem} onPress={pickDocument} activeOpacity={0.7}>
+            <View style={styles.attachMenuIcon}>
+              <FileText size={16} color={Colors.terra500} strokeWidth={1.8} />
+            </View>
+            <Text style={styles.attachMenuText}>Document or PDF</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       {/* Input bar */}
       <View style={[styles.inputBar, { paddingBottom: Math.max(insetBottom, 8) }]}>
+        <TouchableOpacity
+          style={styles.attachBtn}
+          onPress={() => { setShowAttachMenu(!showAttachMenu); haptics.light(); }}
+          activeOpacity={0.7}
+        >
+          <Paperclip size={18} color={showAttachMenu ? Colors.terra500 : Colors.textTertiary} strokeWidth={1.8} />
+        </TouchableOpacity>
         <View style={styles.inputWrap}>
           <TextInput
             style={styles.textInput}
@@ -542,6 +611,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             multiline={false}
             returnKeyType="send"
             onSubmitEditing={() => inputText.trim() && sendMessage(inputText.trim())}
+            onFocus={() => setShowAttachMenu(false)}
           />
           <TouchableOpacity style={styles.micBtn} activeOpacity={0.7}>
             <Mic size={18} color={Colors.textTertiary} strokeWidth={1.8} />
@@ -718,4 +788,71 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.terra500, alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.35 },
+
+  // Attach button
+  attachBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Attach menu
+  attachMenu: {
+    marginHorizontal: Spacing.xxl,
+    marginBottom: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    shadowColor: '#0D1F4A',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  attachMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  attachMenuIcon: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.terra50,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  attachMenuText: {
+    fontSize: 13, fontFamily: 'DMSans-Medium', color: Colors.textPrimary,
+  },
+  attachMenuDivider: {
+    height: 1, backgroundColor: Colors.warm100, marginHorizontal: 14,
+  },
+
+  // Attachment preview chips
+  attachPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+    backgroundColor: Colors.white,
+  },
+  attachChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.terra50,
+    borderWidth: 1,
+    borderColor: Colors.terra200,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    maxWidth: 160,
+  },
+  attachChipText: {
+    fontSize: 11, fontFamily: 'DMSans-Medium', color: Colors.terra600, flex: 1,
+  },
 });
