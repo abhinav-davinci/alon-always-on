@@ -55,6 +55,7 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Finance: ['Best loan options', 'Check my eligibility', 'EMI calculator'],
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
   Negotiate: ['Fair price analysis', 'Negotiation strategy', 'Market leverage data'],
+  'Deal Closure': ['Deal timeline', 'Pending documents', 'Upcoming deadlines'],
   Possession: ['Possession checklist', 'Document list', 'Transfer process'],
 };
 
@@ -67,6 +68,7 @@ const STAGE_PILL_LABELS: Record<string, string> = {
   Finance: 'in review',
   Legal: 'under legal check',
   Negotiate: 'negotiating',
+  'Deal Closure': 'closing',
   Possession: 'in process',
 };
 

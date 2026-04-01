@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import {
   MapPin, Calendar, Heart, Search, GitCompare,
-  Landmark, Scale, Handshake, Key, ChevronRight,
+  Landmark, Scale, Handshake, ClipboardCheck, Key, ChevronRight,
 } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
@@ -27,6 +27,7 @@ const STAGE_INTROS: Record<string, { icon: typeof Search; text: string }> = {
   Finance: { icon: Landmark, text: 'ALON will find the best loan rates from 10+ banks based on your eligibility.' },
   Legal: { icon: Scale, text: 'ALON will review your agreement, flag risky clauses, and verify RERA compliance.' },
   Negotiate: { icon: Handshake, text: 'ALON will provide market leverage data from recent sales to help you negotiate.' },
+  'Deal Closure': { icon: ClipboardCheck, text: 'ALON will track your deal timeline, send reminders for deadlines, and organize all documentation.' },
   Possession: { icon: Key, text: 'ALON will guide you through the full possession checklist — documents to key handover.' },
 };
 

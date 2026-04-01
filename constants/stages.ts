@@ -1,6 +1,6 @@
 import {
   Search, ListChecks, MapPin, GitCompare, Landmark,
-  Scale, Handshake, Key,
+  Scale, Handshake, ClipboardCheck, Key,
 } from 'lucide-react-native';
 
 export interface Stage {
@@ -17,6 +17,7 @@ export const STAGES: Stage[] = [
   { label: 'Compare', icon: GitCompare, status: 'pending', alonTask: 'Side-by-side real transaction data' },
   { label: 'Finance', icon: Landmark, status: 'pending', alonTask: 'Best rates from 10+ banks' },
   { label: 'Legal', icon: Scale, status: 'pending', alonTask: 'Verify builder reputation & flag risky clauses' },
-  { label: 'Negotiate', icon: Handshake, status: 'pending', alonTask: 'Index 2 + negotiation checklist' },
+  { label: 'Negotiate', icon: Handshake, status: 'pending', alonTask: 'Price benchmarking + negotiation checklist' },
+  { label: 'Deal Closure', icon: ClipboardCheck, status: 'pending', alonTask: 'Timeline tracking, reminders & documentation' },
   { label: 'Possession', icon: Key, status: 'pending', alonTask: 'Key dates, reminders & handover checklist' },
 ];

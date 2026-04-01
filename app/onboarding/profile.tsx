@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   Mic,
   MessageSquare,
+  Sparkles,
   MapPin,
   Building2,
   Maximize2,
@@ -39,7 +40,9 @@ import Animated, {
 import AlonAvatar from '../../components/AlonAvatar';
 import LocationPicker from '../../components/LocationPicker';
 import BottomSheet from '../../components/BottomSheet';
+import PillSelector from '../../components/PillSelector';
 import BudgetSlider from '../../components/BudgetSlider';
+import PurposeGrid from '../../components/PurposeGrid';
 import Button from '../../components/Button';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
@@ -52,7 +55,7 @@ import {
 } from '../../constants/locations';
 
 // ── Chat step definitions ──
-type StepKey = 'mode' | 'location' | 'type' | 'size' | 'budget' | 'purpose' | 'timeline' | 'brief' | 'done' | 'chat';
+type StepKey = 'mode' | 'prediction' | 'location' | 'type' | 'size' | 'budget' | 'purpose' | 'timeline' | 'brief' | 'done' | 'chat';
 
 interface ChatMsg {
   id: string;
@@ -62,7 +65,8 @@ interface ChatMsg {
 }
 
 const ALON_QUESTIONS: Record<StepKey, string> = {
-  mode: "I'd love to understand what you're looking for. How would you like to tell me?",
+  mode: "I've already been thinking about what might work for you. How would you like to get started?",
+  prediction: "Based on what I know about you, I've prepared a starting point. Tap any field to adjust it.",
   location: "Where in Pune are you looking? Pick one or more areas that interest you.",
   type: "What kind of property works best for you?",
   size: "What size are you thinking? You can pick more than one.",
@@ -75,9 +79,10 @@ const ALON_QUESTIONS: Record<StepKey, string> = {
 };
 
 const MODE_OPTIONS = [
-  { key: 'template', icon: LayoutTemplate, label: 'Quick template', sub: 'I\'ll guide you step by step' },
-  { key: 'voice', icon: Mic, label: 'Voice brief', sub: 'Tell me in your own words' },
-  { key: 'chat', icon: MessageSquare, label: 'Write it out', sub: 'Type your requirements freely' },
+  { key: 'prediction', icon: Sparkles, label: 'ALON\'s pick for you', sub: 'I\'ve anticipated your needs', highlight: true },
+  { key: 'template', icon: LayoutTemplate, label: 'Quick template', sub: 'I\'ll guide you step by step', highlight: false },
+  { key: 'voice', icon: Mic, label: 'Voice brief', sub: 'Tell me in your own words', highlight: false },
+  { key: 'chat', icon: MessageSquare, label: 'Write it out', sub: 'Type your requirements freely', highlight: false },
 ];
 
 const TYPE_RESIDENTIAL = ['Apartment', 'Villa', 'Penthouse', 'Row House', 'Duplex'];
@@ -106,10 +111,20 @@ export default function ProfileScreen() {
   const [currentStep, setCurrentStep] = useState<StepKey>('mode');
   const [flowStarted, setFlowStarted] = useState(false);
   const [briefText, setBriefText] = useState('');
-  const [sheetField, setSheetField] = useState<string | null>(null);
+  const [sheetField, setSheetFieldRaw] = useState<string | null>(null);
   const [tempLocations, setTempLocations] = useState<string[]>(store.locations);
   const [tempBudget, setTempBudget] = useState(store.budget);
   const [tempNeedsLoan, setTempNeedsLoan] = useState(store.needsLoan);
+
+  // Sync temp state from store when opening a sheet
+  const setSheetField = useCallback((field: string | null) => {
+    if (field) {
+      setTempLocations(store.locations);
+      setTempBudget(store.budget);
+      setTempNeedsLoan(store.needsLoan);
+    }
+    setSheetFieldRaw(field);
+  }, [store.locations, store.budget, store.needsLoan]);
 
   // Status pill animation
   const dotScale = useSharedValue(1);
@@ -176,9 +191,36 @@ export default function ProfileScreen() {
   }, [addMessage, getNextStep, advanceToStep]);
 
   // Mode selection
+  // Prediction mode helpers
+  const ROW_ICONS: Record<string, typeof MapPin> = {
+    Location: MapPin, Type: Building2, Size: Maximize2, Budget: Wallet, Purpose: Target,
+  };
+  const PURPOSE_ITEMS_MAP: Record<string, string> = {
+    self: 'Live in it', invest: 'Invest', family: 'Family', work: 'Work hub',
+  };
+  const predictionRows = [
+    { label: 'Location', value: store.locations.join(', ') || 'West Pune', field: 'Location' },
+    { label: 'Type', value: store.propertyType || 'Apartment', field: 'Type' },
+    { label: 'Size', value: store.propertySize.join(', ') || '2 BHK, 3 BHK', field: 'Size' },
+    { label: 'Budget', value: `${formatBudget(store.budget.min)} – ${formatBudget(store.budget.max)}`, field: 'Budget' },
+    { label: 'Purpose', value: `${store.purpose || 'Self use'} · ${store.timeline || 'Ready to move'}`, field: 'Purpose' },
+  ];
+  const contextLabel =
+    store.persona === 'first' ? 'Curated for your first home in Pune'
+    : store.persona === 'upgrade' ? 'Tailored for your next move in Pune'
+    : store.persona === 'invest' ? 'Optimized for your investment goals in Pune'
+    : store.persona === 'rent_new' ? 'Picked for your first office in Pune'
+    : store.persona === 'rent_change' ? 'Matched to your relocation needs in Pune'
+    : store.persona === 'rent_sublease' ? 'Set up for your sub-lease in Pune'
+    : 'Personalized for you';
+
   const handleModeSelect = useCallback((mode: string) => {
     haptics.medium();
-    if (mode === 'template') {
+    if (mode === 'prediction') {
+      addMessage({ id: `user-mode-prediction-${Date.now()}`, from: 'user', text: 'Show me ALON\'s pick' });
+      setFlowStarted(true);
+      advanceToStep('prediction');
+    } else if (mode === 'template') {
       addMessage({ id: `user-mode-template-${Date.now()}`, from: 'user', text: 'Quick template — guide me step by step' });
       setFlowStarted(true);
       advanceToStep('location');
@@ -204,8 +246,10 @@ export default function ProfileScreen() {
   const handleLocationDone = useCallback(() => {
     store.setLocations(tempLocations);
     setSheetField(null);
-    handleUserAnswer('location', tempLocations.join(', ') || 'No preference');
-  }, [tempLocations, store, handleUserAnswer]);
+    if (currentStep !== 'prediction') {
+      handleUserAnswer('location', tempLocations.join(', ') || 'No preference');
+    }
+  }, [tempLocations, store, handleUserAnswer, currentStep]);
 
   // Type selection
   const handleTypeSelect = useCallback((type: string) => {
@@ -229,8 +273,10 @@ export default function ProfileScreen() {
     store.setBudget(tempBudget);
     store.setNeedsLoan(tempNeedsLoan);
     setSheetField(null);
-    handleUserAnswer('budget', `${formatBudget(tempBudget.min)} – ${formatBudget(tempBudget.max)}`);
-  }, [tempBudget, tempNeedsLoan, store, handleUserAnswer]);
+    if (currentStep !== 'prediction') {
+      handleUserAnswer('budget', `${formatBudget(tempBudget.min)} – ${formatBudget(tempBudget.max)}`);
+    }
+  }, [tempBudget, tempNeedsLoan, store, handleUserAnswer, currentStep]);
 
   // Purpose
   const handlePurposeSelect = useCallback((purpose: string) => {
@@ -280,12 +326,12 @@ export default function ProfileScreen() {
             return (
               <TouchableOpacity
                 key={mode.key}
-                style={styles.modeCard}
+                style={[styles.modeCard, mode.highlight && styles.modeCardHighlight]}
                 onPress={() => handleModeSelect(mode.key)}
                 activeOpacity={0.75}
               >
-                <View style={styles.modeIconWrap}>
-                  <Icon size={18} color={Colors.terra500} strokeWidth={1.8} />
+                <View style={[styles.modeIconWrap, mode.highlight && styles.modeIconWrapHighlight]}>
+                  <Icon size={18} color={mode.highlight ? '#fff' : Colors.terra500} strokeWidth={1.8} />
                 </View>
                 <View style={styles.modeTextWrap}>
                   <Text style={styles.modeLabel}>{mode.label}</Text>
@@ -294,6 +340,64 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             );
           })}
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'prediction') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(250)}>
+          {/* Prediction card */}
+          <View style={styles.predictionCard}>
+            <View style={styles.predictionHeader}>
+              <Text style={styles.predictionHeaderText}>{contextLabel}</Text>
+            </View>
+            {predictionRows.map((row, index) => {
+              const Icon = ROW_ICONS[row.label] || Target;
+              return (
+                <TouchableOpacity
+                  key={row.label}
+                  style={[styles.predictionRow, index > 0 && styles.predictionRowBorder]}
+                  onPress={() => setSheetField(row.field)}
+                  activeOpacity={0.6}
+                >
+                  <Icon size={16} color={Colors.terra500} strokeWidth={1.8} />
+                  <View style={styles.predictionRowContent}>
+                    <Text style={styles.predictionRowValue}>{row.value}</Text>
+                    <Text style={styles.predictionRowLabel}>{row.label}</Text>
+                  </View>
+                  <Pencil size={14} color={Colors.warm300} strokeWidth={1.8} />
+                </TouchableOpacity>
+              );
+            })}
+            {/* Brief section */}
+            <View style={styles.predictionBrief}>
+              <Text style={styles.predictionBriefTitle}>Anything ALON must know?</Text>
+              <Text style={styles.predictionBriefSub}>
+                Builders you trust or avoid, must-haves —{' '}
+                <Text style={{ color: Colors.terra500, fontFamily: 'DMSans-Medium' }}>your direct brief.</Text>
+              </Text>
+              <TextInput
+                style={styles.briefInput}
+                placeholder="e.g. Only established builders, need parking, avoid ground floor..."
+                placeholderTextColor={Colors.textTertiary}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                value={briefText}
+                onChangeText={setBriefText}
+              />
+            </View>
+          </View>
+          <Button
+            title="Yes, this feels right →"
+            onPress={() => {
+              store.setBriefText(briefText);
+              addMessage({ id: `user-predict-confirm-${Date.now()}`, from: 'user', text: 'Looks perfect — let\'s go' });
+              advanceToStep('done');
+            }}
+            variant="primary"
+          />
         </Animated.View>
       );
     }
@@ -560,6 +664,41 @@ export default function ProfileScreen() {
       </BottomSheet>
 
       <BottomSheet
+        visible={sheetField === 'Type'}
+        title="Property type"
+        onClose={() => setSheetField(null)}
+      >
+        <Text style={styles.sheetSectionLabel}>Residential</Text>
+        <PillSelector
+          options={['Apartment', 'Villa', 'Penthouse', 'Row House', 'Duplex']}
+          selected={[store.propertyType]}
+          onSelect={(sel) => { store.setPropertyType(sel[0]); setSheetField(null); }}
+        />
+        <Text style={[styles.sheetSectionLabel, { marginTop: 20 }]}>Commercial</Text>
+        <PillSelector
+          options={['Office', 'Shop', 'Showroom', 'Coworking']}
+          selected={[store.propertyType]}
+          onSelect={(sel) => { store.setPropertyType(sel[0]); setSheetField(null); }}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheetField === 'Size'}
+        title="Property size"
+        onClose={() => setSheetField(null)}
+      >
+        <PillSelector
+          options={PROPERTY_SIZES}
+          selected={store.propertySize}
+          onSelect={store.setPropertySize}
+          multiSelect
+        />
+        <View style={{ marginTop: 20 }}>
+          <Button title="Done" onPress={() => setSheetField(null)} variant="primary" />
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
         visible={sheetField === 'Budget'}
         title="Budget range"
         onClose={() => setSheetField(null)}
@@ -575,6 +714,35 @@ export default function ProfileScreen() {
         />
         <View style={{ marginTop: 20 }}>
           <Button title="Done" onPress={handleBudgetDone} variant="primary" />
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheetField === 'Purpose'}
+        title="What's this for?"
+        onClose={() => setSheetField(null)}
+      >
+        <PurposeGrid
+          selected={
+            store.purpose === 'Self use' || store.purpose === 'Live in it' ? 'self'
+            : store.purpose === 'Investment' || store.purpose === 'Invest' ? 'invest'
+            : store.purpose === 'Family' ? 'family'
+            : store.purpose === 'Work hub' ? 'work'
+            : store.purpose
+          }
+          onSelect={(id) => {
+            const label = PURPOSE_ITEMS_MAP[id] || id;
+            store.setPurpose(label);
+          }}
+        />
+        <Text style={[styles.sheetSectionLabel, { marginTop: 20 }]}>Possession timeline</Text>
+        <PillSelector
+          options={TIMELINE_OPTIONS}
+          selected={[store.timeline]}
+          onSelect={(sel) => store.setTimeline(sel[0])}
+        />
+        <View style={{ marginTop: 20 }}>
+          <Button title="Done" onPress={() => setSheetField(null)} variant="primary" />
         </View>
       </BottomSheet>
     </View>
@@ -644,6 +812,54 @@ const styles = StyleSheet.create({
   modeTextWrap: { flex: 1 },
   modeLabel: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
   modeSub: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1 },
+  modeCardHighlight: {
+    backgroundColor: Colors.terra50, borderColor: Colors.terra200,
+  },
+  modeIconWrapHighlight: {
+    backgroundColor: Colors.terra500, borderColor: Colors.terra500,
+  },
+
+  // Prediction card
+  predictionCard: {
+    backgroundColor: Colors.white, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.warm200, overflow: 'hidden',
+  },
+  predictionHeader: {
+    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: Colors.cream,
+  },
+  predictionHeaderText: {
+    fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.textTertiary,
+    textTransform: 'uppercase', letterSpacing: 0.6,
+  },
+  predictionRow: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
+    paddingVertical: 12, gap: 10,
+  },
+  predictionRowBorder: {
+    borderTopWidth: 1, borderTopColor: Colors.warm100,
+  },
+  predictionRowContent: { flex: 1 },
+  predictionRowValue: {
+    fontSize: 15, fontFamily: 'DMSans-Medium', color: Colors.textPrimary,
+  },
+  predictionRowLabel: {
+    fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1,
+  },
+  predictionBrief: {
+    borderTopWidth: 1, borderTopColor: Colors.warm100,
+    paddingHorizontal: 14, paddingTop: 14, paddingBottom: 14,
+  },
+  predictionBriefTitle: {
+    fontSize: 15, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary, marginBottom: 4,
+  },
+  predictionBriefSub: {
+    fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textTertiary,
+    lineHeight: 18, marginBottom: 10,
+  },
+  sheetSectionLabel: {
+    fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10,
+  },
 
   // Option area
   optionArea: { gap: 10 },

@@ -18,6 +18,10 @@ import {
   Clock,
   MessageSquare,
   Mic,
+  Pause,
+  Play,
+  Square,
+  Check,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -37,7 +41,7 @@ import { Colors, Typography, Spacing } from '../../constants/theme';
 import { useHaptics } from '../../hooks/useHaptics';
 
 type ScreenPhase = 'explainer' | 'recording';
-type VoiceState = 'idle' | 'listening' | 'done';
+type VoiceState = 'idle' | 'listening' | 'paused' | 'done';
 
 const FIELDS = [
   { id: 'loc', icon: MapPin, label: 'Location', hint: 'Baner, Wakad, West Pune' },
@@ -95,46 +99,110 @@ export default function VoiceScreen() {
   const haptics = useHaptics();
   const [phase, setPhase] = useState<ScreenPhase>('explainer');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const [transcript, setTranscript] = useState('');
-  const [displayedText, setDisplayedText] = useState('');
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const transcriptIdx = useRef(0);
+
+  // Simulated live transcript chunks
+  const TRANSCRIPT_CHUNKS = [
+    'I want a ',
+    '3BHK in ',
+    'Baner or Balewadi, ',
+    'around 1.2 to 1.5 crore ',
+    'budget, ',
+    'for my family ',
+    'to live in. ',
+    'Ready to move ',
+    'preferred.',
+  ];
+
+  // Detected fields based on transcript progress
+  const getDetectedFields = (text: string): string[] => {
+    const detected: string[] = [];
+    if (/baner|balewadi|wakad|pune|hinjewadi|kharadi/i.test(text)) detected.push('loc');
+    if (/bhk|apartment|villa|office/i.test(text)) detected.push('type', 'size');
+    if (/crore|lakh|budget|₹/i.test(text)) detected.push('budget');
+    if (/family|self|invest|live in/i.test(text)) detected.push('purpose');
+    if (/ready|move|year|immediate/i.test(text)) detected.push('timeline');
+    return detected;
+  };
 
   const handleStartRecording = () => {
     haptics.medium();
     setPhase('recording');
+    // Auto-start recording after phase transition
+    setTimeout(() => startListening(), 300);
+  };
+
+  const startListening = () => {
+    haptics.medium();
+    setVoiceState('listening');
+    transcriptIdx.current = 0;
+    setLiveTranscript('');
+    setRecordSeconds(0);
+
+    // Timer
+    timerRef.current = setInterval(() => {
+      setRecordSeconds(s => s + 1);
+    }, 1000);
+
+    // Simulate live transcription chunks with closure-safe index
+    const chunks = [...TRANSCRIPT_CHUNKS];
+    let chunkI = 0;
+    const addChunk = () => {
+      if (chunkI < chunks.length) {
+        const text = chunks[chunkI];
+        setLiveTranscript(prev => prev + text);
+        chunkI++;
+        typingRef.current = setTimeout(addChunk, 800 + Math.random() * 600);
+      }
+    };
+    typingRef.current = setTimeout(addChunk, 500);
+  };
+
+  const handlePause = () => {
+    haptics.light();
+    setVoiceState('paused');
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (typingRef.current) clearTimeout(typingRef.current);
+  };
+
+  const handleResume = () => {
+    haptics.light();
+    setVoiceState('listening');
+    timerRef.current = setInterval(() => {
+      setRecordSeconds(s => s + 1);
+    }, 1000);
+  };
+
+  const handleStopAndSubmit = () => {
+    haptics.success();
+    setVoiceState('done');
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (typingRef.current) clearTimeout(typingRef.current);
   };
 
   const handleOrbPress = () => {
     if (voiceState === 'idle') {
-      haptics.medium();
-      setVoiceState('listening');
-      setTimeout(() => {
-        setVoiceState('done');
-        setTranscript(DEMO_TRANSCRIPT);
-        haptics.success();
-      }, 3000);
-    } else if (voiceState === 'done') {
-      setVoiceState('idle');
-      setTranscript('');
-      setDisplayedText('');
+      startListening();
     }
   };
 
+  // Cleanup on unmount
   useEffect(() => {
-    if (transcript && voiceState === 'done') {
-      let i = 0;
-      setDisplayedText('');
-      const type = () => {
-        if (i < transcript.length) {
-          setDisplayedText(transcript.slice(0, i + 1));
-          i++;
-          typingRef.current = setTimeout(type, 25);
-        }
-      };
-      type();
-      return () => { if (typingRef.current) clearTimeout(typingRef.current); };
-    }
-  }, [transcript, voiceState]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (typingRef.current) clearTimeout(typingRef.current);
+    };
+  }, []);
+
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60).toString().padStart(2, '0');
+    const secs = (s % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
 
   // ── Explainer Phase ──
   if (phase === 'explainer') {
@@ -231,75 +299,149 @@ export default function VoiceScreen() {
   }
 
   // ── Recording Phase ──
+  const detectedFields = getDetectedFields(liveTranscript);
+  const orbState = voiceState === 'paused' ? 'idle' : voiceState === 'done' ? 'done' : voiceState === 'idle' ? 'idle' : 'listening';
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+      {/* Compact top bar with inline orb + timer */}
+      <View style={styles.recTopBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => {
-          if (voiceState === 'idle') { setPhase('explainer'); }
-          else { setVoiceState('idle'); setTranscript(''); setDisplayedText(''); }
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (typingRef.current) clearTimeout(typingRef.current);
+          setVoiceState('idle');
+          setLiveTranscript('');
+          setRecordSeconds(0);
+          setPhase('explainer');
         }}>
           <ChevronLeft size={20} color={Colors.gray400} strokeWidth={2} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>
-          {voiceState === 'listening' ? 'Listening...' : voiceState === 'done' ? 'Got it' : 'Speak now'}
-        </Text>
+
+        {/* Inline orb + timer + status */}
+        <View style={styles.recStatusRow}>
+          <View style={styles.miniOrbWrap}>
+            <VoiceOrb state={orbState} onPress={() => {}} />
+          </View>
+          <View style={styles.recStatusText}>
+            <Text style={styles.recTimer}>{formatTime(recordSeconds)}</Text>
+            {voiceState === 'listening' && (
+              <View style={styles.recIndicator}>
+                <View style={styles.recordingDot} />
+                <Text style={styles.recIndicatorText}>Recording</Text>
+              </View>
+            )}
+            {voiceState === 'paused' && (
+              <Text style={styles.recPausedText}>Paused</Text>
+            )}
+            {voiceState === 'done' && (
+              <Text style={styles.recDoneText}>Complete</Text>
+            )}
+            {voiceState === 'idle' && (
+              <Text style={styles.recPausedText}>Starting...</Text>
+            )}
+          </View>
+        </View>
+
         <View style={{ width: 36 }} />
       </View>
 
-      <View style={styles.recordingContent}>
-        {/* Field reminder strip — above orb */}
-        {voiceState === 'idle' && (
-          <Animated.View style={styles.fieldStrip} entering={FadeIn.delay(200).duration(300)}>
-            <Text style={styles.fieldStripLabel}>Mention in your brief</Text>
-            <View style={styles.fieldStripRow}>
-              {FIELDS.map((f, i) => {
-                const Icon = f.icon;
-                return (
-                  <Animated.View
-                    key={f.id}
-                    style={styles.fieldStripChip}
-                    entering={FadeIn.delay(300 + i * 80).duration(200)}
-                  >
-                    <Icon size={12} color={Colors.terra400} strokeWidth={2} />
-                    <Text style={styles.fieldStripChipText}>{f.label}</Text>
-                  </Animated.View>
-                );
-              })}
-            </View>
-          </Animated.View>
-        )}
-
-        <VoiceOrb state={voiceState} onPress={handleOrbPress} />
-
-        {voiceState === 'idle' && (
-          <Animated.View style={styles.recordingHint} entering={FadeIn.duration(300)}>
-            <Text style={styles.recordingHintSub}>
-              Speak naturally — I'll pick up every detail
+      {/* Main content — no scroll needed */}
+      <View style={styles.recBody}>
+        {/* Live transcript */}
+        <View style={styles.transcriptCard}>
+          <Text style={styles.transcriptCardLabel}>Live transcription</Text>
+          {liveTranscript.length > 0 ? (
+            <Text style={styles.transcriptCardText}>
+              "{liveTranscript}{voiceState === 'listening' ? <Text style={styles.transcriptCursor}>|</Text> : null}"
             </Text>
-          </Animated.View>
-        )}
+          ) : (
+            <Text style={styles.transcriptPlaceholder}>
+              Start speaking — your words will appear here in real time...
+            </Text>
+          )}
+        </View>
 
-        {displayedText ? (
-          <Animated.View style={styles.transcriptWrap} entering={FadeIn.duration(300)}>
-            <Text style={styles.transcriptLabel}>What I heard:</Text>
-            <Text style={styles.transcriptText}>"{displayedText}"</Text>
-          </Animated.View>
-        ) : null}
+        {/* Field checklist as compact chips */}
+        <View style={styles.fieldCheckSection}>
+          <Text style={styles.fieldCheckLabel}>
+            {detectedFields.length}/{FIELDS.length} fields covered
+          </Text>
+          <View style={styles.fieldCheckGrid}>
+            {FIELDS.map((f) => {
+              const Icon = f.icon;
+              const isDetected = detectedFields.includes(f.id);
+              return (
+                <View key={f.id} style={[styles.fieldCheckChip, isDetected && styles.fieldCheckChipDone]}>
+                  {isDetected ? (
+                    <Check size={11} color="#22C55E" strokeWidth={3} />
+                  ) : (
+                    <Icon size={11} color="rgba(255,255,255,0.3)" strokeWidth={2} />
+                  )}
+                  <Text style={[styles.fieldCheckText, isDetected && styles.fieldCheckTextDone]}>
+                    {f.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          {detectedFields.length < FIELDS.length && voiceState !== 'done' && (
+            <Text style={styles.fieldCheckHint}>Keep speaking to cover remaining fields</Text>
+          )}
+        </View>
       </View>
 
-      <View style={[styles.bottomWrap, { paddingBottom: insets.bottom + 20 }]}>
-        {voiceState === 'done' && displayedText.length === transcript.length && (
-          <Animated.View entering={FadeIn.duration(400)} style={{ width: '100%' }}>
+      {/* ── Bottom CTAs ── */}
+      <View style={[styles.bottomWrap, { paddingBottom: insets.bottom + 16 }]}>
+        {(voiceState === 'listening' || voiceState === 'paused') && (
+          <View style={styles.recordingActions}>
+            <TouchableOpacity
+              style={styles.pauseBtn}
+              onPress={voiceState === 'listening' ? handlePause : handleResume}
+              activeOpacity={0.75}
+            >
+              {voiceState === 'listening' ? (
+                <Pause size={16} color={Colors.terra500} strokeWidth={2} />
+              ) : (
+                <Play size={16} color={Colors.terra500} strokeWidth={2} />
+              )}
+              <Text style={styles.pauseBtnText}>
+                {voiceState === 'listening' ? 'Pause' : 'Resume'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.stopBtn} onPress={handleStopAndSubmit} activeOpacity={0.85}>
+              <Square size={14} color="#fff" strokeWidth={2} fill="#fff" />
+              <Text style={styles.stopBtnText}>Stop & Submit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {voiceState === 'done' && (
+          <Animated.View entering={FadeIn.duration(300)} style={{ width: '100%', gap: 10 }}>
             <Button
-              title="Looks right, find my home →"
+              title="Review & confirm →"
               onPress={() => router.push('/onboarding/voice-confirm')}
               variant="primary"
             />
+            <TouchableOpacity
+              style={styles.reRecordBtn}
+              onPress={() => { setVoiceState('idle'); setLiveTranscript(''); setRecordSeconds(0); startListening(); }}
+              activeOpacity={0.7}
+            >
+              <Mic size={13} color={Colors.terra400} strokeWidth={2} />
+              <Text style={styles.reRecordText}>Record again</Text>
+            </TouchableOpacity>
           </Animated.View>
         )}
-        <TouchableOpacity style={styles.switchLink} onPress={() => router.back()}>
-          <Text style={styles.switchLinkText}>Switch to tap instead</Text>
-        </TouchableOpacity>
+
+        {voiceState === 'idle' && (
+          <TouchableOpacity style={styles.switchLink} onPress={() => router.back()}>
+            <Text style={styles.switchLinkText}>Switch to tap instead</Text>
+          </TouchableOpacity>
+        )}
+
+        {(voiceState === 'listening' || voiceState === 'paused') && (
+          <Text style={styles.timeHint}>15 seconds recommended for best results</Text>
+        )}
       </View>
     </View>
   );
@@ -422,41 +564,124 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // ── Recording ──
-  recordingContent: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xxl,
+  // ── Recording phase ──
+  recTopBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+  },
+  recStatusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  miniOrbWrap: {
+    transform: [{ scale: 0.35 }], marginHorizontal: -30, marginVertical: -30,
+  },
+  recStatusText: {
+    alignItems: 'flex-start', gap: 2,
+  },
+  recTimer: {
+    fontSize: 20, fontFamily: 'DMSans-SemiBold', color: '#fff', letterSpacing: 1,
+  },
+  recIndicator: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  recordingDot: {
+    width: 5, height: 5, borderRadius: 3, backgroundColor: '#EF4444',
+  },
+  recIndicatorText: {
+    fontSize: 10, fontFamily: 'DMSans-Medium', color: '#EF4444',
+  },
+  recPausedText: {
+    fontSize: 10, fontFamily: 'DMSans-Medium', color: 'rgba(255,255,255,0.4)',
+  },
+  recDoneText: {
+    fontSize: 10, fontFamily: 'DMSans-Medium', color: '#22C55E',
   },
 
-  // Field strip above orb
-  fieldStrip: {
-    alignItems: 'center', marginBottom: Spacing.xxxl, gap: 10,
+  recBody: {
+    flex: 1, paddingHorizontal: Spacing.xxl, paddingTop: Spacing.sm, gap: Spacing.md,
   },
-  fieldStripLabel: {
+
+  // Transcript card
+  transcriptCard: {
+    flex: 1,
+    backgroundColor: Colors.navy700, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  transcriptCardLabel: {
     fontSize: 10, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 0.8, textTransform: 'uppercase',
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8,
   },
-  fieldStripRow: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8,
+  transcriptCardText: {
+    fontSize: 15, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.85)',
+    lineHeight: 24, fontStyle: 'italic',
   },
-  fieldStripChip: {
+  transcriptPlaceholder: {
+    fontSize: 13, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.2)',
+    lineHeight: 20, fontStyle: 'italic',
+  },
+  transcriptCursor: {
+    color: Colors.terra500, fontStyle: 'normal',
+  },
+
+  // Field check section — compact chips
+  fieldCheckSection: {
+    gap: 8,
+  },
+  fieldCheckLabel: {
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase', letterSpacing: 0.6,
+  },
+  fieldCheckGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+  },
+  fieldCheckChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.navy700, borderWidth: 1, borderColor: 'rgba(217,95,43,0.2)',
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: Colors.navy700, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
   },
-  fieldStripChipText: {
-    fontSize: 12, fontFamily: 'DMSans-Medium', color: 'rgba(255,255,255,0.6)',
+  fieldCheckChipDone: {
+    borderColor: 'rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.08)',
+  },
+  fieldCheckText: {
+    fontSize: 12, fontFamily: 'DMSans-Medium', color: 'rgba(255,255,255,0.4)',
+  },
+  fieldCheckTextDone: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  fieldCheckHint: {
+    fontSize: 10, fontFamily: 'DMSans-Regular', color: Colors.terra400, fontStyle: 'italic',
   },
 
-  // Hint below orb
-  recordingHint: { alignItems: 'center', marginTop: Spacing.sm },
-  recordingHintSub: {
-    fontSize: 13, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.3)', textAlign: 'center',
+  // Recording action buttons
+  recordingActions: {
+    flexDirection: 'row', gap: 10, width: '100%',
   },
-
-  transcriptWrap: { marginTop: Spacing.xxxl, paddingHorizontal: Spacing.xl },
-  transcriptLabel: { ...Typography.smallMedium, color: Colors.gray500, marginBottom: Spacing.sm },
-  transcriptText: {
-    ...Typography.body, color: Colors.white, fontStyle: 'italic', textAlign: 'center', lineHeight: 26,
+  pauseBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 14, borderRadius: 14,
+    backgroundColor: Colors.navy700, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  pauseBtnText: {
+    fontSize: 14, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.7)',
+  },
+  stopBtn: {
+    flex: 1.3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 14, borderRadius: 14,
+    backgroundColor: Colors.terra500,
+  },
+  stopBtnText: {
+    fontSize: 14, fontFamily: 'DMSans-SemiBold', color: '#fff',
+  },
+  reRecordBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 6,
+  },
+  reRecordText: {
+    fontSize: 13, fontFamily: 'DMSans-Medium', color: Colors.terra400,
+  },
+  timeHint: {
+    fontSize: 10, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.2)',
+    textAlign: 'center', marginTop: 4,
   },
 
   bottomWrap: {

@@ -68,10 +68,15 @@ const STAGES: Stage[] = [
     ctaLabel: 'Start legal check →',
     ctaInfo: 'Upload your agreement and ALON will flag any concerns.' },
   { label: 'Negotiate', yourTask: 'Use data', alonTask: 'Leverage', status: 'pending',
-    alonDetail: 'Index 2 + negotiation checklist',
+    alonDetail: 'Price benchmarking + negotiation checklist',
     yourDetail: "Negotiate using ALON's insights",
     ctaLabel: 'Get negotiation data →',
     ctaInfo: 'ALON will prepare market data to strengthen your position.' },
+  { label: 'Deal Closure', yourTask: 'Track progress', alonTask: 'Tracking', status: 'pending',
+    alonDetail: 'Timeline tracking, reminders & documentation',
+    yourDetail: 'Stay on top of every milestone',
+    ctaLabel: 'View deal timeline →',
+    ctaInfo: 'ALON tracks deadlines, sends reminders, and keeps all documents organized.' },
   { label: 'Possession', yourTask: 'Collect keys', alonTask: 'Checklist', status: 'pending',
     alonDetail: 'Key dates, reminders & handover checklist',
     yourDetail: 'Inspect, accept & collect your keys',
@@ -131,14 +136,14 @@ export default function JourneyCard() {
     onScroll: (e) => {
       scrollY.value = e.contentOffset.y;
       const index = Math.round(e.contentOffset.y / ITEM_HEIGHT);
-      const clamped = Math.max(0, Math.min(7, index));
+      const clamped = Math.max(0, Math.min(STAGES.length - 1, index));
       runOnJS(onTick)(clamped);
     },
   });
 
   const handleMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-    setSelected(Math.max(0, Math.min(7, index)));
+    setSelected(Math.max(0, Math.min(STAGES.length - 1, index)));
   }, []);
 
   const scrollToIndex = useCallback((i: number) => {

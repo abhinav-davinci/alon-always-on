@@ -96,7 +96,7 @@ export default function SplashScreen() {
           </View>
           <Text style={styles.promiseText}>
             <Text style={styles.promiseBold}>Complete journey, not just listings.</Text>
-            {' '}Search to possession — all 8 stages.
+            {' '}Search to possession — all 9 stages.
           </Text>
         </View>
 
