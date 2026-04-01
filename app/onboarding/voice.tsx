@@ -247,26 +247,35 @@ export default function VoiceScreen() {
       </View>
 
       <View style={styles.recordingContent}>
+        {/* Field reminder strip — above orb */}
+        {voiceState === 'idle' && (
+          <Animated.View style={styles.fieldStrip} entering={FadeIn.delay(200).duration(300)}>
+            <Text style={styles.fieldStripLabel}>Mention in your brief</Text>
+            <View style={styles.fieldStripRow}>
+              {FIELDS.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                  <Animated.View
+                    key={f.id}
+                    style={styles.fieldStripChip}
+                    entering={FadeIn.delay(300 + i * 80).duration(200)}
+                  >
+                    <Icon size={12} color={Colors.terra400} strokeWidth={2} />
+                    <Text style={styles.fieldStripChipText}>{f.label}</Text>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
+
         <VoiceOrb state={voiceState} onPress={handleOrbPress} />
 
         {voiceState === 'idle' && (
           <Animated.View style={styles.recordingHint} entering={FadeIn.duration(300)}>
-            <Text style={styles.recordingHintText}>
-              Tap the orb and start speaking
+            <Text style={styles.recordingHintSub}>
+              Speak naturally — I'll pick up every detail
             </Text>
-            {/* Mini reminder chips */}
-            <View style={styles.reminderRow}>
-              {FIELDS.slice(0, 4).map((f) => {
-                const Icon = f.icon;
-                return (
-                  <View key={f.id} style={styles.reminderChip}>
-                    <Icon size={9} color={Colors.terra300} strokeWidth={2} />
-                    <Text style={styles.reminderChipText}>{f.label}</Text>
-                  </View>
-                );
-              })}
-              <Text style={styles.reminderMore}>+{FIELDS.length - 4}</Text>
-            </View>
           </Animated.View>
         )}
 
@@ -417,23 +426,31 @@ const styles = StyleSheet.create({
   recordingContent: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xxl,
   },
-  recordingHint: { alignItems: 'center', marginTop: Spacing.xl, gap: 14 },
-  recordingHintText: {
-    fontSize: 14, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.35)', textAlign: 'center',
+
+  // Field strip above orb
+  fieldStrip: {
+    alignItems: 'center', marginBottom: Spacing.xxxl, gap: 10,
   },
-  reminderRow: {
-    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6,
+  fieldStripLabel: {
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 0.8, textTransform: 'uppercase',
   },
-  reminderChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  fieldStripRow: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8,
   },
-  reminderChipText: {
-    fontSize: 9, fontFamily: 'DMSans-Medium', color: 'rgba(255,255,255,0.3)',
+  fieldStripChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: Colors.navy700, borderWidth: 1, borderColor: 'rgba(217,95,43,0.2)',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  reminderMore: {
-    fontSize: 9, fontFamily: 'DMSans-Medium', color: Colors.terra400, alignSelf: 'center',
+  fieldStripChipText: {
+    fontSize: 12, fontFamily: 'DMSans-Medium', color: 'rgba(255,255,255,0.6)',
+  },
+
+  // Hint below orb
+  recordingHint: { alignItems: 'center', marginTop: Spacing.sm },
+  recordingHintSub: {
+    fontSize: 13, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.3)', textAlign: 'center',
   },
 
   transcriptWrap: { marginTop: Spacing.xxxl, paddingHorizontal: Spacing.xl },
