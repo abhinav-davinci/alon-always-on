@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,22 +8,27 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft,
-  Pencil,
+  LayoutTemplate,
+  Mic,
+  MessageSquare,
   MapPin,
   Building2,
   Maximize2,
   Wallet,
   Target,
-  Mic,
-  SlidersHorizontal,
+  ArrowUp,
+  Check,
+  Pencil,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
+  FadeInUp,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -34,44 +39,77 @@ import Animated, {
 import AlonAvatar from '../../components/AlonAvatar';
 import LocationPicker from '../../components/LocationPicker';
 import BottomSheet from '../../components/BottomSheet';
-import PillSelector from '../../components/PillSelector';
 import BudgetSlider from '../../components/BudgetSlider';
-import PurposeGrid from '../../components/PurposeGrid';
 import Button from '../../components/Button';
-import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
+import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
-import { PERSONA_PROFILE_ROWS } from '../../constants/personas';
+import { useHaptics } from '../../hooks/useHaptics';
 import {
   PUNE_LOCATIONS,
   PROPERTY_SIZES,
-  PROPERTY_TYPE_FLAT,
-  PURPOSE_OPTIONS,
   TIMELINE_OPTIONS,
   formatBudget,
 } from '../../constants/locations';
 
-const PURPOSE_ITEMS_MAP: Record<string, string> = {
-  self: 'Live in it',
-  invest: 'Invest',
-  family: 'Family',
-  work: 'Work hub',
+// ── Chat step definitions ──
+type StepKey = 'mode' | 'location' | 'type' | 'size' | 'budget' | 'purpose' | 'timeline' | 'brief' | 'done' | 'chat';
+
+interface ChatMsg {
+  id: string;
+  from: 'alon' | 'user';
+  text: string;
+  step?: StepKey;
+}
+
+const ALON_QUESTIONS: Record<StepKey, string> = {
+  mode: "I'd love to understand what you're looking for. How would you like to tell me?",
+  location: "Where in Pune are you looking? Pick one or more areas that interest you.",
+  type: "What kind of property works best for you?",
+  size: "What size are you thinking? You can pick more than one.",
+  budget: "What's your comfortable budget range? I'll focus my search within this.",
+  purpose: "What's the primary purpose?",
+  timeline: "When do you need it by?",
+  brief: "Anything else I should know? Builders to trust or avoid, must-haves, deal-breakers — your direct brief to me.",
+  done: "Got it — I have everything I need. Let me start working on this for you.",
+  chat: "Go ahead — tell me your preferred location, property type, size, budget, purpose, and any deal-breakers. I'll parse it all.",
 };
 
-const ROW_ICONS: Record<string, typeof MapPin> = {
-  Location: MapPin,
-  Type: Building2,
-  Size: Maximize2,
-  Budget: Wallet,
-  Purpose: Target,
-};
+const MODE_OPTIONS = [
+  { key: 'template', icon: LayoutTemplate, label: 'Quick template', sub: 'I\'ll guide you step by step' },
+  { key: 'voice', icon: Mic, label: 'Voice brief', sub: 'Tell me in your own words' },
+  { key: 'chat', icon: MessageSquare, label: 'Write it out', sub: 'Type your requirements freely' },
+];
+
+const TYPE_RESIDENTIAL = ['Apartment', 'Villa', 'Penthouse', 'Row House', 'Duplex'];
+const TYPE_COMMERCIAL = ['Office', 'Shop', 'Showroom', 'Coworking'];
+
+const PURPOSE_OPTIONS = [
+  { id: 'self', label: 'Self use' },
+  { id: 'invest', label: 'Investment' },
+  { id: 'family', label: 'Family' },
+  { id: 'work', label: 'Work hub' },
+];
+
+// Step flow order
+const STEP_FLOW: StepKey[] = ['location', 'type', 'size', 'budget', 'purpose', 'timeline', 'brief', 'done'];
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const haptics = useHaptics();
   const store = useOnboardingStore();
-  const [sheetField, setSheetField] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  const briefRef = useRef<View>(null);
+
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { id: '0', from: 'alon', text: ALON_QUESTIONS.mode, step: 'mode' },
+  ]);
+  const [currentStep, setCurrentStep] = useState<StepKey>('mode');
+  const [flowStarted, setFlowStarted] = useState(false);
+  const [briefText, setBriefText] = useState('');
+  const [sheetField, setSheetField] = useState<string | null>(null);
+  const [tempLocations, setTempLocations] = useState<string[]>(store.locations);
+  const [tempBudget, setTempBudget] = useState(store.budget);
+  const [tempNeedsLoan, setTempNeedsLoan] = useState(store.needsLoan);
 
   // Status pill animation
   const dotScale = useSharedValue(1);
@@ -83,48 +121,368 @@ export default function ProfileScreen() {
         withTiming(1.4, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
       ),
-      -1,
-      true
+      -1, true
     );
     pillOpacity.value = withRepeat(
       withSequence(
         withTiming(0.7, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
         withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin) })
       ),
-      -1,
-      true
+      -1, true
     );
   }, []);
 
-  const dotAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: dotScale.value }],
-  }));
-  const pillAnimStyle = useAnimatedStyle(() => ({
-    opacity: pillOpacity.value,
-  }));
+  const dotAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
+  const pillAnimStyle = useAnimatedStyle(() => ({ opacity: pillOpacity.value }));
 
-  const rows = store.persona ? PERSONA_PROFILE_ROWS[store.persona] : [];
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+  }, []);
 
-  const contextLabel =
-    store.persona === 'first'
-      ? 'Curated for your first home in Pune'
-      : store.persona === 'upgrade'
-      ? 'Tailored for your next move in Pune'
-      : store.persona === 'invest'
-      ? 'Optimized for your investment goals in Pune'
-      : store.persona === 'rent_new'
-      ? 'Picked for your first office in Pune'
-      : store.persona === 'rent_change'
-      ? 'Matched to your relocation needs in Pune'
-      : 'Set up for your sub-lease in Pune';
+  const addMessage = useCallback((msg: ChatMsg) => {
+    setMessages(prev => [...prev, msg]);
+    scrollToBottom();
+  }, [scrollToBottom]);
 
-  // Get live values from store (so edits reflect immediately)
-  const liveValues: Record<string, string> = {
-    Location: store.locations.join(', '),
-    Type: store.propertyType,
-    Size: store.propertySize.join(', '),
-    Budget: `${formatBudget(store.budget.min)} – ${formatBudget(store.budget.max)}`,
-    Purpose: store.purpose + (store.timeline ? ` · ${store.timeline}` : ''),
+  const advanceToStep = useCallback((step: StepKey) => {
+    setCurrentStep(step);
+    const alonMsg: ChatMsg = {
+      id: `alon-${step}-${Date.now()}`,
+      from: 'alon',
+      text: ALON_QUESTIONS[step],
+      step,
+    };
+    // Small delay to feel conversational
+    setTimeout(() => {
+      addMessage(alonMsg);
+    }, 400);
+  }, [addMessage]);
+
+  const getNextStep = useCallback((current: StepKey): StepKey | null => {
+    const idx = STEP_FLOW.indexOf(current);
+    if (idx === -1 || idx >= STEP_FLOW.length - 1) return null;
+    return STEP_FLOW[idx + 1];
+  }, []);
+
+  const handleUserAnswer = useCallback((step: StepKey, displayText: string) => {
+    haptics.selection();
+    const userMsg: ChatMsg = { id: `user-${step}-${Date.now()}`, from: 'user', text: displayText };
+    addMessage(userMsg);
+
+    const next = getNextStep(step);
+    if (next) {
+      advanceToStep(next);
+    }
+  }, [addMessage, getNextStep, advanceToStep]);
+
+  // Mode selection
+  const handleModeSelect = useCallback((mode: string) => {
+    haptics.medium();
+    if (mode === 'template') {
+      addMessage({ id: `user-mode-template-${Date.now()}`, from: 'user', text: 'Quick template — guide me step by step' });
+      setFlowStarted(true);
+      advanceToStep('location');
+    } else if (mode === 'voice') {
+      addMessage({ id: `user-mode-voice-${Date.now()}`, from: 'user', text: 'Voice brief' });
+      setTimeout(() => router.push('/onboarding/voice'), 300);
+    } else {
+      addMessage({ id: `user-mode-chat-${Date.now()}`, from: 'user', text: 'I\'ll write it out' });
+      setFlowStarted(true);
+      setCurrentStep('chat');
+      setTimeout(() => {
+        addMessage({
+          id: 'alon-chat-hint',
+          from: 'alon',
+          text: "Go ahead — tell me your preferred location, property type, size, budget, purpose, and any deal-breakers. I'll parse it all.",
+          step: 'chat',
+        });
+      }, 400);
+    }
+  }, [addMessage, advanceToStep, router]);
+
+  // Location: open bottom sheet
+  const handleLocationDone = useCallback(() => {
+    store.setLocations(tempLocations);
+    setSheetField(null);
+    handleUserAnswer('location', tempLocations.join(', ') || 'No preference');
+  }, [tempLocations, store, handleUserAnswer]);
+
+  // Type selection
+  const handleTypeSelect = useCallback((type: string) => {
+    store.setPropertyType(type);
+    handleUserAnswer('type', type);
+  }, [store, handleUserAnswer]);
+
+  // Size selection (multi-select, confirm with done)
+  const [tempSizes, setTempSizes] = useState<string[]>(store.propertySize);
+  const handleSizeToggle = useCallback((size: string) => {
+    haptics.light();
+    setTempSizes(prev => prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]);
+  }, []);
+  const handleSizeDone = useCallback(() => {
+    store.setPropertySize(tempSizes);
+    handleUserAnswer('size', tempSizes.join(', ') || 'Flexible');
+  }, [tempSizes, store, handleUserAnswer]);
+
+  // Budget: open bottom sheet
+  const handleBudgetDone = useCallback(() => {
+    store.setBudget(tempBudget);
+    store.setNeedsLoan(tempNeedsLoan);
+    setSheetField(null);
+    handleUserAnswer('budget', `${formatBudget(tempBudget.min)} – ${formatBudget(tempBudget.max)}`);
+  }, [tempBudget, tempNeedsLoan, store, handleUserAnswer]);
+
+  // Purpose
+  const handlePurposeSelect = useCallback((purpose: string) => {
+    store.setPurpose(purpose);
+    handleUserAnswer('purpose', purpose);
+  }, [store, handleUserAnswer]);
+
+  // Timeline
+  const handleTimelineSelect = useCallback((timeline: string) => {
+    store.setTimeline(timeline);
+    handleUserAnswer('timeline', timeline);
+  }, [store, handleUserAnswer]);
+
+  // Brief
+  const handleBriefSubmit = useCallback(() => {
+    store.setBriefText(briefText);
+    handleUserAnswer('brief', briefText || 'Nothing specific — surprise me');
+  }, [briefText, store, handleUserAnswer]);
+
+  // Free-form chat submit
+  const [freeText, setFreeText] = useState('');
+  const handleFreeSubmit = useCallback(() => {
+    if (!freeText.trim()) return;
+    haptics.selection();
+    addMessage({ id: `user-free-${Date.now()}`, from: 'user', text: freeText.trim() });
+    store.setBriefText(freeText.trim());
+    setFreeText('');
+    // Simulate ALON parsing
+    setTimeout(() => {
+      addMessage({
+        id: `alon-parsed-${Date.now()}`,
+        from: 'alon',
+        text: "Got it — I've noted your requirements. Let me start searching for the perfect match.",
+        step: 'done',
+      });
+      setCurrentStep('done');
+    }, 800);
+  }, [freeText, store, addMessage]);
+
+  // ── Render option chips for current step ──
+  const renderOptions = () => {
+    if (currentStep === 'mode') {
+      return (
+        <Animated.View style={styles.modeCards} entering={FadeInUp.delay(200).duration(250)}>
+          {MODE_OPTIONS.map((mode) => {
+            const Icon = mode.icon;
+            return (
+              <TouchableOpacity
+                key={mode.key}
+                style={styles.modeCard}
+                onPress={() => handleModeSelect(mode.key)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.modeIconWrap}>
+                  <Icon size={18} color={Colors.terra500} strokeWidth={1.8} />
+                </View>
+                <View style={styles.modeTextWrap}>
+                  <Text style={styles.modeLabel}>{mode.label}</Text>
+                  <Text style={styles.modeSub}>{mode.sub}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'location') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <View style={styles.chipGrid}>
+            {PUNE_LOCATIONS.slice(0, 10).map((loc) => (
+              <Pressable
+                key={loc}
+                style={[styles.chip, tempLocations.includes(loc) && styles.chipSelected]}
+                onPress={() => {
+                  haptics.light();
+                  setTempLocations(prev =>
+                    prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc]
+                  );
+                }}
+              >
+                <Text style={[styles.chipText, tempLocations.includes(loc) && styles.chipTextSelected]}>
+                  {loc}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.moreBtn} onPress={() => setSheetField('Location')} activeOpacity={0.7}>
+            <MapPin size={12} color={Colors.terra500} strokeWidth={2} />
+            <Text style={styles.moreBtnText}>Browse all areas</Text>
+          </TouchableOpacity>
+          {tempLocations.length > 0 && (
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleLocationDone} activeOpacity={0.85}>
+              <Check size={14} color="#fff" strokeWidth={2.5} />
+              <Text style={styles.confirmBtnText}>Confirm {tempLocations.length} area{tempLocations.length > 1 ? 's' : ''}</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'type') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <Text style={styles.chipGroupLabel}>Residential</Text>
+          <View style={styles.chipGrid}>
+            {TYPE_RESIDENTIAL.map((t) => (
+              <Pressable key={t} style={styles.chip} onPress={() => handleTypeSelect(t)}>
+                <Text style={styles.chipText}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.chipGroupLabel, { marginTop: 10 }]}>Commercial</Text>
+          <View style={styles.chipGrid}>
+            {TYPE_COMMERCIAL.map((t) => (
+              <Pressable key={t} style={styles.chip} onPress={() => handleTypeSelect(t)}>
+                <Text style={styles.chipText}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'size') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <View style={styles.chipGrid}>
+            {PROPERTY_SIZES.map((s) => (
+              <Pressable
+                key={s}
+                style={[styles.chip, tempSizes.includes(s) && styles.chipSelected]}
+                onPress={() => handleSizeToggle(s)}
+              >
+                <Text style={[styles.chipText, tempSizes.includes(s) && styles.chipTextSelected]}>{s}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {tempSizes.length > 0 && (
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleSizeDone} activeOpacity={0.85}>
+              <Check size={14} color="#fff" strokeWidth={2.5} />
+              <Text style={styles.confirmBtnText}>Confirm</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'budget') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <TouchableOpacity style={styles.budgetTapCard} onPress={() => setSheetField('Budget')} activeOpacity={0.75}>
+            <Wallet size={16} color={Colors.terra500} strokeWidth={1.8} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.budgetTapValue}>{formatBudget(tempBudget.min)} – {formatBudget(tempBudget.max)}</Text>
+              <Text style={styles.budgetTapHint}>Tap to adjust with slider</Text>
+            </View>
+            <Pencil size={14} color={Colors.warm300} strokeWidth={1.8} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleBudgetDone} activeOpacity={0.85}>
+            <Check size={14} color="#fff" strokeWidth={2.5} />
+            <Text style={styles.confirmBtnText}>Confirm budget</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'purpose') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <View style={styles.chipGrid}>
+            {PURPOSE_OPTIONS.map((p) => (
+              <Pressable key={p.id} style={styles.chip} onPress={() => handlePurposeSelect(p.label)}>
+                <Text style={styles.chipText}>{p.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'timeline') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <View style={styles.chipGrid}>
+            {TIMELINE_OPTIONS.map((t) => (
+              <Pressable key={t} style={styles.chip} onPress={() => handleTimelineSelect(t)}>
+                <Text style={styles.chipText}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'brief') {
+      return (
+        <Animated.View style={styles.optionArea} entering={FadeInUp.delay(100).duration(200)}>
+          <TextInput
+            style={styles.briefInput}
+            placeholder="e.g. Only established builders, need parking, avoid ground floor..."
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            value={briefText}
+            onChangeText={setBriefText}
+          />
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleBriefSubmit} activeOpacity={0.85}>
+            <Text style={styles.confirmBtnText}>{briefText.trim() ? 'Submit brief' : 'Skip — nothing specific'}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'chat') {
+      return (
+        <Animated.View style={styles.freeInputWrap} entering={FadeInUp.delay(100).duration(200)}>
+          <TextInput
+            style={styles.freeInput}
+            placeholder="e.g. 3 BHK in Baner under 1.2Cr, ready to move, established builder..."
+            placeholderTextColor={Colors.textTertiary}
+            multiline
+            value={freeText}
+            onChangeText={setFreeText}
+          />
+          <TouchableOpacity
+            style={[styles.freeSendBtn, !freeText.trim() && { opacity: 0.35 }]}
+            onPress={handleFreeSubmit}
+            disabled={!freeText.trim()}
+            activeOpacity={0.85}
+          >
+            <ArrowUp size={16} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+
+    if (currentStep === 'done') {
+      return (
+        <Animated.View style={styles.doneCta} entering={FadeInUp.delay(300).duration(250)}>
+          <Button
+            title="Let's go →"
+            onPress={() => router.push('/onboarding/signup')}
+            variant="primary"
+          />
+        </Animated.View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -142,279 +500,81 @@ export default function ProfileScreen() {
           <Text style={styles.topBarTitle}>ALON</Text>
           <Animated.View style={[styles.statusPill, pillAnimStyle]}>
             <Animated.View style={[styles.statusDot, dotAnimStyle]} />
-            <Text style={styles.statusText}>thinking for you</Text>
+            <Text style={styles.statusText}>listening</Text>
           </Animated.View>
         </View>
         <View style={{ width: 36 }} />
       </View>
 
       <KeyboardAvoidingView
-        style={styles.scrollView}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={insets.top + 50}
       >
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Chat row — compact */}
-        <Animated.View
-          style={styles.chatRow}
-          entering={FadeIn.delay(200).duration(300)}
+        {/* Messages */}
+        <ScrollView
+          ref={scrollRef}
+          style={styles.messagesScroll}
+          contentContainerStyle={[styles.messagesContent, { paddingBottom: 16 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scrollToBottom()}
         >
-          <AlonAvatar size={28} showRings={false} showBlink />
-          <View style={styles.chatBubble}>
-            <Text style={styles.chatText}>
-              I've put together a starting point just for you. Does this feel right?
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Profile card with integrated brief */}
-        <Animated.View
-          style={styles.profileCard}
-          entering={FadeIn.delay(400).duration(350)}
-        >
-          {/* Card header */}
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardHeaderText}>{contextLabel}</Text>
-          </View>
-
-          {/* Rows */}
-          {rows.map((row, index) => {
-            const Icon = ROW_ICONS[row.label] || Target;
-            const displayValue = liveValues[row.label] || row.value;
-            return (
-              <TouchableOpacity
-                key={row.label}
-                style={[styles.profileRow, styles.profileRowBorder]}
-                onPress={() => setSheetField(row.label)}
-                activeOpacity={0.6}
-              >
-                <Icon size={16} color={Colors.terra500} strokeWidth={1.8} />
-                <View style={styles.rowContent}>
-                  <Text style={styles.rowValue}>{displayValue}</Text>
-                  <Text style={styles.rowLabel}>{row.label}</Text>
-                </View>
-                <Pencil size={14} color={Colors.warm300} strokeWidth={1.8} />
-              </TouchableOpacity>
-            );
-          })}
-
-          {/* Brief section */}
-          <View
-            ref={briefRef}
-            style={styles.briefRow}
-            onLayout={() => {}}
-          >
-            <Text style={styles.briefTitle}>Anything ALON must know?</Text>
-            <Text style={styles.briefSubtitle}>
-              Builders you trust or avoid, deal-breakers, must-haves —{' '}
-              <Text style={styles.briefHighlight}>your direct brief.</Text>
-            </Text>
-            <TextInput
-              style={styles.briefInput}
-              placeholder="e.g. Only established builders, need parking, avoid ground floor, open to Wakad if Baner is over budget..."
-              placeholderTextColor={Colors.textTertiary}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              value={store.briefText}
-              onChangeText={store.setBriefText}
-              onFocus={() => {
-                // Scroll to bottom so the text input is visible above keyboard
-                setTimeout(() => {
-                  scrollRef.current?.scrollToEnd({ animated: true });
-                }, 300);
-              }}
-            />
-          </View>
-        </Animated.View>
-
-        {/* CTAs */}
-        <Animated.View
-          style={styles.ctas}
-          entering={FadeIn.delay(700).duration(350)}
-        >
-          <Button
-            title="Yes, this feels right →"
-            onPress={() => router.push('/onboarding/signup')}
-            variant="primary"
-          />
-
-          <View style={styles.secondaryRow}>
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={() => router.push('/onboarding/tweak')}
-              activeOpacity={0.7}
+          {messages.map((msg) => (
+            <Animated.View
+              key={msg.id}
+              style={msg.from === 'alon' ? styles.alonRow : styles.userRow}
+              entering={FadeIn.duration(200)}
             >
-              <SlidersHorizontal
-                size={13}
-                color={Colors.terra500}
-                strokeWidth={1.8}
-              />
-              <Text style={styles.secondaryActionText}>I'll set my own</Text>
-            </TouchableOpacity>
+              {msg.from === 'alon' && (
+                <AlonAvatar size={26} showRings={false} showBlink />
+              )}
+              <View style={msg.from === 'alon' ? styles.alonBubble : styles.userBubble}>
+                <Text style={msg.from === 'alon' ? styles.alonText : styles.userText}>
+                  {msg.text}
+                </Text>
+              </View>
+            </Animated.View>
+          ))}
+        </ScrollView>
 
-            <View style={styles.secondaryDivider} />
-
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={() => router.push('/onboarding/voice')}
-              activeOpacity={0.7}
-            >
-              <Mic size={13} color={Colors.terra500} strokeWidth={1.8} />
-              <Text style={styles.secondaryActionText}>Voice brief</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </ScrollView>
+        {/* Interactive options area */}
+        <View style={[styles.optionsContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {renderOptions()}
+        </View>
       </KeyboardAvoidingView>
 
       {/* ── Bottom Sheets ── */}
-
-      {/* Location — with search */}
       <BottomSheet
         visible={sheetField === 'Location'}
         title="Where in Pune?"
         onClose={() => setSheetField(null)}
       >
         <LocationPicker
-          selected={store.locations}
-          onSelect={store.setLocations}
+          selected={tempLocations}
+          onSelect={setTempLocations}
         />
         <View style={{ marginTop: 20 }}>
-          <Button
-            title="Done"
-            onPress={() => setSheetField(null)}
-            variant="primary"
-          />
+          <Button title="Done" onPress={handleLocationDone} variant="primary" />
         </View>
       </BottomSheet>
 
-      {/* Property Type */}
-      <BottomSheet
-        visible={sheetField === 'Type'}
-        title="Property type"
-        onClose={() => setSheetField(null)}
-      >
-        <Text style={styles.sheetSectionLabel}>Residential</Text>
-        <PillSelector
-          options={['Apartment', 'Villa', 'Penthouse', 'Row House', 'Duplex']}
-          selected={[store.propertyType]}
-          onSelect={(sel) => {
-            store.setPropertyType(sel[0]);
-            setSheetField(null);
-          }}
-        />
-        <Text style={[styles.sheetSectionLabel, { marginTop: 20 }]}>
-          Commercial
-        </Text>
-        <PillSelector
-          options={['Office', 'Shop', 'Showroom', 'Coworking']}
-          selected={[store.propertyType]}
-          onSelect={(sel) => {
-            store.setPropertyType(sel[0]);
-            setSheetField(null);
-          }}
-        />
-        <Text style={[styles.sheetSectionLabel, { marginTop: 20 }]}>
-          Plots & Land
-        </Text>
-        <PillSelector
-          options={['Residential Plot', 'Commercial Plot', 'Agricultural Land']}
-          selected={[store.propertyType]}
-          onSelect={(sel) => {
-            store.setPropertyType(sel[0]);
-            setSheetField(null);
-          }}
-        />
-      </BottomSheet>
-
-      {/* Size */}
-      <BottomSheet
-        visible={sheetField === 'Size'}
-        title="Property size"
-        onClose={() => setSheetField(null)}
-      >
-        <PillSelector
-          options={PROPERTY_SIZES}
-          selected={store.propertySize}
-          onSelect={store.setPropertySize}
-          multiSelect
-        />
-        <View style={{ marginTop: 20 }}>
-          <Button
-            title="Done"
-            onPress={() => setSheetField(null)}
-            variant="primary"
-          />
-        </View>
-      </BottomSheet>
-
-      {/* Budget */}
       <BottomSheet
         visible={sheetField === 'Budget'}
         title="Budget range"
         onClose={() => setSheetField(null)}
       >
         <BudgetSlider
-          min={store.budget.min}
-          max={store.budget.max}
-          onChangeMin={(min) => store.setBudget({ ...store.budget, min })}
-          onChangeMax={(max) => store.setBudget({ ...store.budget, max })}
+          min={tempBudget.min}
+          max={tempBudget.max}
+          onChangeMin={(min) => setTempBudget(prev => ({ ...prev, min }))}
+          onChangeMax={(max) => setTempBudget(prev => ({ ...prev, max }))}
           showLoanToggle
-          needsLoan={store.needsLoan}
-          onToggleLoan={store.setNeedsLoan}
+          needsLoan={tempNeedsLoan}
+          onToggleLoan={setTempNeedsLoan}
         />
         <View style={{ marginTop: 20 }}>
-          <Button
-            title="Done"
-            onPress={() => setSheetField(null)}
-            variant="primary"
-          />
-        </View>
-      </BottomSheet>
-
-      {/* Purpose */}
-      <BottomSheet
-        visible={sheetField === 'Purpose'}
-        title="What's this for?"
-        onClose={() => setSheetField(null)}
-      >
-        <PurposeGrid
-          selected={
-            store.purpose === 'Self use' || store.purpose === 'Live in it' ? 'self'
-            : store.purpose === 'Investment' || store.purpose === 'Invest' ? 'invest'
-            : store.purpose === 'Family' ? 'family'
-            : store.purpose === 'Work hub' ? 'work'
-            : store.purpose
-          }
-          onSelect={(id) => {
-            const label = PURPOSE_ITEMS_MAP[id] || id;
-            store.setPurpose(label);
-          }}
-        />
-        <Text style={[styles.sheetSectionLabel, { marginTop: 20 }]}>
-          Possession timeline
-        </Text>
-        <PillSelector
-          options={TIMELINE_OPTIONS}
-          selected={[store.timeline]}
-          onSelect={(sel) => store.setTimeline(sel[0])}
-        />
-        <View style={{ marginTop: 20 }}>
-          <Button
-            title="Done"
-            onPress={() => setSheetField(null)}
-            variant="primary"
-          />
+          <Button title="Done" onPress={handleBudgetDone} variant="primary" />
         </View>
       </BottomSheet>
     </View>
@@ -422,204 +582,128 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+
+  // Top bar
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.warm100,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.warm100,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.cream,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
+    alignItems: 'center', justifyContent: 'center',
   },
-  topBarCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  topBarTitle: {
-    fontFamily: 'DMSerifDisplay',
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
+  topBarCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topBarTitle: { fontFamily: 'DMSerifDisplay', fontSize: 18, color: Colors.textPrimary },
   statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, borderWidth: 1, borderColor: '#D1FAE5',
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22C55E',
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  statusText: { fontSize: 11, fontFamily: 'DMSans-Medium', color: '#16A34A' },
+
+  // Messages
+  messagesScroll: { flex: 1 },
+  messagesContent: { paddingHorizontal: Spacing.xxl, paddingTop: Spacing.lg },
+
+  alonRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14 },
+  alonBubble: {
+    flex: 1, backgroundColor: Colors.cream, borderRadius: 16, borderTopLeftRadius: 4,
+    paddingHorizontal: 14, paddingVertical: 10, maxWidth: '85%',
   },
-  statusText: {
-    fontSize: 11,
-    fontFamily: 'DMSans-Medium',
-    color: '#16A34A',
+  alonText: { fontSize: 14, fontFamily: 'DMSans-Regular', color: Colors.textPrimary, lineHeight: 21 },
+
+  userRow: { alignItems: 'flex-end', marginBottom: 14 },
+  userBubble: {
+    backgroundColor: Colors.terra500, borderRadius: 16, borderBottomRightRadius: 4,
+    paddingHorizontal: 14, paddingVertical: 10, maxWidth: '80%',
   },
-  scrollView: {
-    flex: 1,
+  userText: { fontSize: 14, fontFamily: 'DMSans-Regular', color: '#fff', lineHeight: 21 },
+
+  // Options container
+  optionsContainer: {
+    paddingHorizontal: Spacing.xxl, paddingTop: 8,
+    borderTopWidth: 1, borderTopColor: Colors.warm100, backgroundColor: Colors.white,
   },
-  content: {
-    paddingHorizontal: Spacing.xxl,
-    paddingTop: Spacing.xl,
+
+  // Mode cards
+  modeCards: { gap: 8 },
+  modeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
   },
-  chatRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: Spacing.lg,
+  modeIconWrap: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200,
+    alignItems: 'center', justifyContent: 'center',
   },
-  chatBubble: {
-    flex: 1,
-    backgroundColor: Colors.cream,
-    borderRadius: 14,
-    borderTopLeftRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  modeTextWrap: { flex: 1 },
+  modeLabel: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  modeSub: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1 },
+
+  // Option area
+  optionArea: { gap: 10 },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipGroupLabel: {
+    fontSize: 10, fontFamily: 'DMSans-Medium', color: Colors.textTertiary,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  chatText: {
-    fontSize: 13,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    lineHeight: 19,
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
   },
-  profileCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    marginBottom: Spacing.xxxl,
-    overflow: 'hidden',
+  chipSelected: {
+    backgroundColor: Colors.terra50, borderColor: Colors.terra400,
   },
-  cardHeader: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: Colors.cream,
+  chipText: { fontSize: 13, fontFamily: 'DMSans-Medium', color: Colors.textSecondary },
+  chipTextSelected: { color: Colors.terra600 },
+
+  moreBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start', paddingVertical: 4,
   },
-  cardHeaderText: {
-    fontSize: 10,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  moreBtnText: { fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.terra500 },
+
+  confirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: Colors.terra500, borderRadius: 12, paddingVertical: 12, marginTop: 4,
   },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 10,
+  confirmBtnText: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: '#fff' },
+
+  // Budget tap card
+  budgetTapCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
   },
-  profileRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.warm100,
-  },
-  rowContent: {
-    flex: 1,
-  },
-  rowValue: {
-    fontSize: 15,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textPrimary,
-  },
-  rowLabel: {
-    fontSize: 11,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textTertiary,
-    marginTop: 1,
-  },
-  briefRow: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.warm100,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 14,
-  },
-  briefTitle: {
-    fontSize: 15,
-    fontFamily: 'DMSans-SemiBold',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  briefSubtitle: {
-    fontSize: 12,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textTertiary,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  briefHighlight: {
-    color: Colors.terra500,
-    fontFamily: 'DMSans-Medium',
-  },
-  ctas: {
-    gap: Spacing.lg,
-    alignItems: 'center',
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 0,
-  },
-  secondaryAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  secondaryActionText: {
-    fontSize: 13,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.terra500,
-  },
-  secondaryDivider: {
-    width: 1,
-    height: 14,
-    backgroundColor: Colors.warm200,
-    marginHorizontal: 8,
-  },
+  budgetTapValue: { fontSize: 15, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  budgetTapHint: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1 },
+
+  // Brief input
   briefInput: {
-    fontSize: 13,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textPrimary,
-    lineHeight: 20,
-    minHeight: 88,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: Colors.white,
-    borderWidth: 1.5,
-    borderColor: Colors.warm200,
-    borderRadius: 12,
+    fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textPrimary, lineHeight: 20,
+    minHeight: 80, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200, borderRadius: 12,
   },
-  sheetSectionLabel: {
-    fontSize: 12,
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 10,
+
+  // Free-form chat input
+  freeInputWrap: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
   },
+  freeInput: {
+    flex: 1, fontSize: 14, fontFamily: 'DMSans-Regular', color: Colors.textPrimary,
+    minHeight: 44, maxHeight: 100, paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200, borderRadius: 14,
+  },
+  freeSendBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: Colors.terra500, alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Done CTA
+  doneCta: { paddingTop: 4 },
 });
