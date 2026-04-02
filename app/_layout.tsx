@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -18,7 +18,7 @@ export default function RootLayout() {
     return <View style={styles.loading} />;
   }
 
-  return (
+  const content = (
     <GestureHandlerRootView style={styles.root}>
       <StatusBar style="light" />
       <Stack
@@ -29,9 +29,36 @@ export default function RootLayout() {
       />
     </GestureHandlerRootView>
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webOuter}>
+        <View style={styles.webContainer}>{content}</View>
+      </View>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   loading: { flex: 1, backgroundColor: '#0A1A4A' },
+  webOuter: {
+    flex: 1,
+    backgroundColor: '#050E2B',
+    alignItems: 'center',
+  },
+  webContainer: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    overflow: 'hidden' as any,
+    // Subtle shadow to separate the app from the background
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0 0 40px rgba(0, 0, 0, 0.5)',
+        }
+      : {}),
+  },
 });
