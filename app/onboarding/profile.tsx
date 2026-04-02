@@ -79,7 +79,7 @@ const ALON_QUESTIONS: Record<StepKey, string> = {
 };
 
 const MODE_OPTIONS = [
-  { key: 'prediction', icon: Sparkles, label: 'ALON\'s pick for you', sub: 'I\'ve anticipated your needs', highlight: true },
+  { key: 'prediction', icon: Sparkles, label: 'ALON\'s pick for you', sub: 'I\'ve anticipated your needs', highlight: false },
   { key: 'template', icon: LayoutTemplate, label: 'Quick template', sub: 'I\'ll guide you step by step', highlight: false },
   { key: 'voice', icon: Mic, label: 'Voice brief', sub: 'Tell me in your own words', highlight: false },
   { key: 'chat', icon: MessageSquare, label: 'Write it out', sub: 'Type your requirements freely', highlight: false },
