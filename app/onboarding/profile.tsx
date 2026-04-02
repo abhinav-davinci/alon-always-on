@@ -26,6 +26,9 @@ import {
   ArrowUp,
   Check,
   Pencil,
+  Users,
+  Clock,
+  Ruler,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -51,7 +54,13 @@ import {
   PUNE_LOCATIONS,
   PROPERTY_SIZES,
   TIMELINE_OPTIONS,
+  OFFICE_TIMELINE_OPTIONS,
+  OFFICE_TYPES,
+  OFFICE_PEOPLE_OPTIONS,
+  OFFICE_AREA_OPTIONS,
   formatBudget,
+  formatRent,
+  OFFICE_RENT_OPTIONS,
 } from '../../constants/locations';
 
 // ── Chat step definitions ──
@@ -192,13 +201,24 @@ export default function ProfileScreen() {
 
   // Mode selection
   // Prediction mode helpers
+  const isRentFlow = store.persona === 'rent_new' || store.persona === 'rent_change' || store.persona === 'rent_sublease';
+
   const ROW_ICONS: Record<string, typeof MapPin> = {
     Location: MapPin, Type: Building2, Size: Maximize2, Budget: Wallet, Purpose: Target,
+    'Office type': Building2, 'Monthly Rent': Wallet, 'Team size': Users,
+    'Chargeable Area': Ruler, 'Possession timeline': Clock,
   };
   const PURPOSE_ITEMS_MAP: Record<string, string> = {
     self: 'Live in it', invest: 'Invest', family: 'Family', work: 'Work hub',
   };
-  const predictionRows = [
+  const predictionRows = isRentFlow ? [
+    { label: 'Location', value: store.locations.join(', ') || 'Baner-Balewadi', field: 'Location' },
+    { label: 'Office type', value: store.propertyType || 'Office', field: 'OfficeType' },
+    { label: 'Monthly Rent', value: `${formatRent(store.budget.min)} – ${formatRent(store.budget.max)}/mo`, field: 'Budget' },
+    { label: 'Team size', value: `${store.numberOfPeople || '5–10'} people`, field: 'People' },
+    { label: 'Chargeable Area', value: store.chargeableArea || '500–1000 sqft', field: 'Area' },
+    { label: 'Possession timeline', value: store.timeline || 'Immediate', field: 'OfficeTimeline' },
+  ] : [
     { label: 'Location', value: store.locations.join(', ') || 'West Pune', field: 'Location' },
     { label: 'Type', value: store.propertyType || 'Apartment', field: 'Type' },
     { label: 'Size', value: store.propertySize.join(', ') || '2 BHK, 3 BHK', field: 'Size' },
@@ -374,12 +394,17 @@ export default function ProfileScreen() {
             <View style={styles.predictionBrief}>
               <Text style={styles.predictionBriefTitle}>Anything ALON must know?</Text>
               <Text style={styles.predictionBriefSub}>
-                Builders you trust or avoid, must-haves —{' '}
+                {isRentFlow
+                  ? 'Preferred amenities, parking needs, lease terms — '
+                  : 'Builders you trust or avoid, must-haves — '}
                 <Text style={{ color: Colors.terra500, fontFamily: 'DMSans-Medium' }}>your direct brief.</Text>
               </Text>
               <TextInput
                 style={styles.briefInput}
-                placeholder="e.g. Only established builders, need parking, avoid ground floor..."
+                placeholder={isRentFlow
+                  ? 'e.g. Need dedicated parking, power backup, near metro...'
+                  : 'e.g. Only established builders, need parking, avoid ground floor...'
+                }
                 placeholderTextColor={Colors.textTertiary}
                 multiline
                 numberOfLines={3}
@@ -700,21 +725,39 @@ export default function ProfileScreen() {
 
       <BottomSheet
         visible={sheetField === 'Budget'}
-        title="Budget range"
+        title={isRentFlow ? 'Monthly rent budget' : 'Budget range'}
         onClose={() => setSheetField(null)}
       >
-        <BudgetSlider
-          min={tempBudget.min}
-          max={tempBudget.max}
-          onChangeMin={(min) => setTempBudget(prev => ({ ...prev, min }))}
-          onChangeMax={(max) => setTempBudget(prev => ({ ...prev, max }))}
-          showLoanToggle
-          needsLoan={tempNeedsLoan}
-          onToggleLoan={setTempNeedsLoan}
-        />
-        <View style={{ marginTop: 20 }}>
-          <Button title="Done" onPress={handleBudgetDone} variant="primary" />
-        </View>
+        {isRentFlow ? (
+          <>
+            <PillSelector
+              options={OFFICE_RENT_OPTIONS.map(o => o.label)}
+              selected={[`${formatRent(store.budget.min)} – ${formatRent(store.budget.max)}/mo`]}
+              onSelect={(sel) => {
+                const match = OFFICE_RENT_OPTIONS.find(o => o.label === sel[0]);
+                if (match) {
+                  store.setBudget({ min: match.min, max: match.max });
+                }
+                setSheetField(null);
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <BudgetSlider
+              min={tempBudget.min}
+              max={tempBudget.max}
+              onChangeMin={(min) => setTempBudget(prev => ({ ...prev, min }))}
+              onChangeMax={(max) => setTempBudget(prev => ({ ...prev, max }))}
+              showLoanToggle
+              needsLoan={tempNeedsLoan}
+              onToggleLoan={setTempNeedsLoan}
+            />
+            <View style={{ marginTop: 20 }}>
+              <Button title="Done" onPress={handleBudgetDone} variant="primary" />
+            </View>
+          </>
+        )}
       </BottomSheet>
 
       <BottomSheet
@@ -744,6 +787,55 @@ export default function ProfileScreen() {
         <View style={{ marginTop: 20 }}>
           <Button title="Done" onPress={() => setSheetField(null)} variant="primary" />
         </View>
+      </BottomSheet>
+
+      {/* ── Office-specific Bottom Sheets ── */}
+      <BottomSheet
+        visible={sheetField === 'OfficeType'}
+        title="Office type"
+        onClose={() => setSheetField(null)}
+      >
+        <PillSelector
+          options={OFFICE_TYPES}
+          selected={[store.propertyType]}
+          onSelect={(sel) => { store.setPropertyType(sel[0]); setSheetField(null); }}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheetField === 'People'}
+        title="Number of people"
+        onClose={() => setSheetField(null)}
+      >
+        <PillSelector
+          options={OFFICE_PEOPLE_OPTIONS}
+          selected={[store.numberOfPeople]}
+          onSelect={(sel) => { store.setNumberOfPeople(sel[0]); setSheetField(null); }}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheetField === 'Area'}
+        title="Chargeable area"
+        onClose={() => setSheetField(null)}
+      >
+        <PillSelector
+          options={OFFICE_AREA_OPTIONS}
+          selected={[store.chargeableArea]}
+          onSelect={(sel) => { store.setChargeableArea(sel[0]); setSheetField(null); }}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheetField === 'OfficeTimeline'}
+        title="Possession timeline"
+        onClose={() => setSheetField(null)}
+      >
+        <PillSelector
+          options={OFFICE_TIMELINE_OPTIONS}
+          selected={[store.timeline]}
+          onSelect={(sel) => { store.setTimeline(sel[0]); setSheetField(null); }}
+        />
       </BottomSheet>
     </View>
   );

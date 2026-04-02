@@ -16,6 +16,8 @@ export interface OnboardingState {
   isVerified: boolean;
   briefText: string;
   needsLoan: boolean;
+  numberOfPeople: string;
+  chargeableArea: string;
   notifyVia: string[];
   likedPropertyIds: string[];
   scheduledVisits: Array<{ propertyId: string; propertyName: string; date: string; time: string }>;
@@ -36,6 +38,8 @@ export interface OnboardingState {
   setIsVerified: (verified: boolean) => void;
   setBriefText: (text: string) => void;
   setNeedsLoan: (val: boolean) => void;
+  setNumberOfPeople: (val: string) => void;
+  setChargeableArea: (val: string) => void;
   toggleNotifyVia: (channel: string) => void;
   toggleLikedProperty: (id: string) => void;
   addScheduledVisit: (visit: { propertyId: string; propertyName: string; date: string; time: string }) => void;
@@ -60,6 +64,8 @@ const initialState = {
   isVerified: false,
   briefText: '',
   needsLoan: false,
+  numberOfPeople: '5–10',
+  chargeableArea: '500–1000 sqft',
   notifyVia: ['push'] as string[],
   likedPropertyIds: [] as string[],
   scheduledVisits: [] as Array<{ propertyId: string; propertyName: string; date: string; time: string }>,
@@ -96,6 +102,8 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setIsVerified: (isVerified) => set({ isVerified }),
   setBriefText: (briefText) => set({ briefText }),
   setNeedsLoan: (needsLoan) => set({ needsLoan }),
+  setNumberOfPeople: (numberOfPeople) => set({ numberOfPeople }),
+  setChargeableArea: (chargeableArea) => set({ chargeableArea }),
   toggleNotifyVia: (channel) =>
     set((state) => ({
       notifyVia: state.notifyVia.includes(channel)

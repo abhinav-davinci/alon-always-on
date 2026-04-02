@@ -64,6 +64,40 @@ export const TIMELINE_OPTIONS = [
   'Under construction',
 ];
 
+export const OFFICE_TIMELINE_OPTIONS = [
+  'Immediate',
+  '1 month',
+  '2–3 months',
+  '3–6 months',
+  'Flexible',
+];
+
+export const OFFICE_TYPES = ['Office', 'Coworking', 'Shop', 'Showroom'];
+
+export const OFFICE_PEOPLE_OPTIONS = [
+  '1–5',
+  '5–10',
+  '10–20',
+  '20–50',
+  '50+',
+];
+
+export const OFFICE_AREA_OPTIONS = [
+  '200–500 sqft',
+  '500–1000 sqft',
+  '1000–2000 sqft',
+  '2000–5000 sqft',
+  '5000+ sqft',
+];
+
+export const OFFICE_RENT_OPTIONS = [
+  { label: '₹10K – ₹25K/mo', min: 10000, max: 25000 },
+  { label: '₹25K – ₹50K/mo', min: 25000, max: 50000 },
+  { label: '₹50K – ₹1L/mo', min: 50000, max: 100000 },
+  { label: '₹1L – ₹2L/mo', min: 100000, max: 200000 },
+  { label: '₹2L+/mo', min: 200000, max: 500000 },
+];
+
 export const BUDGET_HINTS: Record<string, string> = {
   '50L-80L': 'In this range, you can find a 2BHK in Wakad or Wagholi',
   '80L-1.2Cr': 'In this range, you can find a 2BHK in Baner or 3BHK in Wakad',
@@ -78,6 +112,15 @@ export function getBudgetHint(min: number, max: number): string {
   if (max <= 18000000) return BUDGET_HINTS['1.2Cr-1.8Cr'];
   if (max <= 25000000) return BUDGET_HINTS['1.8Cr-2.5Cr'];
   return BUDGET_HINTS['2.5Cr+'];
+}
+
+export function formatRent(value: number): string {
+  if (value >= 100000) {
+    const l = value / 100000;
+    return `₹${l % 1 === 0 ? l.toFixed(0) : l.toFixed(1)}L`;
+  }
+  const k = value / 1000;
+  return `₹${k % 1 === 0 ? k.toFixed(0) : k.toFixed(0)}K`;
 }
 
 export function formatBudget(value: number): string {
