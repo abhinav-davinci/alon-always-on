@@ -72,7 +72,7 @@ export const OFFICE_TIMELINE_OPTIONS = [
   'Flexible',
 ];
 
-export const OFFICE_TYPES = ['Office', 'Coworking', 'Shop', 'Showroom'];
+export const OFFICE_TYPES = ['Office', 'Co-working Private Office', 'Co-working Seats', 'Design & Build Office'];
 
 export const OFFICE_PEOPLE_OPTIONS = [
   '1–5',
