@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALON — Your Property Journey, Reimagined</title>
+  <meta name="description" content="ALON is the AI that guides you through every stage of property buying and renting — from first search to final possession. Built for Pune.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    /* ========== RESET & VARIABLES ========== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy-900: #0A1A4A;
+      --navy-800: #0F2460;
+      --navy-700: #152E76;
+      --navy-600: #1A3A8C;
+      --terra: #D95F2B;
+      --terra-light: #E8774A;
+      --terra-dark: #B8451E;
+      --terra-glow: rgba(217, 95, 43, 0.35);
+      --ember: #FF8C42;
+      --cream: #F5F0EB;
+      --cream-dark: #E8DFD6;
+      --warm-100: #FAF7F4;
+      --warm-200: #F0EAE3;
+      --gray-400: #8A8F9C;
+      --gray-600: #5A5F6B;
+      --white: #FFFFFF;
+      --green: #2ECC71;
+      --font-serif: 'DM Serif Display', Georgia, serif;
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--white);
+      background: var(--navy-900);
+      overflow-x: hidden;
+      max-width: 100vw;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ========== GRAIN OVERLAY ========== */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px;
+    }
+
+    /* ========== NAV ========== */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px clamp(16px, 3vw, 40px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 100vw;
+      box-sizing: border-box;
+    }
+
+    .nav.scrolled {
+      background: rgba(10, 26, 74, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 12px clamp(16px, 3vw, 40px);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-serif);
+      font-size: 22px;
+      letter-spacing: 2px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--terra);
+      box-shadow: 0 0 12px var(--terra-glow);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 36px;
+      list-style: none;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-links a {
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+
+    .nav-links a:hover { opacity: 1; }
+
+    .nav-cta {
+      padding: 10px 24px;
+      background: var(--terra);
+      color: var(--white);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 2px 12px var(--terra-glow), 0 0 20px rgba(217, 95, 43, 0.12);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .nav-cta:hover {
+      background: var(--terra-light);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px var(--terra-glow), 0 0 40px rgba(217, 95, 43, 0.18);
+    }
+
+    /* ========== HERO ========== */
+    .hero {
+      height: 100vh;
+      height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      background: #060e2a;
+      padding: 56px 0 28px;
+    }
+
+    /* --- Ambient gradient blobs --- */
+    .hero-blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(80px);
+    }
+    .hero-blob--1 {
+      width: 55vw; height: 55vw; max-width: 700px; max-height: 700px;
+      top: -18%; left: 15%;
+      background: rgba(196,114,78,0.10);
+      animation: blobA 24s ease-in-out infinite alternate;
+    }
+    .hero-blob--2 {
+      width: 45vw; height: 45vw; max-width: 550px; max-height: 550px;
+      bottom: -12%; right: -8%;
+      background: rgba(21,46,118,0.22);
+      animation: blobB 20s ease-in-out infinite alternate;
+    }
+    .hero-blob--3 {
+      width: 35vw; height: 35vw; max-width: 400px; max-height: 400px;
+      top: 50%; left: -8%;
+      background: rgba(26,58,140,0.14);
+      animation: blobC 22s ease-in-out infinite alternate;
+    }
+    @keyframes blobA { to { transform: translate(50px,35px) scale(1.12); } }
+    @keyframes blobB { to { transform: translate(-40px,-25px) scale(1.08); } }
+    @keyframes blobC { to { transform: translate(35px,-45px) scale(1.18); } }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 0 24px;
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    /* --- Inline avatar (tiny, inside status ticker) --- */
+    .hero-status-avatar {
+      width: 24px; height: 24px;
+      border-radius: 28%;
+      background: linear-gradient(145deg, var(--navy-600), var(--navy-900));
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px rgba(196,114,78,0.12);
+    }
+    .hero-status-avatar .mini-eye {
+      width: 9px; height: 9px;
+      background: var(--white); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      animation: miniBlink 5s ease-in-out 1.5s infinite;
+    }
+    .hero-status-avatar .mini-iris {
+      width: 4px; height: 4px;
+      background: var(--terra); border-radius: 50%;
+    }
+    @keyframes miniBlink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      94% { transform: scaleY(0.1); }
+    }
+
+    /* --- Agentic Status Ticker --- */
+    .hero-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      border-radius: 100px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.025);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      margin-bottom: clamp(20px, 3vh, 36px);
+      opacity: 0;
+      animation: heroFadeUp 0.7s ease-out 0.3s forwards;
+      min-height: 40px;
+    }
+
+    .hero-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+      animation: dotPulse 2.2s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,204,113,0.45); }
+      50%     { opacity: 0.55; box-shadow: 0 0 0 6px rgba(46,204,113,0); }
+    }
+
+    .hero-status-text {
+      font-size: 13px; font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    .hero-status-cursor {
+      display: inline-block;
+      width: 1.5px; height: 15px;
+      background: var(--terra);
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: curBlink 0.7s step-end infinite;
+    }
+    @keyframes curBlink { 50% { opacity: 0; } }
+
+    /* --- Headline --- */
+    .hero-text { margin-bottom: clamp(12px, 1.5vh, 20px); }
+
+    .hero-line-wrap {
+      overflow: hidden;
+      padding: 5px 0;
+    }
+
+    .hero-line {
+      font-family: var(--font-serif);
+      font-size: clamp(40px, min(6.5vw, 8.5vh), 78px);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      transform: translateY(120%);
+      opacity: 0;
+      animation: lineUp 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .hero-line-wrap:nth-child(1) .hero-line { animation-delay: 1.0s; }
+    .hero-line-wrap:nth-child(2) .hero-line { animation-delay: 1.25s; }
+
+    @keyframes lineUp {
+      0%   { transform: translateY(120%); opacity: 0; }
+      35%  { opacity: 1; }
+      100% { transform: translateY(0);    opacity: 1; }
+    }
+
+    .hero-line .accent {
+      color: var(--terra);
+      text-shadow: 0 0 50px rgba(196,114,78,0.3);
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 1.6vw, 17px);
+      line-height: 1.65;
+      color: rgba(255,255,255,0.4);
+      max-width: 540px;
+      margin: 0 auto;
+      opacity: 0;
+      animation: heroFadeUp 0.8s ease-out 1.8s forwards;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 48px;
+      background: var(--terra);
+      color: var(--white);
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow:
+        0 4px 16px var(--terra-glow),
+        0 8px 40px rgba(217, 95, 43, 0.2),
+        0 0 80px rgba(217, 95, 43, 0.1);
+      opacity: 0;
+      animation: heroFadeUp 0.8s ease-out 3.2s forwards;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle shimmer glint */
+    .hero-cta::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+      animation: ctaGlint 5s ease-in-out 4s infinite;
+    }
+    @keyframes ctaGlint { to { left: 200%; } }
+
+    /* Ambient glow behind button */
+    .hero-cta::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 18px;
+      background: var(--terra);
+      opacity: 0.25;
+      filter: blur(20px);
+      z-index: -1;
+      transition: opacity 0.5s, filter 0.5s;
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow:
+        0 8px 24px var(--terra-glow),
+        0 16px 60px rgba(217, 95, 43, 0.3),
+        0 0 100px rgba(217, 95, 43, 0.15);
+    }
+    .hero-cta:hover::after {
+      opacity: 0.4;
+      filter: blur(28px);
+    }
+    .hero-cta svg { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .hero-cta:hover svg { transform: translateX(5px); }
+
+    @keyframes heroFadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Journey Stage Strip --- */
+    .hero-journey {
+      margin: clamp(20px, 3vh, 40px) 0 clamp(20px, 3vh, 44px);
+      position: relative;
+      opacity: 0;
+      animation: heroFadeUp 1s ease-out 2.2s forwards;
+    }
+
+    .hero-journey-track {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+      flex-shrink: 0;
+    }
+
+    .hero-stage-num {
+      font-family: var(--font-serif);
+      font-size: 11px;
+      color: rgba(255,255,255,0.12);
+      transition: color 0.5s, text-shadow 0.5s;
+    }
+
+    .hero-stage-node {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(255,255,255,0.06);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .hero-stage-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.12);
+      transition: color 0.5s, text-shadow 0.5s;
+      white-space: nowrap;
+    }
+
+    /* Lit state */
+    .hero-stage.lit .hero-stage-num {
+      color: rgba(255,255,255,0.45);
+    }
+    .hero-stage.lit .hero-stage-node {
+      width: 10px; height: 10px;
+      background: var(--terra);
+      border-color: var(--terra);
+      box-shadow: 0 0 12px var(--terra-glow), 0 0 28px rgba(196,114,78,0.1);
+    }
+    .hero-stage.lit .hero-stage-label {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* Active state (currently being lit) */
+    .hero-stage.active .hero-stage-node {
+      width: 12px; height: 12px;
+      box-shadow: 0 0 18px var(--terra-glow), 0 0 44px rgba(196,114,78,0.18);
+    }
+    .hero-stage.active .hero-stage-label {
+      color: var(--white);
+      text-shadow: 0 0 10px rgba(196,114,78,0.2);
+    }
+
+    .hero-stage-connector {
+      width: 36px; height: 1.5px;
+      background: rgba(255,255,255,0.04);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      border-radius: 1px;
+    }
+
+    .connector-fill {
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--terra), var(--ember));
+      border-radius: 1px;
+      transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 8px var(--terra-glow);
+    }
+
+    .hero-stage-connector.filled .connector-fill {
+      width: 100%;
+    }
+
+    /* --- Scroll hint (hidden when CTA is at fold) --- */
+    .scroll-hint {
+      display: none;
+    }
+
+    /* ========== REVEAL ANIMATIONS ========== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(48px);
+      transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* (hero animations are self-contained above) */
+
+    /* ========== PROBLEM SECTION ========== */
+    .problem {
+      padding: 140px 24px;
+      background: var(--cream);
+      color: var(--navy-900);
+      position: relative;
+    }
+
+    .problem::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      background: linear-gradient(to bottom, var(--navy-900), transparent);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .section-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .problem-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terra);
+      margin-bottom: 24px;
+    }
+
+    .problem h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.15;
+      max-width: 680px;
+      margin-bottom: 72px;
+    }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 48px;
+    }
+
+    .problem-stat {
+      padding: 0;
+    }
+
+    .problem-stat .num {
+      font-family: var(--font-serif);
+      font-size: clamp(48px, 6vw, 72px);
+      line-height: 1;
+      color: var(--navy-900);
+      margin-bottom: 16px;
+      opacity: 0.9;
+    }
+
+    .problem-stat .label {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--gray-600);
+      max-width: 260px;
+    }
+
+    .problem-bridge {
+      margin-top: 80px;
+      padding-top: 48px;
+      border-top: 1px solid var(--cream-dark);
+      font-family: var(--font-serif);
+      font-size: clamp(24px, 3.5vw, 36px);
+      color: var(--terra);
+      line-height: 1.3;
+    }
+
+    /* ========== JOURNEY SECTION ========== */
+    .journey {
+      padding: 140px 24px 160px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .journey::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(21, 46, 118, 0.4) 0%, transparent 70%);
+      top: 20%;
+      right: -200px;
+      pointer-events: none;
+    }
+
+    .journey-header {
+      text-align: center;
+      margin-bottom: 96px;
+    }
+
+    .journey-header .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terra);
+      margin-bottom: 24px;
+    }
+
+    .journey-header h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .journey-header p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.5);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .timeline {
+      position: relative;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Central line */
+    .timeline-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255,255,255,0.06);
+      transform: translateX(-50%);
+    }
+
+    .timeline-line-fill {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 0%;
+      background: linear-gradient(to bottom, var(--terra), var(--ember));
+      transform: translateX(-50%);
+      transition: height 0.1s linear;
+      box-shadow: 0 0 12px var(--terra-glow);
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 64px;
+      position: relative;
+    }
+
+    .timeline-item:last-child { margin-bottom: 0; }
+
+    .timeline-item:nth-child(odd) {
+      flex-direction: row;
+      padding-right: calc(50% + 48px);
+      text-align: right;
+    }
+
+    .timeline-item:nth-child(even) {
+      flex-direction: row-reverse;
+      padding-left: calc(50% + 48px);
+      text-align: left;
+    }
+
+    .timeline-node {
+      position: absolute;
+      left: 50%;
+      top: 8px;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--navy-800);
+      border: 2px solid rgba(255,255,255,0.15);
+      z-index: 2;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .timeline-item.active .timeline-node {
+      background: var(--terra);
+      border-color: var(--terra);
+      box-shadow: 0 0 20px var(--terra-glow);
+    }
+
+    .timeline-num {
+      font-family: var(--font-serif);
+      font-size: 14px;
+      color: var(--terra);
+      margin-bottom: 8px;
+      opacity: 0.7;
+      transition: opacity 0.5s;
+    }
+
+    .timeline-item.active .timeline-num { opacity: 1; }
+
+    .timeline-content h3 {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      margin-bottom: 8px;
+      transition: color 0.5s;
+    }
+
+    .timeline-item.active .timeline-content h3 {
+      color: var(--terra-light);
+    }
+
+    .timeline-content p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.4);
+      transition: color 0.5s;
+    }
+
+    .timeline-item.active .timeline-content p {
+      color: rgba(255,255,255,0.65);
+    }
+
+    /* ========== FEATURES SECTION ========== */
+    .features {
+      padding: 140px 24px;
+      background: var(--cream);
+      color: var(--navy-900);
+      position: relative;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .features-header .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terra);
+      margin-bottom: 24px;
+    }
+
+    .features-header h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.15;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .feature-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 48px 40px;
+      border: 1px solid var(--warm-200);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--terra), var(--ember));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .feature-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(10, 26, 74, 0.1);
+    }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--navy-900), var(--navy-700));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .feature-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--terra);
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card p {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--gray-600);
+    }
+
+    /* ========== TRUST SECTION ========== */
+    .trust {
+      padding: 140px 24px;
+      text-align: center;
+      position: relative;
+    }
+
+    .trust::before {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196, 114, 78, 0.06) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .trust .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terra);
+      margin-bottom: 24px;
+    }
+
+    .trust h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.15;
+      margin-bottom: 72px;
+    }
+
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .trust-card {
+      padding: 48px 32px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      transition: all 0.4s;
+    }
+
+    .trust-card:hover {
+      border-color: rgba(196, 114, 78, 0.2);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .trust-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(196, 114, 78, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+
+    .trust-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--terra);
+    }
+
+    .trust-card h3 {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .trust-card p {
+      font-size: 14px;
+      line-height: 1.65;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* ========== STATS / PUNE SECTION ========== */
+    .stats {
+      padding: 120px 24px;
+      background: var(--navy-800);
+      border-top: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .stats-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 80px;
+    }
+
+    .stats-text {
+      flex: 1;
+    }
+
+    .stats-text .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terra);
+      margin-bottom: 20px;
+    }
+
+    .stats-text h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .stats-text p {
+      font-size: 16px;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.5);
+      max-width: 400px;
+    }
+
+    .stats-numbers {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      flex-shrink: 0;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-num {
+      font-family: var(--font-serif);
+      font-size: clamp(40px, 5vw, 56px);
+      line-height: 1;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+
+    .stat-num .suffix {
+      font-size: 0.6em;
+      color: var(--terra);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.5px;
+    }
+
+    /* ========== CTA SECTION ========== */
+    .cta {
+      padding: 160px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      width: 1000px;
+      height: 1000px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(196, 114, 78, 0.1) 0%, transparent 60%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .cta h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(36px, 6vw, 64px);
+      line-height: 1.1;
+      max-width: 700px;
+      margin: 0 auto 24px;
+    }
+
+    .cta-sub {
+      font-size: 18px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 48px;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+
+    .cta-form {
+      display: flex;
+      gap: 12px;
+      max-width: 460px;
+      margin: 0 auto 24px;
+    }
+
+    .cta-input {
+      flex: 1;
+      padding: 16px 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: var(--white);
+      font-size: 15px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .cta-input::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+
+    .cta-input:focus {
+      border-color: var(--terra);
+      box-shadow: 0 0 0 3px var(--terra-glow);
+    }
+
+    .cta-submit {
+      padding: 16px 32px;
+      background: var(--terra);
+      color: var(--white);
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 16px var(--terra-glow), 0 0 40px rgba(217, 95, 43, 0.12);
+      position: relative;
+    }
+
+    .cta-submit:hover {
+      background: var(--terra-light);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px var(--terra-glow), 0 0 60px rgba(217, 95, 43, 0.2);
+    }
+
+    .cta-note {
+      font-size: 13px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ========== FOOTER ========== */
+    .footer {
+      padding: 48px 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-logo {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      letter-spacing: 2px;
+      opacity: 0.5;
+    }
+
+    .footer-tagline {
+      font-size: 13px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+      font-size: 13px;
+    }
+
+    .footer-links a {
+      opacity: 0.3;
+      transition: opacity 0.3s;
+    }
+
+    .footer-links a:hover { opacity: 0.7; }
+
+    /* ========== RESPONSIVE — TABLET (max 1024px) ========== */
+    @media (max-width: 1024px) {
+      .hero-content { max-width: 800px; }
+      .hero-stage-connector { width: 28px; }
+
+      .problem-grid { gap: 36px; }
+      .problem-stat .label { max-width: 220px; }
+
+      .timeline-item:nth-child(odd) { padding-right: calc(50% + 32px); }
+      .timeline-item:nth-child(even) { padding-left: calc(50% + 32px); }
+
+      .features-grid { gap: 20px; }
+      .feature-card { padding: 36px 28px; }
+
+      .trust-grid { gap: 20px; }
+
+      .stats-inner { gap: 56px; }
+    }
+
+    /* ========== RESPONSIVE — SMALL TABLET (max 820px) ========== */
+    @media (max-width: 820px) {
+      .nav-links { gap: 24px; font-size: 13px; }
+      .problem-grid { grid-template-columns: 1fr; gap: 36px; }
+      .problem-stat .label { max-width: 100%; }
+      .features-grid { grid-template-columns: 1fr; }
+      .trust-grid { grid-template-columns: 1fr; gap: 16px; }
+      .stats-inner { flex-direction: column; gap: 40px; text-align: center; }
+      .stats-text p { margin: 0 auto; }
+    }
+
+    /* ========== RESPONSIVE — MOBILE (max 680px) ========== */
+    @media (max-width: 680px) {
+      /* -- Nav -- */
+      .nav { padding: 14px 20px; }
+      .nav.scrolled { padding: 12px 20px; }
+      .nav-links { display: none; }
+      .nav-logo { font-size: 19px; gap: 10px; }
+      .nav-logo-dot { width: 8px; height: 8px; }
+      .nav-cta { padding: 9px 20px; font-size: 13px; border-radius: 8px; }
+
+      /* -- Hero -- */
+      .hero { padding: 68px 0 36px; height: auto; min-height: 0; justify-content: flex-start; }
+      .hero-content { padding: 0 20px; }
+      .hero-blob--1 { width: 80vw; height: 80vw; top: -10%; left: 0; }
+      .hero-blob--2 { width: 60vw; height: 60vw; bottom: -5%; right: -15%; }
+      .hero-blob--3 { width: 50vw; height: 50vw; top: 55%; left: -20%; }
+
+      .hero-status { padding: 8px 16px; margin-bottom: 28px; gap: 8px; }
+      .hero-status-avatar { width: 20px; height: 20px; }
+      .hero-status-avatar .mini-eye { width: 7px; height: 7px; }
+      .hero-status-avatar .mini-iris { width: 3px; height: 3px; }
+      .hero-status-text { font-size: 11px; }
+      .hero-status-dot { width: 6px; height: 6px; }
+      .hero-status-cursor { height: 12px; }
+
+      .hero-text { margin-bottom: 16px; }
+      .hero-line { letter-spacing: -0.5px; }
+      .hero-line-wrap { padding: 3px 0; }
+
+      .hero-sub { font-size: 14px; max-width: 360px; line-height: 1.6; }
+
+      .hero-journey { margin: 24px 0 32px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .hero-journey::-webkit-scrollbar { display: none; }
+      .hero-journey-track { justify-content: flex-start; padding: 0 20px 8px; min-width: max-content; }
+      .hero-stage-connector { width: 18px; }
+      .hero-stage-label { font-size: 7.5px; letter-spacing: 0.5px; }
+      .hero-stage-num { font-size: 8px; }
+      .hero-stage { gap: 8px; }
+
+      .hero-cta { padding: 16px 36px; font-size: 15px; border-radius: 12px; gap: 10px; }
+      .hero-cta::after { inset: -4px; border-radius: 16px; }
+
+      /* -- Problem -- */
+      .problem { padding: 80px 20px; }
+      .problem::before { height: 80px; }
+      .problem h2 { margin-bottom: 48px; }
+      .problem-grid { grid-template-columns: 1fr; gap: 36px; }
+      .problem-stat .num { font-size: 52px; }
+      .problem-stat .label { max-width: 100%; }
+      .problem-bridge { margin-top: 48px; padding-top: 36px; }
+
+      /* -- Journey -- */
+      .journey { padding: 80px 20px 100px; }
+      .journey-header { margin-bottom: 64px; }
+      .journey-header h2 { font-size: clamp(28px, 6vw, 40px); }
+      .journey-header p { font-size: 15px; }
+
+      .timeline-line,
+      .timeline-line-fill { left: 16px; }
+      .timeline-node { left: 16px; top: 4px; width: 14px; height: 14px; }
+      .timeline-item { margin-bottom: 48px; }
+      .timeline-item:nth-child(odd),
+      .timeline-item:nth-child(even) {
+        flex-direction: row;
+        padding-right: 0;
+        padding-left: 48px;
+        text-align: left;
+      }
+      .timeline-content h3 { font-size: 19px; }
+      .timeline-content p { font-size: 13px; }
+      .timeline-num { font-size: 12px; }
+
+      /* -- Features -- */
+      .features { padding: 80px 20px; }
+      .features-header { margin-bottom: 48px; }
+      .features-grid { grid-template-columns: 1fr; gap: 16px; }
+      .feature-card { padding: 32px 24px; border-radius: 16px; }
+      .feature-icon { width: 44px; height: 44px; border-radius: 12px; margin-bottom: 20px; }
+      .feature-icon svg { width: 20px; height: 20px; }
+      .feature-card h3 { font-size: 20px; }
+      .feature-card p { font-size: 14px; }
+
+      /* -- Trust -- */
+      .trust { padding: 80px 20px; }
+      .trust h2 { margin-bottom: 48px; }
+      .trust-grid { grid-template-columns: 1fr; gap: 12px; }
+      .trust-card { padding: 28px 24px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; }
+      .trust-icon { width: 48px; height: 48px; margin-bottom: 16px; }
+      .trust-icon svg { width: 20px; height: 20px; }
+      .trust-card h3 { font-size: 18px; }
+      .trust-card p { font-size: 13px; }
+
+      /* -- Stats -- */
+      .stats { padding: 72px 20px; }
+      .stats-inner { flex-direction: column; gap: 40px; text-align: center; }
+      .stats-text h2 { font-size: clamp(26px, 5.5vw, 36px); }
+      .stats-text p { font-size: 15px; margin: 0 auto; max-width: 360px; }
+      .stats-numbers { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+      .stat-num { font-size: 44px; }
+      .stat-label { font-size: 11px; }
+
+      /* -- CTA -- */
+      .cta { padding: 80px 20px; }
+      .cta h2 { font-size: clamp(30px, 7vw, 48px); margin-bottom: 16px; }
+      .cta-sub { font-size: 15px; margin-bottom: 36px; max-width: 360px; }
+      .cta-form { flex-direction: column; max-width: 100%; }
+      .cta-input { padding: 15px 18px; font-size: 15px; border-radius: 12px; }
+      .cta-submit { padding: 15px 28px; border-radius: 12px; font-size: 15px; }
+      .cta-note { font-size: 12px; }
+
+      /* -- Footer -- */
+      .footer { padding: 36px 20px; }
+      .footer-inner { flex-direction: column; gap: 12px; }
+      .footer-logo { font-size: 16px; }
+      .footer-tagline { font-size: 12px; }
+      .footer-links { gap: 20px; font-size: 12px; }
+    }
+
+    /* ========== RESPONSIVE — SMALL MOBILE (max 480px) ========== */
+    @media (max-width: 480px) {
+      /* -- Hero -- */
+      .hero { padding: 60px 0 24px; }
+      .hero-status { padding: 7px 12px; margin-bottom: 24px; gap: 6px; }
+      .hero-status-avatar { width: 18px; height: 18px; }
+      .hero-status-text { font-size: 10px; }
+      .hero-status-dot { width: 5px; height: 5px; }
+      .hero-status-cursor { height: 11px; width: 1px; }
+
+      .hero-line { font-size: clamp(32px, 9vw, 44px); letter-spacing: -0.5px; }
+      .hero-line-wrap { padding: 2px 0; }
+      .hero-text { margin-bottom: 14px; }
+
+      .hero-sub { font-size: 13px; max-width: 300px; }
+
+      .hero-journey { margin: 20px 0 28px; }
+      .hero-journey-track { padding: 0 16px 6px; }
+      .hero-stage-connector { width: 14px; }
+      .hero-stage-label { font-size: 6.5px; }
+      .hero-stage-num { font-size: 7px; }
+      .hero-stage { gap: 6px; }
+      .hero-stage-node { width: 6px; height: 6px; }
+      .hero-stage.lit .hero-stage-node { width: 8px; height: 8px; }
+      .hero-stage.active .hero-stage-node { width: 10px; height: 10px; }
+
+      .hero-cta { padding: 14px 32px; font-size: 14px; border-radius: 11px; }
+
+      /* -- Problem -- */
+      .problem { padding: 64px 16px; }
+      .problem-label { font-size: 11px; letter-spacing: 2.5px; margin-bottom: 16px; }
+      .problem h2 { margin-bottom: 36px; }
+      .problem-stat .num { font-size: 44px; }
+      .problem-stat .label { font-size: 13px; }
+      .problem-bridge { font-size: clamp(20px, 5vw, 28px); margin-top: 40px; padding-top: 28px; }
+
+      /* -- Journey -- */
+      .journey { padding: 64px 16px 80px; }
+      .journey-header { margin-bottom: 48px; }
+      .journey-header .section-label { font-size: 11px; }
+      .journey-header h2 { font-size: clamp(26px, 6.5vw, 36px); }
+      .journey-header p { font-size: 14px; max-width: 320px; }
+      .timeline-item { margin-bottom: 40px; }
+      .timeline-item:nth-child(odd),
+      .timeline-item:nth-child(even) { padding-left: 42px; }
+      .timeline-line, .timeline-line-fill { left: 12px; }
+      .timeline-node { left: 12px; width: 12px; height: 12px; }
+      .timeline-content h3 { font-size: 17px; margin-bottom: 6px; }
+      .timeline-content p { font-size: 12px; line-height: 1.55; }
+      .timeline-num { font-size: 11px; margin-bottom: 4px; }
+
+      /* -- Features -- */
+      .features { padding: 64px 16px; }
+      .features-header .section-label { font-size: 11px; }
+      .features-header { margin-bottom: 36px; }
+      .feature-card { padding: 28px 20px; }
+      .feature-icon { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 16px; }
+      .feature-icon svg { width: 18px; height: 18px; }
+      .feature-card h3 { font-size: 18px; margin-bottom: 8px; }
+      .feature-card p { font-size: 13px; line-height: 1.55; }
+
+      /* -- Trust -- */
+      .trust { padding: 64px 16px; }
+      .trust .section-label { font-size: 11px; }
+      .trust h2 { margin-bottom: 36px; }
+      .trust-card { padding: 24px 20px; }
+      .trust-icon { width: 44px; height: 44px; margin-bottom: 14px; }
+      .trust-card h3 { font-size: 17px; margin-bottom: 8px; }
+      .trust-card p { font-size: 12px; }
+
+      /* -- Stats -- */
+      .stats { padding: 56px 16px; }
+      .stats-text .section-label { font-size: 11px; }
+      .stats-text h2 { font-size: clamp(24px, 6vw, 32px); margin-bottom: 12px; }
+      .stats-text p { font-size: 14px; max-width: 300px; }
+      .stats-numbers { gap: 20px; }
+      .stat-num { font-size: 38px; }
+      .stat-label { font-size: 10px; }
+
+      /* -- CTA -- */
+      .cta { padding: 64px 16px; }
+      .cta h2 { font-size: clamp(28px, 8vw, 40px); }
+      .cta-sub { font-size: 14px; max-width: 300px; }
+      .cta-input { padding: 14px 16px; font-size: 14px; }
+      .cta-submit { padding: 14px 24px; font-size: 14px; }
+
+      /* -- Footer -- */
+      .footer { padding: 28px 16px; }
+      .footer-inner { gap: 10px; }
+      .footer-logo { font-size: 15px; }
+    }
+
+    /* ========== RESPONSIVE — VERY SMALL (max 360px) ========== */
+    @media (max-width: 360px) {
+      .nav { padding: 12px 14px; }
+      .nav-logo { font-size: 17px; }
+      .nav-cta { padding: 8px 16px; font-size: 12px; }
+
+      .hero { padding: 56px 0 20px; }
+      .hero-content { padding: 0 14px; }
+      .hero-status { padding: 6px 10px; gap: 5px; margin-bottom: 20px; }
+      .hero-status-avatar { width: 16px; height: 16px; }
+      .hero-status-text { font-size: 9px; }
+
+      .hero-line { font-size: clamp(28px, 9vw, 36px); }
+      .hero-sub { font-size: 12px; max-width: 260px; }
+
+      .hero-journey { margin: 16px 0 24px; }
+      .hero-journey-track { padding: 0 12px 4px; }
+      .hero-stage-connector { width: 10px; }
+      .hero-stage-label { font-size: 5.5px; }
+      .hero-stage-num { font-size: 6px; }
+      .hero-stage { gap: 5px; }
+
+      .hero-cta { padding: 13px 28px; font-size: 13px; }
+
+      .problem { padding: 52px 14px; }
+      .problem-stat .num { font-size: 36px; }
+      .problem-bridge { font-size: 20px; }
+
+      .journey { padding: 52px 14px 64px; }
+      .features { padding: 52px 14px; }
+      .trust { padding: 52px 14px; }
+      .stats { padding: 48px 14px; }
+      .stat-num { font-size: 32px; }
+      .cta { padding: 52px 14px; }
+      .footer { padding: 24px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== NAV ========== -->
+  <nav class="nav" id="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-dot"></div>
+      ALON
+    </div>
+    <ul class="nav-links">
+      <li><a href="#journey">Journey</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#trust">Trust</a></li>
+      <li><a href="#stats">Pune</a></li>
+    </ul>
+    <a href="#cta" class="nav-cta">Get Early Access</a>
+  </nav>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero" id="hero">
+    <div class="hero-blob hero-blob--1"></div>
+    <div class="hero-blob hero-blob--2"></div>
+    <div class="hero-blob hero-blob--3"></div>
+
+    <div class="hero-content">
+      <!-- Agentic status ticker with inline avatar -->
+      <div class="hero-status">
+        <div class="hero-status-avatar">
+          <div class="mini-eye"><div class="mini-iris"></div></div>
+        </div>
+        <div class="hero-status-dot"></div>
+        <div class="hero-status-text">
+          <span id="heroStatusText"></span><span class="hero-status-cursor"></span>
+        </div>
+      </div>
+
+      <!-- Headline -->
+      <div class="hero-text">
+        <div class="hero-line-wrap">
+          <div class="hero-line">Your entire property</div>
+        </div>
+        <div class="hero-line-wrap">
+          <div class="hero-line">journey. <span class="accent">One AI.</span></div>
+        </div>
+      </div>
+
+      <p class="hero-sub">
+        From first search to final possession &mdash; ALON guides every stage, so you never have to figure it out alone.
+      </p>
+
+      <!-- Journey stage strip (between subtitle & CTA) -->
+      <div class="hero-journey">
+        <div class="hero-journey-track" id="heroJourneyTrack">
+          <div class="hero-stage" data-i="0">
+            <div class="hero-stage-num">01</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Search</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="1">
+            <div class="hero-stage-num">02</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Shortlist</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="2">
+            <div class="hero-stage-num">03</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Visits</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="3">
+            <div class="hero-stage-num">04</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Compare</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="4">
+            <div class="hero-stage-num">05</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Finance</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="5">
+            <div class="hero-stage-num">06</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Legal</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="6">
+            <div class="hero-stage-num">07</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Negotiate</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="7">
+            <div class="hero-stage-num">08</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Closure</div>
+          </div>
+          <div class="hero-stage-connector"><div class="connector-fill"></div></div>
+          <div class="hero-stage" data-i="8">
+            <div class="hero-stage-num">09</div>
+            <div class="hero-stage-node"></div>
+            <div class="hero-stage-label">Possession</div>
+          </div>
+        </div>
+      </div>
+
+      <a href="#cta" class="hero-cta">
+        Get Early Access
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+
+  </section>
+
+  <!-- ========== PROBLEM ========== -->
+  <section class="problem" id="problem">
+    <div class="section-inner">
+      <div class="problem-label reveal">The Problem</div>
+      <h2 class="reveal reveal-delay-1">Property buying in India is broken. You know it.</h2>
+
+      <div class="problem-grid">
+        <div class="problem-stat reveal reveal-delay-2">
+          <div class="num">67%</div>
+          <div class="label">of buyers feel overwhelmed by the process and don't know who to trust</div>
+        </div>
+        <div class="problem-stat reveal reveal-delay-3">
+          <div class="num">8+</div>
+          <div class="label">months of scattered WhatsApp groups, broker calls, and dead-end site visits</div>
+        </div>
+        <div class="problem-stat reveal reveal-delay-4">
+          <div class="num">23</div>
+          <div class="label">average broker interactions before a buyer finally finds their home</div>
+        </div>
+      </div>
+
+      <div class="problem-bridge reveal">It doesn't have to be this way.</div>
+    </div>
+  </section>
+
+  <!-- ========== JOURNEY ========== -->
+  <section class="journey" id="journey">
+    <div class="section-inner">
+      <div class="journey-header">
+        <div class="section-label reveal">The Journey</div>
+        <h2 class="reveal reveal-delay-1">Nine stages. One AI.<br>Every step handled.</h2>
+        <p class="reveal reveal-delay-2">From your very first search to the day you get the keys &mdash; ALON is with you at every stage.</p>
+      </div>
+
+      <div class="timeline" id="timeline">
+        <div class="timeline-line"></div>
+        <div class="timeline-line-fill" id="timelineFill"></div>
+
+        <div class="timeline-item reveal" data-stage="1">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">01</div>
+            <h3>Search</h3>
+            <p>Scans 12L+ listings. Filters by RERA compliance, builder trust scores, and your exact needs.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="2">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">02</div>
+            <h3>Shortlist</h3>
+            <p>Curates your top 5 picks. Runs conflict checks and flags anything suspicious before you invest time.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="3">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">03</div>
+            <h3>Site Visits</h3>
+            <p>Books visits on your schedule. Your number stays hidden &mdash; no broker spam, ever.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="4">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">04</div>
+            <h3>Compare</h3>
+            <p>Side-by-side analysis with real transaction data &mdash; not broker quotes. See what others actually paid.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="5">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">05</div>
+            <h3>Finance</h3>
+            <p>Best rates from 10+ banks. Pre-approved offers with EMI breakdowns tailored to your budget.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="6">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">06</div>
+            <h3>Legal</h3>
+            <p>Verifies builder reputation, checks RERA status, and flags risky clauses in agreements.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="7">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">07</div>
+            <h3>Negotiate</h3>
+            <p>Price benchmarking against real market data. Gives you a negotiation checklist and walkaway number.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="8">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">08</div>
+            <h3>Deal Closure</h3>
+            <p>Timeline tracking, document checklists, payment reminders &mdash; nothing falls through the cracks.</p>
+          </div>
+        </div>
+
+        <div class="timeline-item reveal" data-stage="9">
+          <div class="timeline-node"></div>
+          <div class="timeline-content">
+            <div class="timeline-num">09</div>
+            <h3>Possession</h3>
+            <p>Key date reminders, handover checklist, and snag list. Your journey ends with confidence.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FEATURES ========== -->
+  <section class="features" id="features">
+    <div class="section-inner">
+      <div class="features-header">
+        <div class="section-label reveal">Superpowers</div>
+        <h2 class="reveal reveal-delay-1">Not just smart. Thoughtful.</h2>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4c0 2 2 3 2 6h4c0-3 2-4 2-6a4 4 0 0 0-4-4Z"/><path d="M10 18h4"/><path d="M10 22h4"/></svg>
+          </div>
+          <h3>Prediction Mode</h3>
+          <p>Tell ALON your persona &mdash; first-time buyer, investor, upgrader &mdash; and it pre-fills your search with intelligent defaults. Just confirm and go.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+          </div>
+          <h3>Voice Brief</h3>
+          <p>"3BHK in Baner, 1.2 to 1.5 Cr, family use, ready to move." Just speak naturally. ALON detects every field in real time.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <h3>Conflict Detection</h3>
+          <p>Flags pending title disputes, RERA non-compliance, and builder red flags before you commit a single rupee.</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h5"/><path d="M17 12h5"/><path d="m9 4 3 3 3-3"/><path d="m9 20 3-3 3 3"/><circle cx="12" cy="12" r="4"/></svg>
+          </div>
+          <h3>Price Transparency</h3>
+          <p>See what others actually paid &mdash; real transaction data from the registry, not inflated broker quotes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TRUST ========== -->
+  <section class="trust" id="trust">
+    <div class="section-inner">
+      <div class="section-label reveal">Trust Architecture</div>
+      <h2 class="reveal reveal-delay-1">Built on three promises.</h2>
+
+      <div class="trust-grid">
+        <div class="trust-card reveal reveal-delay-2">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>Your privacy, guarded</h3>
+          <p>Your phone number stays with ALON. It's never shared with brokers, builders, or third parties. Zero spam guarantee.</p>
+        </div>
+
+        <div class="trust-card reveal reveal-delay-3">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+          </div>
+          <h3>Works for you, only</h3>
+          <p>ALON has no builder partnerships, no commission incentives. Every recommendation is based on data and your interest alone.</p>
+        </div>
+
+        <div class="trust-card reveal reveal-delay-4">
+          <div class="trust-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+          </div>
+          <h3>RERA verified only</h3>
+          <p>Every property ALON recommends is RERA-compliant. Builder trust scores, land title checks, and compliance &mdash; verified before you see it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== STATS ========== -->
+  <section class="stats" id="stats">
+    <div class="stats-inner">
+      <div class="stats-text">
+        <div class="section-label reveal">Built for Pune</div>
+        <h2 class="reveal reveal-delay-1">Hyperlocal. Data-driven. Yours.</h2>
+        <p class="reveal reveal-delay-2">ALON knows Pune's micro-markets intimately &mdash; from Baner's premium corridors to Hinjewadi's tech belt. Real data, real insights, real advantage.</p>
+      </div>
+
+      <div class="stats-numbers">
+        <div class="stat-item reveal reveal-delay-2">
+          <div class="stat-num"><span class="counter" data-target="12">0</span><span class="suffix">L+</span></div>
+          <div class="stat-label">Listings Scanned</div>
+        </div>
+        <div class="stat-item reveal reveal-delay-3">
+          <div class="stat-num"><span class="counter" data-target="20">0</span><span class="suffix">+</span></div>
+          <div class="stat-label">Pune Micro-Markets</div>
+        </div>
+        <div class="stat-item reveal reveal-delay-4">
+          <div class="stat-num"><span class="counter" data-target="9">0</span></div>
+          <div class="stat-label">Journey Stages</div>
+        </div>
+        <div class="stat-item reveal reveal-delay-5">
+          <div class="stat-num"><span class="counter" data-target="10">0</span><span class="suffix">+</span></div>
+          <div class="stat-label">Partner Banks</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CTA ========== -->
+  <section class="cta" id="cta">
+    <div class="section-inner">
+      <h2 class="reveal">Ready to start<br>your journey?</h2>
+      <p class="cta-sub reveal reveal-delay-1">Join the waitlist. Be among the first to experience property buying the way it should be.</p>
+      <form class="cta-form reveal reveal-delay-2" onsubmit="return false;">
+        <input type="email" class="cta-input" placeholder="Enter your email" required>
+        <button type="submit" class="cta-submit">Join Waitlist</button>
+      </form>
+      <p class="cta-note reveal reveal-delay-3">No spam. We'll notify you when ALON launches in Pune.</p>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">ALON</div>
+      <div class="footer-tagline">Built in Pune, for Pune.</div>
+      <ul class="footer-links">
+        <li><a href="#">Privacy</a></li>
+        <li><a href="#">Terms</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- ========== JS ========== -->
+  <script>
+    // ===== Agentic Status Typewriter =====
+    (function() {
+      const el = document.getElementById('heroStatusText');
+      if (!el) return;
+      const msgs = [
+        'Scanning 12L+ listings across Pune...',
+        'Checking RERA compliance & builder scores...',
+        'Analyzing real transaction data...',
+        'Running conflict checks on shortlist...',
+        'Always on. Always working for you.',
+      ];
+      let mi = 0, ci = 0, deleting = false;
+
+      function tick() {
+        const msg = msgs[mi];
+        if (!deleting) {
+          el.textContent = msg.slice(0, ++ci);
+          if (ci === msg.length) {
+            setTimeout(() => { deleting = true; tick(); }, 2200);
+            return;
+          }
+          setTimeout(tick, 30 + Math.random() * 30);
+        } else {
+          el.textContent = msg.slice(0, --ci);
+          if (ci === 0) {
+            deleting = false;
+            mi = (mi + 1) % msgs.length;
+            setTimeout(tick, 350);
+            return;
+          }
+          setTimeout(tick, 16);
+        }
+      }
+      setTimeout(tick, 700);
+    })();
+
+    // ===== Journey Stage Strip Light-Up =====
+    (function() {
+      const stages = document.querySelectorAll('.hero-stage');
+      const conns  = document.querySelectorAll('.hero-stage-connector');
+      if (!stages.length) return;
+
+      const STEP = 380;   // ms per stage
+      const HOLD = 3200;  // ms to hold fully-lit state
+      const FADE = 600;   // ms for fade-out
+
+      function run() {
+        // Reset all
+        stages.forEach(s => { s.classList.remove('lit','active'); });
+        conns.forEach(c => { c.classList.remove('filled'); });
+
+        stages.forEach((stage, i) => {
+          // Light up stage
+          setTimeout(() => {
+            // Remove "active" from previous
+            if (i > 0) stages[i - 1].classList.remove('active');
+            stage.classList.add('lit', 'active');
+          }, i * STEP);
+
+          // Fill connector leading TO this stage
+          if (i > 0) {
+            setTimeout(() => {
+              conns[i - 1].classList.add('filled');
+            }, (i - 1) * STEP + STEP * 0.45);
+          }
+        });
+
+        // Remove final "active" after last stage settles
+        setTimeout(() => {
+          stages[stages.length - 1].classList.remove('active');
+        }, stages.length * STEP + 200);
+
+        // Schedule next cycle
+        setTimeout(run, stages.length * STEP + HOLD + FADE);
+      }
+
+      // Start after hero journey fades in (~2.8s)
+      setTimeout(run, 2800);
+    })();
+
+    // ===== Scroll Reveal =====
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // ===== Nav Scroll =====
+    const nav = document.getElementById('nav');
+    let lastScroll = 0;
+
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      nav.classList.toggle('scrolled', y > 80);
+      lastScroll = y;
+    }, { passive: true });
+
+    // ===== Journey Timeline Fill =====
+    const timeline = document.getElementById('timeline');
+    const timelineFill = document.getElementById('timelineFill');
+    const timelineItems = document.querySelectorAll('.timeline-item');
+
+    function updateTimeline() {
+      if (!timeline) return;
+      const rect = timeline.getBoundingClientRect();
+      const viewH = window.innerHeight;
+
+      // How far the viewport center has progressed through the timeline
+      const progress = Math.max(0, Math.min(1,
+        (viewH * 0.6 - rect.top) / rect.height
+      ));
+
+      timelineFill.style.height = (progress * 100) + '%';
+
+      // Activate items that the fill line has reached
+      timelineItems.forEach((item, i) => {
+        const itemProgress = (i + 0.5) / timelineItems.length;
+        item.classList.toggle('active', progress > itemProgress);
+      });
+    }
+
+    window.addEventListener('scroll', updateTimeline, { passive: true });
+    updateTimeline();
+
+    // ===== Counter Animation =====
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const el = entry.target;
+          const target = parseInt(el.dataset.target);
+          const duration = 1800;
+          const start = performance.now();
+
+          function tick(now) {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            el.textContent = Math.round(target * eased);
+            if (progress < 1) requestAnimationFrame(tick);
+          }
+
+          requestAnimationFrame(tick);
+          counterObserver.unobserve(el);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('.counter').forEach(el => counterObserver.observe(el));
+
+    // ===== Smooth anchor scroll =====
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
