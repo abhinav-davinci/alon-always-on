@@ -30,6 +30,7 @@ import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
+import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY } from '../utils/compareScore';
 
 interface ChatMessage {
   id: string;
@@ -97,21 +98,8 @@ const DEMO_RESPONSES: Record<string, { text: string; card?: { title: string; ite
       items: ['Godrej Hillside · Sat 10am–1pm', 'Pride World City · Sun 11am–2pm', 'Sobha Dream Acres · Mon 4pm–6pm'],
     },
   },
-  'Compare top 3': {
-    text: 'Here\'s a side-by-side comparison based on real transaction data, not listed prices:',
-    card: {
-      title: 'Property comparison',
-      items: ['Godrej Hillside · ₹9,310/sqft · +12% YoY', 'Pride World City · ₹8,940/sqft · +15.7% YoY', 'Sobha Dream · ₹8,900/sqft · +10.2% YoY'],
-    },
-  },
   'How to compare properties?': {
     text: 'To start comparing, head to your Shortlist and tap ♡ on at least 2 properties you like. Once shortlisted, tap the "Compare" button and I\'ll build a detailed side-by-side analysis with match scores, market data, and my recommendation.',
-  },
-  'Browse top matches': {
-    text: 'Let me show you the top properties matching your criteria. Like the ones that interest you, and I\'ll help you compare them.',
-  },
-  'What is ALON\'s Pick?': {
-    text: 'ALON\'s Pick is my recommendation based on 7 factors: budget fit, location match, size preference, builder trust score, conflict status, RERA compliance, and value for money. The property with the highest combined match score gets the "ALON\'s Pick" badge. Remember — this is AI-generated guidance, always verify with professionals.',
   },
   'Best loan options': {
     text: 'Based on a ₹1 Cr loan amount at 80% LTV, here are the best rates I found:',
@@ -147,7 +135,8 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const [attachments, setAttachments] = useState<{ id: string; name: string; type: 'image' | 'document' }[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const scanFlowDone = useRef(false);
-  const { likedPropertyIds, scheduledVisits, chatExpanded, setChatExpanded } = useOnboardingStore();
+  const { likedPropertyIds, scheduledVisits, chatExpanded, setChatExpanded, budget, locations, propertySize } = useOnboardingStore();
+  const preferences = { budget, locations, propertySize };
   const scrollOffsetY = useRef(0);
 
   // Pull-down gesture to collapse full-screen chat
@@ -389,11 +378,113 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       setIsGenerating(false);
       setStatusText('');
 
-      // Intercept Compare prompts when shortlist is empty
+      // --- Dynamic response builder for Compare stage ---
       let response = DEMO_RESPONSES[text] || DEFAULT_RESPONSE;
-      if ((text === 'Compare top 3' || text === 'Which has best ROI?' || text === 'Price vs market data') && likedPropertyIds.length < 2) {
+      const liked = likedPropertyIds.length;
+      const likedProps = likedPropertyIds
+        .map((id) => SHORTLIST_PROPERTIES.find((p) => p.id === id))
+        .filter(Boolean) as Property[];
+
+      // "Browse top matches" — always show discovery, adapt context
+      if (text === 'Browse top matches') {
+        if (liked === 0) {
+          response = {
+            text: 'Here are your top matches based on your criteria. Tap ♡ on properties that interest you — once you have 2 or more shortlisted, I\'ll build a detailed comparison.',
+          };
+        } else if (liked === 1) {
+          response = {
+            text: `You've shortlisted ${likedProps[0]?.name || '1 property'}. Here are more matches — like one more and I'll compare them for you.`,
+          };
+        } else {
+          const notLiked = SHORTLIST_PROPERTIES.filter((p) => !likedPropertyIds.includes(p.id));
+          response = {
+            text: `You have ${liked} shortlisted. Want me to compare them? Or browse ${notLiked.length} more ${notLiked.length === 1 ? 'match' : 'matches'} to add to your list.`,
+          };
+        }
+      }
+
+      // "What is ALON's Pick?" — explain concept or compute real pick
+      if (text === 'What is ALON\'s Pick?') {
+        if (liked === 0) {
+          response = {
+            text: 'ALON\'s Pick is my recommendation based on 7 factors: budget fit, location match, size preference, builder trust score, conflict status, RERA compliance, and value for money. Shortlist 2 or more properties and I\'ll tell you which one scores highest.',
+          };
+        } else if (liked === 1) {
+          response = {
+            text: `I need at least 2 properties to compare before I can make a Pick. You've shortlisted ${likedProps[0]?.name} — add one more and I'll run the analysis.`,
+          };
+        } else {
+          const pick = getRecommended(likedPropertyIds, preferences);
+          const pickProp = SHORTLIST_PROPERTIES.find((p) => p.id === pick?.id);
+          if (pickProp && pick) {
+            const result = computeMatchScore(pickProp, preferences);
+            const otherScores = likedProps
+              .filter((p) => p.id !== pick.id)
+              .map((p) => `${p.name}: ${computeMatchScore(p, preferences).score}%`);
+            response = {
+              text: `My Pick is ${pickProp.name} with a ${pick.score}% match score. ${result.pros[0] || ''}\n\nOther scores: ${otherScores.join(', ')}.\n\nThis is AI-generated guidance — please consult professionals before deciding.`,
+              card: {
+                title: `ALON's Pick: ${pickProp.name}`,
+                items: [
+                  `Match score: ${pick.score}%`,
+                  ...result.pros.slice(0, 2).map((p) => `✓ ${p}`),
+                  ...result.cons.slice(0, 1).map((c) => `⚠ ${c}`),
+                ],
+              },
+            };
+          }
+        }
+      }
+
+      // "Compare top 3" / "Which has best ROI?" / "Price vs market data" — need 2+ shortlisted
+      if ((text === 'Compare top 3' || text === 'Which has best ROI?' || text === 'Price vs market data') && liked < 2) {
         response = {
           text: `You don't have enough properties shortlisted yet. Tap ♡ on at least 2 properties from your matches, and I'll build a detailed comparison with match scores and my recommendation.`,
+        };
+      }
+
+      // "Which has best ROI?" with 2+ shortlisted — show appreciation data
+      if (text === 'Which has best ROI?' && liked >= 2) {
+        const roiData = likedProps
+          .map((p) => ({ name: p.name, yoy: getAppreciationYoY(p.id) }))
+          .sort((a, b) => b.yoy - a.yoy);
+        response = {
+          text: `Based on year-over-year price appreciation, here's how your shortlisted properties rank:`,
+          card: {
+            title: 'ROI Comparison (YoY Growth)',
+            items: roiData.map((d, i) => `${i === 0 ? '🏆 ' : ''}${d.name} · ${d.yoy}% YoY`),
+          },
+        };
+      }
+
+      // "Price vs market data" with 2+ shortlisted — show price/sqft vs area avg
+      if (text === 'Price vs market data' && liked >= 2) {
+        const priceData = likedProps.map((p) => {
+          const ppsf = computePricePerSqft(p.price, p.size);
+          return `${p.name} · ₹${ppsf.toLocaleString()}/sqft`;
+        });
+        response = {
+          text: `Here's how your shortlisted properties compare on price per sq.ft against real transaction data:`,
+          card: {
+            title: 'Price vs Market Data',
+            items: priceData,
+          },
+        };
+      }
+
+      // "Compare top 3" with 2+ shortlisted — show real comparison
+      if (text === 'Compare top 3' && liked >= 2) {
+        const compData = likedProps.slice(0, 3).map((p) => {
+          const ppsf = computePricePerSqft(p.price, p.size);
+          const yoy = getAppreciationYoY(p.id);
+          return `${p.name} · ₹${ppsf.toLocaleString()}/sqft · +${yoy}% YoY`;
+        });
+        response = {
+          text: 'Here\'s a side-by-side comparison based on real transaction data:',
+          card: {
+            title: 'Property comparison',
+            items: compData,
+          },
         };
       }
 
