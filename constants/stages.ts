@@ -14,7 +14,7 @@ export const STAGES: Stage[] = [
   { label: 'Search', icon: Search, status: 'active', alonTask: 'Scanning 12L+ listings by RERA & trust' },
   { label: 'Shortlist', icon: ListChecks, status: 'pending', alonTask: 'Curates top 5, checks conflicts' },
   { label: 'Site Visits', icon: MapPin, status: 'pending', alonTask: 'Books visits, number hidden' },
-  { label: 'Compare', icon: GitCompare, status: 'pending', alonTask: 'Side-by-side real transaction data' },
+  { label: 'Compare', icon: GitCompare, status: 'pending', alonTask: 'Match scores, ALON\'s Pick & market data' },
   { label: 'Finance', icon: Landmark, status: 'pending', alonTask: 'Best rates from 10+ banks' },
   { label: 'Legal', icon: Scale, status: 'pending', alonTask: 'Verify builder reputation & flag risky clauses' },
   { label: 'Negotiate', icon: Handshake, status: 'pending', alonTask: 'Price benchmarking + negotiation checklist' },
