@@ -104,6 +104,15 @@ const DEMO_RESPONSES: Record<string, { text: string; card?: { title: string; ite
       items: ['Godrej Hillside · ₹9,310/sqft · +12% YoY', 'Pride World City · ₹8,940/sqft · +15.7% YoY', 'Sobha Dream · ₹8,900/sqft · +10.2% YoY'],
     },
   },
+  'How to compare properties?': {
+    text: 'To start comparing, head to your Shortlist and tap ♡ on at least 2 properties you like. Once shortlisted, tap the "Compare" button and I\'ll build a detailed side-by-side analysis with match scores, market data, and my recommendation.',
+  },
+  'Browse top matches': {
+    text: 'Let me show you the top properties matching your criteria. Like the ones that interest you, and I\'ll help you compare them.',
+  },
+  'What is ALON\'s Pick?': {
+    text: 'ALON\'s Pick is my recommendation based on 7 factors: budget fit, location match, size preference, builder trust score, conflict status, RERA compliance, and value for money. The property with the highest combined match score gets the "ALON\'s Pick" badge. Remember — this is AI-generated guidance, always verify with professionals.',
+  },
   'Best loan options': {
     text: 'Based on a ₹1 Cr loan amount at 80% LTV, here are the best rates I found:',
     card: {
@@ -161,7 +170,12 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const lastVisitCount = useRef(scheduledVisits.length);
   const lastLikedCount = useRef(likedPropertyIds.length);
 
-  const prompts = STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
+  const prompts = (() => {
+    if (stage === 'Compare' && likedPropertyIds.length < 2) {
+      return ['How to compare properties?', 'Browse top matches', 'What is ALON\'s Pick?'];
+    }
+    return STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
+  })();
   const pillLabel = STAGE_PILL_LABELS[stage] || 'matches';
 
   // Attachment handlers
@@ -375,7 +389,13 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       setIsGenerating(false);
       setStatusText('');
 
-      const response = DEMO_RESPONSES[text] || DEFAULT_RESPONSE;
+      // Intercept Compare prompts when shortlist is empty
+      let response = DEMO_RESPONSES[text] || DEFAULT_RESPONSE;
+      if ((text === 'Compare top 3' || text === 'Which has best ROI?' || text === 'Price vs market data') && likedPropertyIds.length < 2) {
+        response = {
+          text: `You don't have enough properties shortlisted yet. Tap ♡ on at least 2 properties from your matches, and I'll build a detailed comparison with match scores and my recommendation.`,
+        };
+      }
 
       const alonMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -451,7 +471,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             return (
               <Animated.View key={msg.id} style={styles.alonRow} entering={FadeIn.duration(250)}>
                 <View style={styles.alonAvatarWrap}>
-                  <AlonAvatar size={22} showRings={false} showBlink={false} variant="default" />
+                  <AlonAvatar size={28} showRings={false} showBlink={false} variant="default" />
                 </View>
                 <View style={styles.alonBubble}>
                   <Text style={styles.alonText}>{msg.text}</Text>
@@ -500,7 +520,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         {isGenerating && (
           <Animated.View style={styles.alonRow} entering={FadeIn.duration(200)}>
             <View style={styles.alonAvatarWrap}>
-              <AlonAvatar size={22} showRings={false} showBlink={false} variant="default" />
+              <AlonAvatar size={28} showRings={false} showBlink={false} variant="default" />
             </View>
             <View style={styles.generatingBubble}>
               <View style={styles.typingDots}>

@@ -121,6 +121,45 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
+  // ── Compare: smart nudge based on shortlist count ──
+  if (stage === 'Compare') {
+    const count = likedPropertyIds.length;
+    let text = '';
+    let ctaLabel = '';
+    let ctaRoute = '';
+
+    if (count === 0) {
+      text = 'Like some properties first — ALON will compare them when you\'re ready.';
+      ctaLabel = 'Browse Properties';
+      ctaRoute = '/onboarding/properties';
+    } else if (count === 1) {
+      text = 'One more! Add another property to your shortlist to unlock comparison.';
+      ctaLabel = 'View Shortlist';
+      ctaRoute = '/onboarding/shortlist';
+    } else {
+      text = `You have ${count} shortlisted. Tap below to see how they stack up.`;
+      ctaLabel = 'Compare Now →';
+      ctaRoute = '/onboarding/shortlist';
+    }
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <GitCompare size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute as any); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
   // ── Other stages: intro message ──
   const intro = STAGE_INTROS[stage];
   if (intro) {
@@ -226,4 +265,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   introText: { flex: 1, fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, lineHeight: 17 },
+
+  // Compare CTA
+  pinnedCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 8,
+    paddingVertical: 8,
+    backgroundColor: Colors.terra50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.terra200,
+  },
+  pinnedCtaText: { fontSize: 12, fontFamily: 'DMSans-SemiBold', color: Colors.terra500 },
 });

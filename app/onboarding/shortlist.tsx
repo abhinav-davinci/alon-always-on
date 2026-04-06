@@ -18,12 +18,15 @@ import {
   Clock,
   ChevronRight,
   UserPlus,
+  GitCompareArrows,
+  CheckCircle2,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { SHORTLIST_PROPERTIES } from '../../constants/properties';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
+import CompareSelectionBar from '../../components/CompareSelectionBar';
 
 type Tab = 'all' | 'shortlisted' | 'byYou';
 
@@ -42,8 +45,9 @@ export default function ShortlistScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
-  const { likedPropertyIds, toggleLikedProperty, userProperties } = useOnboardingStore();
+  const { likedPropertyIds, toggleLikedProperty, userProperties, comparePropertyIds, toggleCompareProperty, clearCompareProperties } = useOnboardingStore();
   const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [selectMode, setSelectMode] = useState(false);
 
   // Sort: NEW properties first
   const allProperties = [...SHORTLIST_PROPERTIES].sort((a, b) => {
@@ -119,9 +123,27 @@ export default function ShortlistScreen() {
         <Text style={styles.updatedText}>Last updated {formatLastUpdated()}</Text>
       </Animated.View>
 
+      {/* Compare nudge for shortlisted tab */}
+      {activeTab === 'shortlisted' && shortlistedProperties.length === 1 && (
+        <View style={styles.nudgeBanner}>
+          <Heart size={12} color={Colors.terra400} strokeWidth={2} fill={Colors.terra400} />
+          <Text style={styles.nudgeBannerText}>Like one more property to start comparing</Text>
+        </View>
+      )}
+
+      {/* Selection mode header */}
+      {selectMode && (
+        <View style={styles.selectHeader}>
+          <Text style={styles.selectHeaderText}>Select 2–3 properties to compare</Text>
+          <TouchableOpacity onPress={() => { setSelectMode(false); clearCompareProperties(); }}>
+            <Text style={styles.selectHeaderCancel}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Property list */}
       <ScrollView
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + (selectMode ? 140 : 24) }]}
         showsVerticalScrollIndicator={false}
       >
         {displayedProperties.length === 0 && activeTab === 'shortlisted' && !isUserTab && (
@@ -198,14 +220,23 @@ export default function ShortlistScreen() {
               entering={FadeInDown.delay(i * 60).duration(250)}
             >
               <TouchableOpacity
-                style={styles.card}
+                style={[styles.card, selectMode && comparePropertyIds.includes(p.id) && styles.cardSelected]}
                 activeOpacity={0.7}
-                onPress={() =>
-                  router.push({
-                    pathname: '/onboarding/property-detail',
-                    params: { id: p.id },
-                  })
-                }
+                onPress={() => {
+                  if (selectMode) {
+                    if (comparePropertyIds.length >= 3 && !comparePropertyIds.includes(p.id)) {
+                      // Max 3 — could show toast here
+                      return;
+                    }
+                    haptics.selection();
+                    toggleCompareProperty(p.id);
+                  } else {
+                    router.push({
+                      pathname: '/onboarding/property-detail',
+                      params: { id: p.id },
+                    });
+                  }
+                }}
               >
                 {/* Image */}
                 <View style={styles.cardImageWrap}>
@@ -214,12 +245,17 @@ export default function ShortlistScreen() {
                     style={styles.cardImage}
                     resizeMode="cover"
                   />
-                  {p.isNew && (
+                  {selectMode && (
+                    <View style={[styles.selectCheck, comparePropertyIds.includes(p.id) && styles.selectCheckActive]}>
+                      {comparePropertyIds.includes(p.id) && <CheckCircle2 size={16} color={Colors.white} strokeWidth={2.5} />}
+                    </View>
+                  )}
+                  {!selectMode && p.isNew && (
                     <View style={styles.newBadge}>
                       <Text style={styles.newBadgeText}>NEW</Text>
                     </View>
                   )}
-                  {p.hasConflict && (
+                  {!selectMode && p.hasConflict && (
                     <View style={styles.flagOverlay}>
                       <AlertTriangle size={10} color="#D97706" strokeWidth={2.5} />
                       <Text style={styles.flagOverlayText}>Flagged</Text>
@@ -303,6 +339,35 @@ export default function ShortlistScreen() {
         })}
         {/* close !isUserTab guard */}
       </ScrollView>
+
+      {/* Floating Compare button — visible when 2+ shortlisted and not in select mode */}
+      {!selectMode && shortlistedProperties.length >= 2 && (
+        <TouchableOpacity
+          style={[styles.floatingCompareBtn, { bottom: insets.bottom + 20 }]}
+          activeOpacity={0.85}
+          onPress={() => {
+            haptics.medium();
+            setSelectMode(true);
+            setActiveTab('shortlisted');
+            clearCompareProperties();
+          }}
+        >
+          <GitCompareArrows size={18} color={Colors.white} strokeWidth={2} />
+          <Text style={styles.floatingCompareBtnText}>Compare</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Selection bar */}
+      {selectMode && (
+        <CompareSelectionBar
+          selectedIds={comparePropertyIds}
+          onRemove={(id) => toggleCompareProperty(id)}
+          onCompare={() => {
+            setSelectMode(false);
+            router.push('/onboarding/compare');
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -596,5 +661,89 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Regular',
     color: Colors.textTertiary,
     marginTop: 4,
+  },
+
+  // --- Compare selection ---
+  cardSelected: {
+    borderColor: Colors.terra400,
+    borderWidth: 1.5,
+    backgroundColor: Colors.terra50,
+  },
+  selectCheck: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1.5,
+    borderColor: Colors.warm300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  selectCheckActive: {
+    backgroundColor: Colors.terra500,
+    borderColor: Colors.terra500,
+  },
+  selectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.terra50,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.terra200,
+  },
+  selectHeaderText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 13,
+    color: Colors.terra600,
+  },
+  selectHeaderCancel: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 13,
+    color: Colors.terra500,
+  },
+  nudgeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: Spacing.xxl,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.terra50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.terra200,
+  },
+  nudgeBannerText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 12,
+    color: Colors.terra600,
+  },
+  floatingCompareBtn: {
+    position: 'absolute',
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.terra500,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 100,
+    shadowColor: Colors.terra500,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  floatingCompareBtnText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 14,
+    color: Colors.white,
   },
 });

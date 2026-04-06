@@ -16,7 +16,7 @@ const PAD_H = 16;
 const PAD_H_COMPACT = 12;
 const PAD_V = 8;
 const PAD_V_COMPACT = 6;
-const BUBBLE_OVERSHOOT = 4;
+const BUBBLE_OVERSHOOT = 6;
 
 interface StageStripProps {
   compact?: boolean;

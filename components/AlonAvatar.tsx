@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { Colors } from '../constants/theme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -288,6 +289,14 @@ export default function AlonAvatar({
   const ring2Size = size + ringInset2 * 2;
   const svgSize = size * 0.62;
 
+  // Map fill colors: white paths become navy on light backgrounds
+  const mapFill = (fill: string) => {
+    if (isLight) return fill; // on dark bg, keep original white/terra colors
+    // On light bg (default variant): swap white → navy, keep terracotta
+    if (fill.startsWith('#FE') || fill === '#FFFFFF') return Colors.navy800;
+    return fill;
+  };
+
   // Shared SVG props
   const svgProps = { width: svgSize, height: svgSize, viewBox: ALON_LOGO_VIEWBOX };
 
@@ -331,8 +340,8 @@ export default function AlonAvatar({
             width: size,
             height: size,
             borderRadius: containerR,
-            backgroundColor: isLight ? 'rgba(255,255,255,0.12)' : 'rgba(217,95,43,0.06)',
-            borderColor: isLight ? 'rgba(255,255,255,0.25)' : 'rgba(217,95,43,0.15)',
+            backgroundColor: isLight ? 'rgba(255,255,255,0.12)' : Colors.warm50,
+            borderColor: isLight ? 'rgba(255,255,255,0.25)' : Colors.warm200,
           },
         ]}
       >
@@ -341,7 +350,7 @@ export default function AlonAvatar({
           <Animated.View style={[StyleSheet.absoluteFill, handsStyle]}>
             <Svg {...svgProps}>
               {ALON_BODY_PATHS.map((p, i) => (
-                <Path key={`body-${i}`} d={p.d} fill={p.fill} transform={p.transform} />
+                <Path key={`body-${i}`} d={p.d} fill={mapFill(p.fill)} transform={p.transform} />
               ))}
             </Svg>
           </Animated.View>
@@ -350,7 +359,7 @@ export default function AlonAvatar({
           <Animated.View style={[StyleSheet.absoluteFill, headStyle]}>
             <Svg {...svgProps}>
               {ALON_HEAD_PATHS.map((p, i) => (
-                <Path key={`head-${i}`} d={p.d} fill={p.fill} transform={p.transform} />
+                <Path key={`head-${i}`} d={p.d} fill={mapFill(p.fill)} transform={p.transform} />
               ))}
             </Svg>
           </Animated.View>
@@ -358,14 +367,14 @@ export default function AlonAvatar({
           {/* Layer 3: Left ear (terracotta) */}
           <Animated.View style={[StyleSheet.absoluteFill, earLStyle]}>
             <Svg {...svgProps}>
-              <Path d={ALON_EAR_LEFT_PATH.d} fill={ALON_EAR_LEFT_PATH.fill} transform={ALON_EAR_LEFT_PATH.transform} />
+              <Path d={ALON_EAR_LEFT_PATH.d} fill={mapFill(ALON_EAR_LEFT_PATH.fill)} transform={ALON_EAR_LEFT_PATH.transform} />
             </Svg>
           </Animated.View>
 
           {/* Layer 4: Right ear (terracotta) */}
           <Animated.View style={[StyleSheet.absoluteFill, earRStyle]}>
             <Svg {...svgProps}>
-              <Path d={ALON_EAR_RIGHT_PATH.d} fill={ALON_EAR_RIGHT_PATH.fill} transform={ALON_EAR_RIGHT_PATH.transform} />
+              <Path d={ALON_EAR_RIGHT_PATH.d} fill={mapFill(ALON_EAR_RIGHT_PATH.fill)} transform={ALON_EAR_RIGHT_PATH.transform} />
             </Svg>
           </Animated.View>
 
@@ -373,7 +382,7 @@ export default function AlonAvatar({
           <Animated.View style={[StyleSheet.absoluteFill, accentStyle]}>
             <Svg {...svgProps}>
               {ALON_ACCENT_PATHS.map((p, i) => (
-                <Path key={`accent-${i}`} d={p.d} fill={p.fill} transform={p.transform} />
+                <Path key={`accent-${i}`} d={p.d} fill={mapFill(p.fill)} transform={p.transform} />
               ))}
             </Svg>
           </Animated.View>

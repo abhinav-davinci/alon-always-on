@@ -20,6 +20,7 @@ export interface OnboardingState {
   chargeableArea: string;
   notifyVia: string[];
   likedPropertyIds: string[];
+  comparePropertyIds: string[];
   scheduledVisits: Array<{ propertyId: string; propertyName: string; date: string; time: string }>;
   userProperties: UserProperty[];
   chatExpanded: boolean;
@@ -42,6 +43,9 @@ export interface OnboardingState {
   setChargeableArea: (val: string) => void;
   toggleNotifyVia: (channel: string) => void;
   toggleLikedProperty: (id: string) => void;
+  toggleCompareProperty: (id: string) => void;
+  setComparePropertyIds: (ids: string[]) => void;
+  clearCompareProperties: () => void;
   addScheduledVisit: (visit: { propertyId: string; propertyName: string; date: string; time: string }) => void;
   addUserProperty: (property: UserProperty) => void;
   removeUserProperty: (id: string) => void;
@@ -68,6 +72,7 @@ const initialState = {
   chargeableArea: '500–1000 sqft',
   notifyVia: ['push'] as string[],
   likedPropertyIds: [] as string[],
+  comparePropertyIds: [] as string[],
   scheduledVisits: [] as Array<{ propertyId: string; propertyName: string; date: string; time: string }>,
   userProperties: [] as UserProperty[],
   chatExpanded: false,
@@ -116,6 +121,16 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         ? state.likedPropertyIds.filter((pid) => pid !== id)
         : [...state.likedPropertyIds, id],
     })),
+  toggleCompareProperty: (id) =>
+    set((state) => ({
+      comparePropertyIds: state.comparePropertyIds.includes(id)
+        ? state.comparePropertyIds.filter((pid) => pid !== id)
+        : state.comparePropertyIds.length < 3
+          ? [...state.comparePropertyIds, id]
+          : state.comparePropertyIds, // max 3 — no-op if at limit
+    })),
+  setComparePropertyIds: (ids) => set({ comparePropertyIds: ids.slice(0, 3) }),
+  clearCompareProperties: () => set({ comparePropertyIds: [] }),
   addScheduledVisit: (visit) =>
     set((state) => ({
       scheduledVisits: [
