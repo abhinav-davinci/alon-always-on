@@ -375,10 +375,15 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       setIsGenerating(false);
       setStatusText('');
 
-      // --- Dynamic response builder for Compare stage ---
+      // --- Dynamic response builder ---
+      // Read fresh from store (not stale closure)
+      const currentState = useOnboardingStore.getState();
+      const currentLikedIds = currentState.likedPropertyIds;
+      const currentPrefs = { budget: currentState.budget, locations: currentState.locations, propertySize: currentState.propertySize };
+
       let response = DEMO_RESPONSES[text] || DEFAULT_RESPONSE;
-      const liked = likedPropertyIds.length;
-      const likedProps = likedPropertyIds
+      const liked = currentLikedIds.length;
+      const likedProps = currentLikedIds
         .map((id) => SHORTLIST_PROPERTIES.find((p) => p.id === id))
         .filter(Boolean) as Property[];
 
@@ -393,7 +398,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             text: `You've shortlisted ${likedProps[0]?.name || '1 property'}. Here are more matches — like one more and I'll compare them for you.`,
           };
         } else {
-          const notLiked = SHORTLIST_PROPERTIES.filter((p) => !likedPropertyIds.includes(p.id));
+          const notLiked = SHORTLIST_PROPERTIES.filter((p) => !currentLikedIds.includes(p.id));
           response = {
             text: `You have ${liked} shortlisted. Want me to compare them? Or browse ${notLiked.length} more ${notLiked.length === 1 ? 'match' : 'matches'} to add to your list.`,
           };
@@ -411,13 +416,13 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             text: `I need at least 2 properties to compare before I can make a Pick. You've shortlisted ${likedProps[0]?.name} — add one more and I'll run the analysis.`,
           };
         } else {
-          const pick = getRecommended(likedPropertyIds, preferences);
+          const pick = getRecommended(currentLikedIds, currentPrefs);
           const pickProp = SHORTLIST_PROPERTIES.find((p) => p.id === pick?.id);
           if (pickProp && pick) {
-            const result = computeMatchScore(pickProp, preferences);
+            const result = computeMatchScore(pickProp, currentPrefs);
             const otherScores = likedProps
               .filter((p) => p.id !== pick.id)
-              .map((p) => `${p.name}: ${computeMatchScore(p, preferences).score}%`);
+              .map((p) => `${p.name}: ${computeMatchScore(p, currentPrefs).score}%`);
             response = {
               text: `My Pick is ${pickProp.name} with a ${pick.score}% match score. ${result.pros[0] || ''}\n\nOther scores: ${otherScores.join(', ')}.\n\nThis is AI-generated guidance — please consult professionals before deciding.`,
               card: {
@@ -486,7 +491,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       }
 
       // --- Dynamic response builder for Shortlist stage ---
-      const userProps = useOnboardingStore.getState().userProperties;
+      const userProps = currentState.userProperties;
       const hasUserProps = userProps.length > 0;
 
       // "Is this property safe?" — quick safety summary
@@ -533,9 +538,9 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             text: `You've shortlisted ${likedProps[0]?.name}. Add one more and I'll build a detailed comparison with match scores, market data, and my Pick.`,
           };
         } else {
-          const pick = getRecommended(likedPropertyIds, preferences);
+          const pick = getRecommended(currentLikedIds, currentPrefs);
           const summaryItems = likedProps.slice(0, 3).map((p) => {
-            const score = computeMatchScore(p, preferences).score;
+            const score = computeMatchScore(p, currentPrefs).score;
             return `${p.name} — ${score}% match${p.id === pick?.id ? ' ⭐' : ''}`;
           });
           response = {
