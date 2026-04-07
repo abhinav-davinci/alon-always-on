@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, LayoutDashboard, MessageCircle, Heart } from 'lucide-react-native';
+import { ChevronLeft, LayoutDashboard, Heart } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
@@ -19,7 +19,6 @@ export default function CompareScreen() {
     locations,
     propertySize,
     setActiveStage,
-    setChatExpanded,
   } = useOnboardingStore();
 
   const preferences = { budget, locations, propertySize };
@@ -27,12 +26,6 @@ export default function CompareScreen() {
 
   const goToDashboard = () => {
     setActiveStage('Compare');
-    router.push('/onboarding/dashboard');
-  };
-
-  const goToChat = () => {
-    setActiveStage('Compare');
-    setChatExpanded(true);
     router.push('/onboarding/dashboard');
   };
 
@@ -108,11 +101,6 @@ export default function CompareScreen() {
           <TouchableOpacity style={styles.bottomBtn} onPress={goToShortlist} activeOpacity={0.8}>
             <Heart size={16} color={Colors.textSecondary} strokeWidth={1.8} />
             <Text style={styles.bottomBtnText}>Shortlist</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.bottomBtn, styles.bottomBtnPrimary]} onPress={goToChat} activeOpacity={0.8}>
-            <MessageCircle size={16} color={Colors.white} strokeWidth={1.8} />
-            <Text style={[styles.bottomBtnText, styles.bottomBtnTextPrimary]}>Ask ALON</Text>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -205,16 +193,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  bottomBtnPrimary: {
-    backgroundColor: Colors.terra500,
-    borderColor: Colors.terra500,
-  },
   bottomBtnText: {
     fontFamily: 'DMSans-SemiBold',
     fontSize: 12,
     color: Colors.textSecondary,
-  },
-  bottomBtnTextPrimary: {
-    color: Colors.white,
   },
 });
