@@ -88,9 +88,6 @@ const DEMO_RESPONSES: Record<string, { text: string; card?: { title: string; ite
   'Change budget': {
     text: "Sure! You can adjust your budget anytime. I'll re-scan listings with your new range. Tap the settings icon in the header or tell me your new budget here.",
   },
-  'Is this property safe?': {
-    text: 'I ran a full safety check. 4 of 5 shortlisted properties are clean — no disputes, valid RERA, strong builder track record. Kolte Patil 24K has a pending land title clarification filed Jan 2025. I recommend waiting for resolution before proceeding with that one.',
-  },
   'Schedule a visit': {
     text: 'I can book visits for your shortlisted properties. Your number stays hidden — the builder only gets a reference ID. Which property would you like to visit first?',
     card: {
@@ -486,6 +483,116 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             items: compData,
           },
         };
+      }
+
+      // --- Dynamic response builder for Shortlist stage ---
+      const userProps = useOnboardingStore.getState().userProperties;
+      const hasUserProps = userProps.length > 0;
+
+      // "Is this property safe?" — quick safety summary
+      if (text === 'Is this property safe?') {
+        if (liked === 0 && !hasUserProps) {
+          response = {
+            text: 'You haven\'t shortlisted any properties yet. Like properties from your matches or add your own — I\'ll run RERA verification, builder trust checks, and conflict scans on each one.',
+          };
+        } else if (liked > 0) {
+          const clean = likedProps.filter((p) => !p.hasConflict);
+          const flagged = likedProps.filter((p) => p.hasConflict);
+          const items = likedProps.map((p) =>
+            p.hasConflict
+              ? `⚠ ${p.name} — ${p.conflictType || 'Flagged'}`
+              : `✓ ${p.name} — RERA verified, builder ${p.builderScore}/5`
+          );
+
+          if (flagged.length === 0) {
+            response = {
+              text: `I've checked all ${liked} of your shortlisted properties. Good news — all are clean. RERA verified, no title disputes, builder scores above 4.0.${hasUserProps ? `\n\nNote: I have limited data on your ${userProps.length} manually added ${userProps.length === 1 ? 'property' : 'properties'} — consider running a manual check.` : ''}`,
+              card: { title: 'Safety Check — All Clear', items },
+            };
+          } else {
+            response = {
+              text: `I've checked all ${liked} shortlisted properties. ${clean.length} ${clean.length === 1 ? 'is' : 'are'} clean, but ${flagged.length} ${flagged.length === 1 ? 'needs' : 'need'} attention. I recommend resolving flagged issues before proceeding.${hasUserProps ? `\n\nFor your ${userProps.length} manually added ${userProps.length === 1 ? 'property' : 'properties'}, I have limited data — consider a manual conflict check.` : ''}`,
+              card: { title: `Safety Check — ${flagged.length} Flagged`, items },
+            };
+          }
+        } else if (hasUserProps) {
+          response = {
+            text: `You have ${userProps.length} manually added ${userProps.length === 1 ? 'property' : 'properties'}, but I have limited data to verify ${userProps.length === 1 ? 'it' : 'them'}. I can check builder reputation and title history if you run a manual check.\n\nAlso try liking properties from my matches — I can fully verify those.`,
+          };
+        }
+      }
+
+      // "Compare my shortlist" — bridge to Compare stage
+      if (text === 'Compare my shortlist') {
+        if (liked === 0) {
+          response = {
+            text: 'You haven\'t shortlisted any properties yet. Browse your matches and tap ♡ on properties you like — once you have 2 or more, I\'ll compare them side-by-side with match scores and my recommendation.',
+          };
+        } else if (liked === 1) {
+          response = {
+            text: `You've shortlisted ${likedProps[0]?.name}. Add one more and I'll build a detailed comparison with match scores, market data, and my Pick.`,
+          };
+        } else {
+          const pick = getRecommended(likedPropertyIds, preferences);
+          const summaryItems = likedProps.slice(0, 3).map((p) => {
+            const score = computeMatchScore(p, preferences).score;
+            return `${p.name} — ${score}% match${p.id === pick?.id ? ' ⭐' : ''}`;
+          });
+          response = {
+            text: `You have ${liked} shortlisted${liked > 3 ? ' — I can compare up to 3 at a time. Pick your top 3 for a detailed comparison.' : ' — ready to compare! Here\'s a quick preview:'}`,
+            card: {
+              title: 'Shortlist Summary',
+              items: [
+                ...summaryItems,
+                liked > 3 ? `+ ${liked - 3} more` : '',
+              ].filter(Boolean),
+            },
+          };
+        }
+      }
+
+      // "Check for conflicts" — detailed per-property breakdown
+      if (text === 'Check for conflicts') {
+        if (liked === 0 && !hasUserProps) {
+          response = {
+            text: 'No properties to check yet. Shortlist some from your matches or add your own — I\'ll scan for title disputes, RERA compliance issues, and builder reputation flags.',
+          };
+        } else if (liked > 0) {
+          const clean = likedProps.filter((p) => !p.hasConflict);
+          const flagged = likedProps.filter((p) => p.hasConflict);
+          const items: string[] = [];
+
+          likedProps.forEach((p) => {
+            if (p.hasConflict) {
+              items.push(`⚠ ${p.name}`);
+              items.push(`   Issue: ${p.conflictType || 'Under review'}`);
+              items.push(`   Action: Proceed with caution`);
+            } else {
+              items.push(`✓ ${p.name} — RERA: ${p.rera ? 'Verified' : 'N/A'} · Builder: ${p.builderScore}/5 · Title: Clear`);
+            }
+          });
+
+          if (hasUserProps) {
+            items.push('');
+            items.push(`ℹ ${userProps.length} user-added — limited data, manual check recommended`);
+          }
+
+          if (flagged.length === 0) {
+            response = {
+              text: `All clear! Every shortlisted property passed my checks — RERA verified, no title disputes, builder scores strong.${hasUserProps ? ' For your manually added properties, I have limited data — run a manual conflict check for full coverage.' : ' You can proceed with confidence.'}`,
+              card: { title: 'Conflict Check — All Clear ✓', items },
+            };
+          } else {
+            response = {
+              text: `I found ${flagged.length} ${flagged.length === 1 ? 'issue' : 'issues'} that ${flagged.length === 1 ? 'needs' : 'need'} your attention. ${clean.length} ${clean.length === 1 ? 'property is' : 'properties are'} clean.\n\nAI-generated insight — verify with professionals before deciding.`,
+              card: { title: `Conflict Check — ${flagged.length} Flagged`, items },
+            };
+          }
+        } else if (hasUserProps) {
+          response = {
+            text: `You have ${userProps.length} manually added ${userProps.length === 1 ? 'property' : 'properties'}. I have limited data on ${userProps.length === 1 ? 'this — builder' : 'these — builder'} trust scores and RERA verification aren't available for manually added properties.\n\nYou can run a manual conflict check by entering the builder name or RERA ID.`,
+          };
+        }
       }
 
       const alonMsg: ChatMessage = {
