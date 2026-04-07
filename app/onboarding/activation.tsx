@@ -432,8 +432,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 100,
-    marginTop: Spacing.md,
+    marginTop: 48,
     marginBottom: Spacing.xl,
+    overflow: 'visible',
   },
   signalRing: {
     position: 'absolute',

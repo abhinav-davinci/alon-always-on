@@ -376,20 +376,20 @@ export default function AlonAvatar({
             styles.bubble,
             {
               bottom: ring2Size / 2 + size / 2 + 6,
-              backgroundColor: isLight ? 'rgba(255,255,255,0.92)' : Colors.warm50,
-              borderColor: isLight ? 'rgba(255,255,255,0.3)' : Colors.warm200,
+              backgroundColor: isLight ? 'rgba(13,31,74,0.85)' : Colors.warm50,
+              borderColor: isLight ? 'rgba(217,95,43,0.4)' : Colors.warm200,
             },
           ]}
         >
           <Text style={[
             styles.bubbleText,
-            { color: isLight ? Colors.white : Colors.navy800 },
+            { color: isLight ? Colors.warm50 : Colors.navy800 },
           ]}>
             {bubbleText}
           </Text>
           <View style={[
             styles.bubbleArrow,
-            { borderTopColor: isLight ? 'rgba(255,255,255,0.92)' : Colors.warm50 },
+            { borderTopColor: isLight ? 'rgba(13,31,74,0.85)' : Colors.warm50 },
           ]} />
         </Animated.View>
       )}
@@ -459,6 +459,7 @@ export default function AlonAvatar({
 
   return (
     <Pressable
+      style={{ overflow: 'visible' }}
       onPress={handlePress}
       onLongPress={() => {}} // handled via pressIn/pressOut
       onPressIn={handlePressIn}
@@ -474,6 +475,7 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   ring: {
     position: 'absolute',
