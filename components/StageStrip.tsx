@@ -67,18 +67,24 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   }, [activeIndex]);
 
   const onPillLayout = useCallback((index: number, x: number, width: number) => {
+    const prev = pillLayouts.current[index];
     pillLayouts.current[index] = { x, width };
-    measured.current++;
-    if (measured.current === STAGES.length) {
-      const active = pillLayouts.current[activeIndex];
-      if (active) {
-        bubbleX.value = active.x + padH - BUBBLE_OVERSHOOT;
-        bubbleW.value = active.width + BUBBLE_OVERSHOOT * 2;
+
+    if (measured.current < STAGES.length) {
+      measured.current++;
+      if (measured.current === STAGES.length) {
+        const active = pillLayouts.current[activeIndex];
+        if (active) {
+          bubbleX.value = active.x + padH - BUBBLE_OVERSHOOT;
+          bubbleW.value = active.width + BUBBLE_OVERSHOOT * 2;
+        }
+        scrollToCenter(activeIndex);
       }
-      // Initial scroll to active pill
-      scrollToCenter(activeIndex);
+    } else if (index === activeIndex || (prev && (prev.x !== x || prev.width !== width))) {
+      // Re-snap bubble when any pill layout changes (badge added/removed shifts positions)
+      snapBubbleTo(activeIndex);
     }
-  }, [activeIndex, padH, scrollToCenter]);
+  }, [activeIndex, padH, scrollToCenter, snapBubbleTo]);
 
   const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
     containerWidth.current = e.nativeEvent.layout.width;
