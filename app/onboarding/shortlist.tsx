@@ -491,8 +491,9 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: 90,
-    height: 120,
-  },
+    height: '100%',
+    minHeight: 120,
+  } as any,
   newBadge: {
     position: 'absolute',
     top: 6,
