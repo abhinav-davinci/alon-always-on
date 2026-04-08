@@ -281,7 +281,7 @@ export default function ActivationScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 12 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero — ALON eye with radial signal rings */}
@@ -432,8 +432,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 100,
-    marginTop: 48,
-    marginBottom: Spacing.xl,
+    marginTop: 16,
+    marginBottom: Spacing.md,
     overflow: 'visible',
   },
   signalRing: {
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   // Title
   titleSection: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   title: {
     fontFamily: 'DMSerifDisplay',
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
 
   // Bottom
   bottomSection: {
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   notifyTitle: {
     fontSize: 11,
