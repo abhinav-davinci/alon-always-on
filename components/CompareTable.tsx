@@ -1,9 +1,121 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { ChevronDown, ChevronUp, Award, Info } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Award, Info, AlertCircle } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
-import { Property, SHORTLIST_PROPERTIES } from '../constants/properties';
+import { Property, UserProperty, SHORTLIST_PROPERTIES } from '../constants/properties';
 import { buildComparisonData, computeMatchScore, parseBHK, CompareGroup } from '../utils/compareScore';
+import { useOnboardingStore } from '../store/onboarding';
+import { parsePriceToNumber, parseSizeToSqft, computePricePerSqft, getAppreciationYoY, getBestIndex } from '../utils/compareScore';
+
+const NA = '—';
+
+function buildUnifiedGroups(
+  properties: DisplayProperty[],
+  preferences: { budget: { min: number; max: number }; locations: string[]; propertySize: string[] }
+): CompareGroup[] {
+  const prices = properties.map((p) => p.price ? parsePriceToNumber(p.price) : 0);
+  const sqfts = properties.map((p) => parseSizeToSqft(p.size));
+  const ppsf = properties.map((p, i) => prices[i] && sqfts[i] ? Math.round(prices[i] / sqfts[i]) : 0);
+
+  return [
+    {
+      title: 'Overview',
+      rows: [
+        {
+          label: 'Price',
+          values: properties.map((p) => p.price || NA),
+          numericValues: prices,
+          higherIsBetter: false,
+          bestIndex: getBestIndex(prices.filter(v => v > 0), false),
+        },
+        {
+          label: 'Price / sq.ft',
+          values: ppsf.map((v) => v > 0 ? `₹${v.toLocaleString()}` : NA),
+          numericValues: ppsf,
+          higherIsBetter: false,
+          bestIndex: getBestIndex(ppsf.map(v => v || Infinity), false),
+        },
+        {
+          label: 'Size',
+          values: sqfts.map((v) => v > 0 ? `${v.toLocaleString()} sq.ft` : NA),
+          numericValues: sqfts,
+          higherIsBetter: true,
+          bestIndex: getBestIndex(sqfts, true),
+        },
+        {
+          label: 'Config',
+          values: properties.map((p) => parseBHK(p.size) || NA),
+          bestIndex: -1,
+        },
+        {
+          label: 'Location',
+          values: properties.map((p) => p.area.split(',')[0].trim() || NA),
+          bestIndex: -1,
+        },
+      ],
+    },
+    {
+      title: 'Trust & Safety',
+      rows: [
+        {
+          label: 'RERA',
+          values: properties.map((p) => p.rera ? '✓ Verified' : p.isUserAdded ? 'Not available' : '✗ Not found'),
+          bestIndex: -1,
+        },
+        {
+          label: 'Builder Score',
+          values: properties.map((p) => p.builderScore != null ? `${p.builderScore} / 5` : p.builderName ? `${p.builderName} (unscored)` : NA),
+          numericValues: properties.map((p) => p.builderScore ?? 0),
+          higherIsBetter: true,
+          bestIndex: getBestIndex(properties.map((p) => p.builderScore ?? 0), true),
+        },
+        {
+          label: 'Conflicts',
+          values: properties.map((p) =>
+            p.hasConflict != null
+              ? (p.hasConflict ? `⚠ ${p.conflictType || 'Flagged'}` : '✓ None')
+              : 'Not checked'
+          ),
+          bestIndex: -1,
+        },
+      ],
+    },
+    {
+      title: 'Market Value',
+      rows: [
+        {
+          label: 'YoY Growth',
+          values: properties.map((p) => {
+            if (p.isUserAdded) return NA;
+            const yoy = getAppreciationYoY(p.id);
+            return `${yoy}%`;
+          }),
+          bestIndex: -1,
+        },
+        {
+          label: 'ALON Verdict',
+          values: properties.map((p) => p.alonVerdict || (p.isUserAdded ? 'Add details for analysis' : NA)),
+          bestIndex: -1,
+        },
+      ],
+    },
+    {
+      title: 'ALON\'s Analysis',
+      rows: [
+        {
+          label: 'Match Score',
+          values: properties.map((p) => {
+            if (p.isUserAdded) return 'Incomplete data';
+            const alonProp = SHORTLIST_PROPERTIES.find((sp) => sp.id === p.id);
+            if (!alonProp) return NA;
+            return `${computeMatchScore(alonProp, preferences).score}%`;
+          }),
+          bestIndex: -1,
+        },
+      ],
+    },
+  ];
+}
 
 interface CompareTableProps {
   propertyIds: string[];
@@ -14,16 +126,72 @@ interface CompareTableProps {
   };
 }
 
+// Unified property type for display
+type DisplayProperty = {
+  id: string;
+  name: string;
+  area: string;
+  price: string;
+  size: string;
+  image?: string;
+  images?: string[];
+  isUserAdded: boolean;
+  // ALON-only fields (may be undefined for user properties)
+  rera?: string;
+  builderScore?: number;
+  hasConflict?: boolean;
+  conflictType?: string;
+  alonVerdict?: string;
+  builderName?: string;
+};
+
+function resolveProperties(propertyIds: string[]): DisplayProperty[] {
+  const userProperties = useOnboardingStore.getState().userProperties;
+  return propertyIds.map((id) => {
+    const alon = SHORTLIST_PROPERTIES.find((p) => p.id === id);
+    if (alon) {
+      return {
+        id: alon.id, name: alon.name, area: alon.area, price: alon.price,
+        size: alon.size, image: alon.image, isUserAdded: false,
+        rera: alon.rera, builderScore: alon.builderScore,
+        hasConflict: alon.hasConflict, conflictType: alon.conflictType,
+        alonVerdict: alon.alonVerdict,
+      };
+    }
+    const user = userProperties.find((p) => p.id === id);
+    if (user) {
+      return {
+        id: user.id, name: user.name, area: user.area, price: user.price,
+        size: user.size, images: user.images, isUserAdded: true,
+        rera: user.rera, builderName: user.builderName,
+      };
+    }
+    return null;
+  }).filter(Boolean) as DisplayProperty[];
+}
+
 export default function CompareTable({ propertyIds, preferences }: CompareTableProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  const properties = propertyIds
+  const displayProperties = resolveProperties(propertyIds);
+  const hasUserProperty = displayProperties.some((p) => p.isUserAdded);
+
+  // For ALON properties, use the existing comparison engine
+  const alonIds = propertyIds.filter((id) => SHORTLIST_PROPERTIES.find((p) => p.id === id));
+  const properties = alonIds
     .map((id) => SHORTLIST_PROPERTIES.find((p) => p.id === id))
     .filter(Boolean) as Property[];
 
-  const { groups, recommendedId } = buildComparisonData(propertyIds, preferences);
-  const scores = properties.map((p) => computeMatchScore(p, preferences));
-  const colWidth = properties.length === 2 ? '48%' : '31%';
+  const { groups: alonGroups, recommendedId } = buildComparisonData(alonIds, preferences);
+  const colWidth = displayProperties.length === 2 ? '48%' : '31%';
+
+  // Build unified comparison groups that include user properties
+  const groups = hasUserProperty ? buildUnifiedGroups(displayProperties, preferences) : alonGroups;
+  const scores = displayProperties.map((p) => {
+    if (p.isUserAdded) return null;
+    const alonProp = SHORTLIST_PROPERTIES.find((sp) => sp.id === p.id);
+    return alonProp ? computeMatchScore(alonProp, preferences) : null;
+  });
 
   const toggleGroup = (title: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -33,9 +201,10 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* --- Sticky property headers --- */}
       <View style={styles.headerRow}>
-        {properties.map((p, i) => {
-          const isRecommended = p.id === recommendedId;
+        {displayProperties.map((p, i) => {
+          const isRecommended = !p.isUserAdded && p.id === recommendedId;
           const score = scores[i];
+          const imageUri = p.image || (p.images && p.images[0]);
           return (
             <View
               key={p.id}
@@ -43,6 +212,7 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
                 styles.headerCol,
                 { width: colWidth as any },
                 isRecommended && styles.headerColRecommended,
+                p.isUserAdded && styles.headerColUser,
               ]}
             >
               {isRecommended && (
@@ -51,17 +221,44 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
                   <Text style={styles.pickBadgeText}>ALON's Pick</Text>
                 </View>
               )}
-              <Image source={{ uri: p.image }} style={styles.headerImage} />
+              {p.isUserAdded && (
+                <View style={styles.userBadge}>
+                  <Text style={styles.userBadgeText}>Added by you</Text>
+                </View>
+              )}
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.headerImage} />
+              ) : (
+                <View style={[styles.headerImage, styles.headerImagePlaceholder]}>
+                  <Text style={styles.headerImageInitial}>{p.name.charAt(0)}</Text>
+                </View>
+              )}
               <Text style={styles.headerName} numberOfLines={1}>{p.name}</Text>
               <Text style={styles.headerArea} numberOfLines={1}>{p.area}</Text>
-              <Text style={styles.headerPrice}>{p.price}</Text>
-              <View style={styles.scorePill}>
-                <Text style={styles.scorePillText}>{score.score}% match</Text>
-              </View>
+              <Text style={styles.headerPrice}>{p.price || '—'}</Text>
+              {score ? (
+                <View style={styles.scorePill}>
+                  <Text style={styles.scorePillText}>{score.score}% match</Text>
+                </View>
+              ) : (
+                <View style={styles.scorePillNA}>
+                  <Text style={styles.scorePillNAText}>Limited data</Text>
+                </View>
+              )}
             </View>
           );
         })}
       </View>
+
+      {/* Data gap banner for user properties */}
+      {hasUserProperty && (
+        <View style={styles.dataGapBanner}>
+          <AlertCircle size={13} color={Colors.amber500} strokeWidth={2} />
+          <Text style={styles.dataGapText}>
+            Some fields may be unavailable for manually added properties. Add RERA or builder details to improve accuracy.
+          </Text>
+        </View>
+      )}
 
       {/* --- Comparison groups --- */}
       {groups.map((group) => (
@@ -205,6 +402,64 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-SemiBold',
     fontSize: 10,
     color: Colors.white,
+  },
+  scorePillNA: {
+    backgroundColor: Colors.warm200,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  scorePillNAText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 9,
+    color: Colors.warm500,
+  },
+  headerColUser: {
+    borderColor: Colors.warm300,
+    borderStyle: 'dashed' as any,
+  },
+  userBadge: {
+    backgroundColor: Colors.warm200,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+    marginBottom: Spacing.sm,
+  },
+  userBadgeText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 9,
+    color: Colors.warm600,
+    letterSpacing: 0.3,
+  },
+  headerImagePlaceholder: {
+    backgroundColor: Colors.warm100,
+    alignItems: 'center' as any,
+    justifyContent: 'center' as any,
+  },
+  headerImageInitial: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 18,
+    color: Colors.warm400,
+  },
+  dataGapBanner: {
+    flexDirection: 'row' as any,
+    alignItems: 'center' as any,
+    gap: 8,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FEF3C7',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  dataGapText: {
+    flex: 1,
+    fontFamily: 'DMSans-Regular',
+    fontSize: 11,
+    color: '#92400E',
+    lineHeight: 16,
   },
 
   // --- Groups ---

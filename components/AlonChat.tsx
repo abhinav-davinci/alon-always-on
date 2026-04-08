@@ -11,7 +11,7 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mic, ArrowUp, Layers, ChevronRight, Maximize2, Paperclip, Image, FileText, X, GitCompareArrows } from 'lucide-react-native';
+import { Mic, ArrowUp, Layers, ChevronRight, Maximize2, Paperclip, Image, FileText, X, GitCompareArrows, Search as SearchIcon, Heart, MapPin } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -738,57 +738,156 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       </ScrollView>
       </GestureDetector>
 
-      {/* ── Persistent shortlist pill / Compare Now CTA ── */}
-      {showShortlistPill && stage === 'Compare' ? (
-        <Animated.View entering={FadeIn.duration(250)}>
-          <Pressable
-            onPress={() => {
-              haptics.light();
-              const liked = useOnboardingStore.getState().likedPropertyIds;
-              if (liked.length === 0) {
-                // No shortlisted → go to All properties to browse & shortlist
-                router.push({ pathname: '/onboarding/shortlist', params: { tab: 'all', nudge: 'shortlist' } });
-              } else if (liked.length === 1) {
-                // Only 1 shortlisted → add chat nudge
-                const prop = SHORTLIST_PROPERTIES.find(p => p.id === liked[0]);
-                setMessages(prev => [...prev, {
-                  id: Date.now().toString(),
-                  type: 'alon',
-                  text: `You've shortlisted ${prop?.name || '1 property'} so far. Add at least one more to your shortlist, then we can compare them side by side.`,
-                  timestamp: Date.now(),
-                }]);
-              } else {
-                // 2+ shortlisted → go straight to selection mode
-                router.push({ pathname: '/onboarding/shortlist', params: { tab: 'shortlisted', selectMode: '1' } });
-              }
-            }}
-            style={({ pressed }) => [styles.compareNowPill, pressed && styles.shortlistPillPressed]}
-          >
-            <Animated.View style={[styles.compareNowInner, pillAnimStyle]}>
-              <GitCompareArrows size={14} color={Colors.white} strokeWidth={2} />
-              <Text style={styles.compareNowText}>Compare Now</Text>
+      {/* ── Stage-aware CTA pill ── */}
+      {showShortlistPill && (() => {
+        const state = useOnboardingStore.getState();
+        const liked = state.likedPropertyIds;
+        const visits = state.scheduledVisits;
+
+        // ── Search stage: "Browse Matches" ──
+        if (stage === 'Search') {
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  router.push({ pathname: '/onboarding/shortlist', params: { tab: 'all' } });
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <SearchIcon size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText}>Browse Matches</Text>
+                </Animated.View>
+              </Pressable>
             </Animated.View>
-          </Pressable>
-        </Animated.View>
-      ) : showShortlistPill ? (
-        <Animated.View entering={FadeIn.duration(250)}>
-          <Pressable
-            onPress={() => { haptics.light(); router.push('/onboarding/shortlist'); }}
-            style={({ pressed }) => [styles.shortlistPill, pressed && styles.shortlistPillPressed]}
-          >
-            <Animated.View style={[styles.shortlistPillInner, pillAnimStyle]}>
-              <Layers size={13} color={Colors.terra500} strokeWidth={2} />
-              <Text style={styles.shortlistPillText}>
-                {SHORTLIST_PROPERTIES.length} {pillLabel}
-                {likedPropertyIds.length > 0 ? ` · ${likedPropertyIds.length} liked` : ''}
-              </Text>
-              <View style={styles.shortlistPillDivider} />
-              <Text style={styles.shortlistPillAction}>View all</Text>
-              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2.5} />
+          );
+        }
+
+        // ── Shortlist stage: "View Shortlist" ──
+        if (stage === 'Shortlist') {
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (liked.length === 0) {
+                    // No shortlisted → go to All tab with nudge
+                    router.push({ pathname: '/onboarding/shortlist', params: { tab: 'all', nudge: 'shortlist' } });
+                  } else {
+                    // Has shortlisted → go to Shortlisted tab
+                    router.push({ pathname: '/onboarding/shortlist', params: { tab: 'shortlisted' } });
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <Heart size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText}>
+                    {liked.length === 0 ? 'Start Shortlisting' : `View Shortlist (${liked.length})`}
+                  </Text>
+                </Animated.View>
+              </Pressable>
             </Animated.View>
-          </Pressable>
-        </Animated.View>
-      ) : null}
+          );
+        }
+
+        // ── Site Visits stage: "Schedule Visit" ──
+        if (stage === 'Site Visits') {
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (liked.length === 0) {
+                    // No shortlisted → chat nudge to shortlist first
+                    setMessages(prev => [...prev, {
+                      id: Date.now().toString(),
+                      type: 'alon',
+                      text: 'You haven\'t shortlisted any properties yet. Browse your matches and tap ♡ on properties you like — then we can schedule site visits for them.',
+                      timestamp: Date.now(),
+                    }]);
+                  } else if (visits.length === 0) {
+                    // Has shortlisted but no visits → go to first shortlisted property detail
+                    const firstLiked = liked[0];
+                    router.push({ pathname: '/onboarding/property-detail', params: { id: firstLiked } });
+                  } else {
+                    // Has visits → chat summary
+                    const visitSummary = visits.map(v => `• ${v.propertyName} — ${v.date}, ${v.time}`).join('\n');
+                    setMessages(prev => [...prev, {
+                      id: Date.now().toString(),
+                      type: 'alon',
+                      text: `You have ${visits.length} visit${visits.length > 1 ? 's' : ''} scheduled:\n\n${visitSummary}\n\nWant to schedule another? Tap on any shortlisted property to book a visit.`,
+                      timestamp: Date.now(),
+                    }]);
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <MapPin size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText}>
+                    {visits.length === 0 ? 'Schedule Visit' : `${visits.length} Visit${visits.length > 1 ? 's' : ''} Scheduled`}
+                  </Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── Compare stage: "Compare Now" ──
+        if (stage === 'Compare') {
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (liked.length === 0) {
+                    router.push({ pathname: '/onboarding/shortlist', params: { tab: 'all', nudge: 'shortlist' } });
+                  } else if (liked.length === 1) {
+                    const prop = SHORTLIST_PROPERTIES.find(p => p.id === liked[0]);
+                    setMessages(prev => [...prev, {
+                      id: Date.now().toString(),
+                      type: 'alon',
+                      text: `You've shortlisted ${prop?.name || '1 property'} so far. Add at least one more to your shortlist, then we can compare them side by side.`,
+                      timestamp: Date.now(),
+                    }]);
+                  } else {
+                    router.push({ pathname: '/onboarding/shortlist', params: { tab: 'shortlisted', selectMode: '1' } });
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <GitCompareArrows size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText}>Compare Now</Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── All other stages: generic pill ──
+        return (
+          <Animated.View entering={FadeIn.duration(250)}>
+            <Pressable
+              onPress={() => { haptics.light(); router.push('/onboarding/shortlist'); }}
+              style={({ pressed }) => [styles.shortlistPill, pressed && styles.shortlistPillPressed]}
+            >
+              <Animated.View style={[styles.shortlistPillInner, pillAnimStyle]}>
+                <Layers size={13} color={Colors.terra500} strokeWidth={2} />
+                <Text style={styles.shortlistPillText}>
+                  {SHORTLIST_PROPERTIES.length} {pillLabel}
+                  {likedPropertyIds.length > 0 ? ` · ${likedPropertyIds.length} liked` : ''}
+                </Text>
+                <View style={styles.shortlistPillDivider} />
+                <Text style={styles.shortlistPillAction}>View all</Text>
+                <ChevronRight size={12} color={Colors.terra500} strokeWidth={2.5} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        );
+      })()}
 
       {/* Suggestive prompts */}
       {!isGenerating && prompts.some(p => !usedPrompts.has(p)) && (
@@ -1012,11 +1111,11 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-SemiBold',
     color: Colors.terra500,
   },
-  compareNowPill: {
+  stageCta: {
     alignSelf: 'center',
     marginVertical: 4,
   },
-  compareNowInner: {
+  stageCtaInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
@@ -1025,7 +1124,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
   },
-  compareNowText: {
+  stageCtaText: {
     fontSize: 13,
     fontFamily: 'DMSans-SemiBold',
     color: Colors.white,

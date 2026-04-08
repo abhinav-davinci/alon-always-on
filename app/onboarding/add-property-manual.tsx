@@ -17,12 +17,15 @@ import {
   ImagePlus,
   X,
   CheckCircle2,
+  Circle,
+  AlertCircle,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
+import { checkCompleteness } from '../../utils/propertyCompleteness';
 
 const PROPERTY_TYPES = ['Apartment', 'Villa', 'Plot', 'Penthouse', 'Row House'];
 const BHK_OPTIONS = ['1 BHK', '2 BHK', '3 BHK', '4 BHK', '4+ BHK'];
@@ -39,8 +42,10 @@ export default function AddPropertyManualScreen() {
   const [price, setPrice] = useState('');
   const [sqft, setSqft] = useState('');
   const [bhk, setBhk] = useState('');
+  const [rera, setRera] = useState('');
+  const [builderName, setBuilderName] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedProperty, setSubmittedProperty] = useState<import('../../constants/properties').UserProperty | null>(null);
 
   const canSubmit = name.trim() && locality.trim() && (price.trim() || sqft.trim());
 
@@ -68,7 +73,7 @@ export default function AddPropertyManualScreen() {
     const formattedPrice = price ? `₹${parseFloat(price) >= 100 ? (parseFloat(price) / 100).toFixed(1) + ' Cr' : price + ' L'}` : '';
     const formattedSize = [bhk, sqft ? `${sqft} sq.ft` : ''].filter(Boolean).join(' · ');
 
-    addUserProperty({
+    const property: import('../../constants/properties').UserProperty = {
       id: `user-${Date.now()}`,
       name: name.trim(),
       area: locality.trim(),
@@ -79,39 +84,91 @@ export default function AddPropertyManualScreen() {
       images,
       source: 'manual',
       addedAt: Date.now(),
-    });
-
-    setSubmitted(true);
+      rera: rera.trim() || undefined,
+      builderName: builderName.trim() || undefined,
+    };
+    addUserProperty(property);
+    setSubmittedProperty(property);
   };
 
-  if (submitted) {
+  if (submittedProperty) {
+    const completeness = checkCompleteness(submittedProperty);
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Animated.View style={styles.successWrap} entering={FadeIn.duration(400)}>
-          <View style={styles.successIcon}>
-            <CheckCircle2 size={48} color="#22C55E" strokeWidth={1.8} />
-          </View>
-          <Text style={styles.successTitle}>Property added!</Text>
-          <Text style={styles.successSub}>
-            {name} has been added to your list. ALON will now verify RERA records, builder history, and market data for this property.
-          </Text>
-          <View style={styles.successActions}>
-            <TouchableOpacity
-              style={styles.successBtnPrimary}
-              activeOpacity={0.85}
-              onPress={() => router.replace('/onboarding/shortlist')}
-            >
-              <Text style={styles.successBtnPrimaryText}>View my list</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.successBtnSecondary}
-              activeOpacity={0.7}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.successBtnSecondaryText}>Back to dashboard</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+        <ScrollView contentContainerStyle={styles.successScroll} showsVerticalScrollIndicator={false}>
+          <Animated.View style={styles.successWrap} entering={FadeIn.duration(400)}>
+            <View style={styles.successIcon}>
+              <CheckCircle2 size={48} color="#22C55E" strokeWidth={1.8} />
+            </View>
+            <Text style={styles.successTitle}>Property added!</Text>
+            <Text style={styles.successSub}>
+              {submittedProperty.name} has been added to your list.
+            </Text>
+
+            {/* Data completeness card */}
+            <View style={styles.completenessCard}>
+              <View style={styles.completenessHeader}>
+                <Text style={styles.completenessTitle}>Data completeness</Text>
+                <Text style={[
+                  styles.completenessPercent,
+                  completeness.percent === 100 && styles.completenessPercentFull,
+                ]}>{completeness.percent}%</Text>
+              </View>
+              <View style={styles.completenessBar}>
+                <View style={[styles.completenessBarFill, { width: `${completeness.percent}%` }]} />
+              </View>
+
+              {/* Field-by-field breakdown */}
+              <View style={styles.fieldsList}>
+                {completeness.fields.map((field) => (
+                  <View key={field.key} style={styles.fieldRow}>
+                    {field.filled ? (
+                      <CheckCircle2 size={14} color="#22C55E" strokeWidth={2} />
+                    ) : (
+                      <Circle size={14} color={Colors.warm300} strokeWidth={1.5} />
+                    )}
+                    <Text style={[styles.fieldLabel, !field.filled && styles.fieldLabelMissing]}>
+                      {field.label}
+                    </Text>
+                    {field.filled ? (
+                      <Text style={styles.fieldValue} numberOfLines={1}>{field.value}</Text>
+                    ) : (
+                      <Text style={styles.fieldHint}>{field.hint}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              {completeness.missingImportant.length > 0 && (
+                <View style={styles.missingNudge}>
+                  <AlertCircle size={13} color={Colors.amber500} strokeWidth={2} />
+                  <Text style={styles.missingNudgeText}>
+                    {completeness.missingImportant.length === 1
+                      ? `Add ${completeness.missingImportant[0].label.toLowerCase()} for better comparison accuracy`
+                      : `Add ${completeness.missingImportant.length} more details to compare with ALON's verified data`}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.successActions}>
+              <TouchableOpacity
+                style={styles.successBtnPrimary}
+                activeOpacity={0.85}
+                onPress={() => router.replace('/onboarding/shortlist')}
+              >
+                <Text style={styles.successBtnPrimaryText}>View my list</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.successBtnSecondary}
+                activeOpacity={0.7}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.successBtnSecondaryText}>Back to dashboard</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
       </View>
     );
   }
@@ -218,8 +275,34 @@ export default function AddPropertyManualScreen() {
           </View>
         </Animated.View>
 
-        {/* Images */}
+        {/* Builder Name */}
         <Animated.View entering={FadeInDown.delay(300).duration(250)}>
+          <Text style={styles.label}>Builder / Developer</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Godrej Properties"
+            placeholderTextColor={Colors.warm300}
+            value={builderName}
+            onChangeText={setBuilderName}
+          />
+        </Animated.View>
+
+        {/* RERA */}
+        <Animated.View entering={FadeInDown.delay(350).duration(250)}>
+          <Text style={styles.label}>RERA number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. P52100028830"
+            placeholderTextColor={Colors.warm300}
+            value={rera}
+            onChangeText={setRera}
+            autoCapitalize="characters"
+          />
+          <Text style={styles.labelSub}>Helps ALON verify the project instantly</Text>
+        </Animated.View>
+
+        {/* Images */}
+        <Animated.View entering={FadeInDown.delay(400).duration(250)}>
           <Text style={styles.label}>Photos (optional)</Text>
           <Text style={styles.labelSub}>Add up to 5 photos of the property</Text>
           <View style={styles.imageGrid}>
@@ -330,7 +413,8 @@ const styles = StyleSheet.create({
   submitBtnText: { fontSize: 14, fontFamily: 'DMSans-SemiBold', color: '#fff' },
 
   // Success
-  successWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 12 },
+  successScroll: { flexGrow: 1, justifyContent: 'center' },
+  successWrap: { alignItems: 'center', paddingHorizontal: 28, paddingVertical: 40, gap: 12 },
   successIcon: { marginBottom: 8 },
   successTitle: { fontSize: 22, fontFamily: 'DMSans-Bold', color: Colors.textPrimary },
   successSub: {
@@ -348,4 +432,41 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.warm200, alignItems: 'center',
   },
   successBtnSecondaryText: { fontSize: 14, fontFamily: 'DMSans-Medium', color: Colors.textSecondary },
+
+  // Completeness card
+  completenessCard: {
+    width: '100%', backgroundColor: Colors.cream, borderRadius: 14,
+    borderWidth: 1, borderColor: Colors.warm200, padding: 16, marginTop: 8,
+  },
+  completenessHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
+  },
+  completenessTitle: { fontSize: 13, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
+  completenessPercent: { fontSize: 13, fontFamily: 'DMSans-Bold', color: Colors.terra500 },
+  completenessPercentFull: { color: '#22C55E' },
+  completenessBar: {
+    height: 4, borderRadius: 2, backgroundColor: Colors.warm200, marginBottom: 14, overflow: 'hidden',
+  },
+  completenessBarFill: { height: 4, borderRadius: 2, backgroundColor: Colors.terra500 },
+  fieldsList: { gap: 10 },
+  fieldRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  fieldLabel: { fontSize: 12, fontFamily: 'DMSans-Medium', color: Colors.textPrimary, width: 90 },
+  fieldLabelMissing: { color: Colors.warm400 },
+  fieldValue: {
+    flex: 1, fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary,
+    textAlign: 'right',
+  },
+  fieldHint: {
+    flex: 1, fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.warm400,
+    fontStyle: 'italic', textAlign: 'right',
+  },
+  missingNudge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.warm200,
+  },
+  missingNudgeText: {
+    flex: 1, fontSize: 11, fontFamily: 'DMSans-Medium', color: Colors.amber500, lineHeight: 16,
+  },
 });

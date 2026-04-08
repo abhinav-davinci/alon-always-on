@@ -26,6 +26,8 @@ export interface UserProperty {
   source: 'manual' | 'voice' | 'screenshot';
   extractedFrom?: string;
   addedAt: number;
+  rera?: string;
+  builderName?: string;
 }
 
 export const SHORTLIST_PROPERTIES: Property[] = [

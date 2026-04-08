@@ -188,7 +188,17 @@ export default function ShortlistScreen() {
 
         {isUserTab && userProperties.map((up, i) => (
           <Animated.View key={up.id} entering={FadeInDown.delay(i * 60).duration(250)}>
-            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={[styles.card, selectMode && comparePropertyIds.includes(up.id) && styles.cardSelected]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (selectMode) {
+                  if (comparePropertyIds.length >= 3 && !comparePropertyIds.includes(up.id)) return;
+                  haptics.selection();
+                  toggleCompareProperty(up.id);
+                }
+              }}
+            >
               <View style={styles.cardImageWrap}>
                 {up.images[0] ? (
                   <Image source={{ uri: up.images[0] }} style={styles.cardImage} resizeMode="cover" />
@@ -197,11 +207,18 @@ export default function ShortlistScreen() {
                     <Text style={styles.cardImagePlaceholderText}>{up.name.charAt(0)}</Text>
                   </View>
                 )}
-                <View style={styles.userAddedBadge}>
-                  <Text style={styles.userAddedBadgeText}>
-                    {up.source === 'screenshot' ? 'SCREENSHOT' : 'MANUAL'}
-                  </Text>
-                </View>
+                {selectMode && (
+                  <View style={[styles.selectCheck, comparePropertyIds.includes(up.id) && styles.selectCheckActive]}>
+                    {comparePropertyIds.includes(up.id) && <Check size={13} color={Colors.white} strokeWidth={3} />}
+                  </View>
+                )}
+                {!selectMode && (
+                  <View style={styles.userAddedBadge}>
+                    <Text style={styles.userAddedBadgeText}>
+                      {up.source === 'screenshot' ? 'SCREENSHOT' : 'MANUAL'}
+                    </Text>
+                  </View>
+                )}
               </View>
               <View style={styles.cardInfo}>
                 <View style={styles.cardTopRow}>
@@ -359,15 +376,22 @@ export default function ShortlistScreen() {
         {/* close !isUserTab guard */}
       </ScrollView>
 
-      {/* Floating Compare button — visible when 2+ shortlisted and not in select mode */}
-      {!selectMode && shortlistedProperties.length >= 2 && (
+      {/* Floating Compare button — visible when 2+ total properties (shortlisted + user) and not in select mode */}
+      {!selectMode && (shortlistedProperties.length + userProperties.length) >= 2 && (
         <TouchableOpacity
           style={[styles.floatingCompareBtn, { bottom: insets.bottom + 20 }]}
           activeOpacity={0.85}
           onPress={() => {
             haptics.medium();
             setSelectMode(true);
-            setActiveTab('shortlisted');
+            // Stay on current tab if it has properties, otherwise go to tab with most
+            if (activeTab === 'byYou' && userProperties.length > 0) {
+              // Stay on By You
+            } else if (shortlistedProperties.length >= 2) {
+              setActiveTab('shortlisted');
+            } else {
+              setActiveTab('all');
+            }
             clearCompareProperties();
           }}
         >

@@ -4,6 +4,7 @@ import { X, ArrowRight } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
+import { useOnboardingStore } from '../store/onboarding';
 
 interface CompareSelectionBarProps {
   selectedIds: string[];
@@ -29,10 +30,12 @@ export default function CompareSelectionBar({
       <View style={styles.chipsRow}>
         {selectedIds.map((id) => {
           const prop = SHORTLIST_PROPERTIES.find((p) => p.id === id);
+          const userProp = !prop ? useOnboardingStore.getState().userProperties.find((p) => p.id === id) : null;
+          const displayName = prop?.name || userProp?.name || id;
           return (
             <View key={id} style={styles.chip}>
               <Text style={styles.chipText} numberOfLines={1}>
-                {prop?.name || id}
+                {displayName}
               </Text>
               <TouchableOpacity onPress={() => onRemove(id)} hitSlop={8}>
                 <X size={12} color={Colors.warm500} strokeWidth={2} />
