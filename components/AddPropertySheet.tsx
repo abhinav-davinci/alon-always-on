@@ -20,7 +20,7 @@ const OPTIONS = [
     iconColor: '#7C3AED',
     title: 'Add by Voice',
     subtitle: 'Describe the property — ALON fills in the rest',
-    comingSoon: true,
+    comingSoon: false,
   },
   {
     key: 'manual' as const,

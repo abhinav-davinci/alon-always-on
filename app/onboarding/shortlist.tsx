@@ -215,7 +215,7 @@ export default function ShortlistScreen() {
                 {!selectMode && (
                   <View style={styles.userAddedBadge}>
                     <Text style={styles.userAddedBadgeText}>
-                      {up.source === 'screenshot' ? 'SCREENSHOT' : 'MANUAL'}
+                      {up.source === 'screenshot' ? 'SCREENSHOT' : up.source === 'voice' ? 'VOICE' : 'MANUAL'}
                     </Text>
                   </View>
                 )}

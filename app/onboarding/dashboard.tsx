@@ -162,6 +162,7 @@ export default function DashboardScreen() {
           setShowAddSheet(false);
           if (option === 'manual') router.push('/onboarding/add-property-manual');
           else if (option === 'screenshot') router.push('/onboarding/add-property-screenshot');
+          else if (option === 'voice') router.push('/onboarding/add-property-voice');
         }}
       />
     </View>
