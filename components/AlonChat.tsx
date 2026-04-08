@@ -11,7 +11,7 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mic, ArrowUp, Layers, ChevronRight, Maximize2, Paperclip, Image, FileText, X } from 'lucide-react-native';
+import { Mic, ArrowUp, Layers, ChevronRight, Maximize2, Paperclip, Image, FileText, X, GitCompareArrows } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -738,8 +738,39 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       </ScrollView>
       </GestureDetector>
 
-      {/* ── Persistent shortlist pill ── */}
-      {showShortlistPill && (
+      {/* ── Persistent shortlist pill / Compare Now CTA ── */}
+      {showShortlistPill && stage === 'Compare' ? (
+        <Animated.View entering={FadeIn.duration(250)}>
+          <Pressable
+            onPress={() => {
+              haptics.light();
+              const liked = useOnboardingStore.getState().likedPropertyIds;
+              if (liked.length === 0) {
+                // No shortlisted → go to All properties to browse & shortlist
+                router.push({ pathname: '/onboarding/shortlist', params: { tab: 'all', nudge: 'shortlist' } });
+              } else if (liked.length === 1) {
+                // Only 1 shortlisted → add chat nudge
+                const prop = SHORTLIST_PROPERTIES.find(p => p.id === liked[0]);
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(),
+                  type: 'alon',
+                  text: `You've shortlisted ${prop?.name || '1 property'} so far. Add at least one more to your shortlist, then we can compare them side by side.`,
+                  timestamp: Date.now(),
+                }]);
+              } else {
+                // 2+ shortlisted → go straight to selection mode
+                router.push({ pathname: '/onboarding/shortlist', params: { tab: 'shortlisted', selectMode: '1' } });
+              }
+            }}
+            style={({ pressed }) => [styles.compareNowPill, pressed && styles.shortlistPillPressed]}
+          >
+            <Animated.View style={[styles.compareNowInner, pillAnimStyle]}>
+              <GitCompareArrows size={14} color={Colors.white} strokeWidth={2} />
+              <Text style={styles.compareNowText}>Compare Now</Text>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
+      ) : showShortlistPill ? (
         <Animated.View entering={FadeIn.duration(250)}>
           <Pressable
             onPress={() => { haptics.light(); router.push('/onboarding/shortlist'); }}
@@ -757,7 +788,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             </Animated.View>
           </Pressable>
         </Animated.View>
-      )}
+      ) : null}
 
       {/* Suggestive prompts */}
       {!isGenerating && prompts.some(p => !usedPrompts.has(p)) && (
@@ -980,6 +1011,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'DMSans-SemiBold',
     color: Colors.terra500,
+  },
+  compareNowPill: {
+    alignSelf: 'center',
+    marginVertical: 4,
+  },
+  compareNowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: Colors.terra500,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  compareNowText: {
+    fontSize: 13,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.white,
   },
 
   // Prompts

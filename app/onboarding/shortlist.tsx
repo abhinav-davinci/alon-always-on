@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   ChevronLeft,
   ShieldCheck,
@@ -43,11 +43,22 @@ function formatLastUpdated(): string {
 
 export default function ShortlistScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string; selectMode?: string; nudge?: string }>();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
   const { likedPropertyIds, toggleLikedProperty, userProperties, comparePropertyIds, toggleCompareProperty, clearCompareProperties } = useOnboardingStore();
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'all');
   const [selectMode, setSelectMode] = useState(false);
+  const [showNudge, setShowNudge] = useState(params.nudge === 'shortlist');
+
+  // Auto-enter select mode if navigated with selectMode param
+  useEffect(() => {
+    if (params.selectMode === '1' && likedPropertyIds.length >= 2) {
+      setActiveTab('shortlisted');
+      setSelectMode(true);
+      clearCompareProperties();
+    }
+  }, []);
 
   // Sort: NEW properties first
   const allProperties = [...SHORTLIST_PROPERTIES].sort((a, b) => {
@@ -123,7 +134,15 @@ export default function ShortlistScreen() {
         <Text style={styles.updatedText}>Last updated {formatLastUpdated()}</Text>
       </Animated.View>
 
-      {/* Compare nudge for shortlisted tab */}
+      {/* Compare nudge — arrived from Compare Now with 0 shortlisted */}
+      {showNudge && shortlistedProperties.length === 0 && (
+        <Animated.View style={styles.nudgeBanner} entering={FadeIn.duration(250)}>
+          <GitCompareArrows size={12} color={Colors.terra400} strokeWidth={2} />
+          <Text style={styles.nudgeBannerText}>Tap ♡ on at least 2 properties to start comparing</Text>
+        </Animated.View>
+      )}
+
+      {/* Compare nudge for shortlisted tab — 1 property */}
       {activeTab === 'shortlisted' && shortlistedProperties.length === 1 && (
         <View style={styles.nudgeBanner}>
           <Heart size={12} color={Colors.terra400} strokeWidth={2} fill={Colors.terra400} />

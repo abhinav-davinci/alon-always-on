@@ -66,7 +66,7 @@ export default function SplashScreen() {
       {/* Top section — logo + wordmark */}
       <View style={styles.topSection}>
         <Animated.View style={[styles.logoWrap, logoStyle]}>
-          <AlonAvatar size={80} showRings showBlink variant="light" />
+          <AlonAvatar size={100} showRings showBlink variant="light" />
         </Animated.View>
 
         <Animated.View style={[styles.textWrap, textStyle]}>
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoWrap: {
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   textWrap: {
     alignItems: 'center',
