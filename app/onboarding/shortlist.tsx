@@ -19,7 +19,7 @@ import {
   ChevronRight,
   UserPlus,
   GitCompareArrows,
-  CheckCircle2,
+  Check,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -266,7 +266,7 @@ export default function ShortlistScreen() {
                   />
                   {selectMode && (
                     <View style={[styles.selectCheck, comparePropertyIds.includes(p.id) && styles.selectCheckActive]}>
-                      {comparePropertyIds.includes(p.id) && <CheckCircle2 size={16} color={Colors.white} strokeWidth={2.5} />}
+                      {comparePropertyIds.includes(p.id) && <Check size={13} color={Colors.white} strokeWidth={3} />}
                     </View>
                   )}
                   {!selectMode && p.isNew && (
@@ -695,9 +695,9 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
     borderWidth: 1.5,
-    borderColor: Colors.warm300,
+    borderColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 5,
