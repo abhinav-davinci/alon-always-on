@@ -36,7 +36,7 @@ import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEligibility, getInterestRate } from '../utils/financeCalc';
-import { Landmark } from 'lucide-react-native';
+import { Landmark, IndianRupee } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
@@ -642,30 +642,9 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         }
       }
 
-      // ── Finance: "Plan Your Loan" triggers CIBIL slider ──
+      // ── Finance: "Plan Your Loan" navigates to dedicated screen ──
       if (text === 'Plan Your Loan') {
-        if (currentState.cibilScore) {
-          // Already have CIBIL — go straight to prompts
-          const rate = getInterestRate(currentState.cibilScore);
-          setMessages(prev => [...prev, {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: `Your CIBIL score is ${currentState.cibilScore} (${rate.toFixed(1)}% rate). What would you like to explore — EMI calculator, total cost breakdown, or loan eligibility?`,
-            timestamp: Date.now(),
-          }]);
-          return;
-        }
-        // Show CIBIL slider
-        setMessages(prev => [...prev,
-          {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: 'Great, let\'s plan your loan! First, roughly where\'s your CIBIL score? Drag the slider or tap "I don\'t know" to use an estimate.',
-            timestamp: Date.now(),
-          },
-          {
-            id: `cibil-slider-${Date.now()}`, type: 'cibil-slider',
-            timestamp: Date.now(),
-          },
-        ]);
+        router.push('/onboarding/loan-planner');
         return;
       }
 
@@ -1121,12 +1100,12 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  sendMessage('Plan Your Loan');
+                  router.push('/onboarding/loan-planner');
                 }}
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
-                  <Landmark size={14} color={Colors.white} strokeWidth={2} />
+                  <IndianRupee size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText}>Plan Your Loan</Text>
                 </Animated.View>
               </Pressable>
