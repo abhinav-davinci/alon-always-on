@@ -125,10 +125,16 @@ export function calculateEligibility(
 }
 
 // ── Format helpers ──
+// For large amounts (property prices, loan amounts): ₹1.35 Cr, ₹80 L
 export function formatINR(amount: number): string {
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
   if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)} L`;
   return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+// For monthly amounts (EMI, income): always full number ₹87,400
+export function formatEMI(amount: number): string {
+  return `₹${Math.round(amount).toLocaleString('en-IN')}`;
 }
 
 export function formatINRShort(amount: number): string {

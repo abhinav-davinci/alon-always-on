@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
-import { EligibilityResult, formatINR } from '../utils/financeCalc';
+import { EligibilityResult, formatINR, formatEMI } from '../utils/financeCalc';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { parsePriceToNumber } from '../utils/compareScore';
 
@@ -49,7 +49,7 @@ export default function EligibilityResultCard({ result, cibilScore, likedPropert
         <View style={styles.resultDivider} />
         <View style={styles.resultItem}>
           <Text style={styles.resultLabel}>Max EMI</Text>
-          <Text style={styles.resultValue}>{formatINR(result.maxEMI)}/mo</Text>
+          <Text style={styles.resultValue}>{formatEMI(result.maxEMI)}/mo</Text>
         </View>
         <View style={styles.resultDivider} />
         <View style={styles.resultItem}>

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
-import { calculateEMI, formatINR, getInterestRate, getLoanAmount } from '../utils/financeCalc';
+import { calculateEMI, formatINR, formatEMI, getInterestRate, getLoanAmount } from '../utils/financeCalc';
 import { DEFAULT_TENURE } from '../constants/financeData';
 
 interface FinanceEMICardProps {
@@ -34,7 +34,7 @@ export default function FinanceEMICard({ propertyPrice, cibilScore, propertyName
       {/* EMI Result */}
       <View style={styles.emiResult}>
         <Text style={styles.emiLabel}>Monthly EMI</Text>
-        <Text style={styles.emiAmount}>{formatINR(emi)}</Text>
+        <Text style={styles.emiAmount}>{formatEMI(emi)}</Text>
       </View>
 
       {/* Loan Amount Slider */}

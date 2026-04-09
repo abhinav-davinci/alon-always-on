@@ -35,6 +35,7 @@ import {
   calculateAcquisitionCost,
   calculateEligibility,
   formatINR,
+  formatEMI,
 } from '../../utils/financeCalc';
 import {
   getCibilBracket,
@@ -117,28 +118,23 @@ export default function LoanPlannerScreen() {
 
   // ── Derived values ──
   const selectedProp = selectedId ? properties.find(p => p.id === selectedId) : null;
-  const propertyPrice = useCustom
-    ? (parseFloat(customAmount) || 0) * 100000  // input in lakhs
-    : (selectedProp?.price || 0);
+  // Custom amount input is in lakhs — multiply by 100000
+  const customPrice = (parseFloat(customAmount) || 0) * 100000;
+  const propertyPrice = useCustom ? customPrice : (selectedProp?.price || 0);
   const propertyName = useCustom ? undefined : selectedProp?.name;
-  const effectiveCibil = cibilScore ?? (cibilSkipped ? DEFAULT_CIBIL : DEFAULT_CIBIL);
+  const effectiveCibil = cibilScore ?? DEFAULT_CIBIL;
   const rate = getInterestRate(effectiveCibil);
 
-  // EMI state
-  const defaultLoan = getLoanAmount(propertyPrice);
-  const [loanAmount, setLoanAmount] = useState(defaultLoan);
+  // EMI state — reactive to property price changes
+  const [loanAmount, setLoanAmount] = useState(getLoanAmount(propertyPrice));
   const [tenure, setTenure] = useState(DEFAULT_TENURE);
   const [emiRate, setEmiRate] = useState(rate);
 
-  // Recalculate when property changes
-  const recalcLoan = useMemo(() => getLoanAmount(propertyPrice), [propertyPrice]);
-  if (Math.abs(recalcLoan - loanAmount) > 100000 && recalcLoan > 0 && loanAmount === defaultLoan) {
-    // Auto-update on first render or property switch — handled via key
-  }
-
-  const emi = calculateEMI(loanAmount || recalcLoan, emiRate, tenure);
+  // Actual loan amount used for calculations — always derived
+  const activeLoan = propertyPrice > 0 ? loanAmount : 0;
+  const emi = calculateEMI(activeLoan, emiRate, tenure);
   const totalPayable = emi * tenure * 12;
-  const totalInterest = totalPayable - (loanAmount || recalcLoan);
+  const totalInterest = totalPayable - activeLoan;
 
   const selectProperty = (id: string) => {
     haptics.selection();
@@ -154,6 +150,9 @@ export default function LoanPlannerScreen() {
     haptics.selection();
     setUseCustom(true);
     setSelectedId(null);
+    if (customPrice > 0) {
+      setLoanAmount(getLoanAmount(customPrice));
+    }
   };
 
   const confirmCibil = (score: number) => {
@@ -263,23 +262,29 @@ export default function LoanPlannerScreen() {
         {/* Custom amount input */}
         {useCustom && (
           <Animated.View style={styles.customInputRow} entering={FadeInDown.duration(200)}>
-            <Text style={styles.customInputLabel}>Loan amount (in Lakhs)</Text>
+            <Text style={styles.customInputLabel}>Property price (in Lakhs)</Text>
             <View style={styles.customInputWrap}>
               <Text style={styles.customInputPrefix}>₹</Text>
               <TextInput
                 style={styles.customInput}
-                placeholder="e.g. 80 for ₹80L"
+                placeholder="e.g. 135 for ₹1.35 Cr"
                 placeholderTextColor={Colors.warm300}
                 keyboardType="numeric"
                 value={customAmount}
                 onChangeText={(v) => {
                   setCustomAmount(v);
                   const parsed = parseFloat(v) || 0;
-                  setLoanAmount(getLoanAmount(parsed * 100000));
+                  const price = parsed * 100000;
+                  setLoanAmount(getLoanAmount(price));
                 }}
               />
               <Text style={styles.customInputSuffix}>Lakhs</Text>
             </View>
+            {customPrice > 0 && (
+              <Text style={styles.customInputHint}>
+                Property: {formatINR(customPrice)} · Loan (80%): {formatINR(getLoanAmount(customPrice))}
+              </Text>
+            )}
           </Animated.View>
         )}
 
@@ -368,17 +373,17 @@ export default function LoanPlannerScreen() {
             {/* EMI Result */}
             <View style={styles.emiResultBox}>
               <Text style={styles.emiResultLabel}>Monthly EMI</Text>
-              <Text style={styles.emiResultAmount}>{formatINR(emi)}</Text>
+              <Text style={styles.emiResultAmount}>{formatEMI(emi)}</Text>
               {propertyName && <Text style={styles.emiResultSub}>for {propertyName}</Text>}
             </View>
 
             {/* Loan Amount */}
             <SliderRow
               label="Loan amount"
-              value={loanAmount || recalcLoan}
-              displayValue={formatINR(loanAmount || recalcLoan)}
+              value={activeLoan}
+              displayValue={formatINR(activeLoan)}
               min={500000}
-              max={Math.max(propertyPrice * 1.2, 20000000)}
+              max={Math.max(propertyPrice, 20000000)}
               step={100000}
               onChange={setLoanAmount}
               color={Colors.terra500}
@@ -553,7 +558,7 @@ export default function LoanPlannerScreen() {
                     <View style={styles.eligResultDivider} />
                     <View style={styles.eligResultItem}>
                       <Text style={styles.eligResultLabel}>Max EMI</Text>
-                      <Text style={styles.eligResultValue}>{formatINR(result.maxEMI)}/mo</Text>
+                      <Text style={styles.eligResultValue}>{formatEMI(result.maxEMI)}/mo</Text>
                     </View>
                     <View style={styles.eligResultDivider} />
                     <View style={styles.eligResultItem}>
@@ -736,6 +741,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.warm50, borderWidth: 1, borderColor: Colors.warm200,
     borderTopRightRadius: 12, borderBottomRightRadius: 12,
     paddingHorizontal: 12, paddingVertical: 13, borderLeftWidth: 0,
+  },
+  customInputHint: {
+    fontSize: 11, fontFamily: 'DMSans-Medium', color: Colors.terra500, marginTop: 6,
   },
 
   // ── CIBIL ──
