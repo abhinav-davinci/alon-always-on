@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   propertyCard: {
     width: 110, borderRadius: 14, padding: 8,
     backgroundColor: Colors.warm50, borderWidth: 1.5, borderColor: Colors.warm100,
-    alignItems: 'center', position: 'relative',
+    alignItems: 'center', position: 'relative', overflow: 'visible',
   },
   propertyCardSelected: { borderColor: Colors.terra500, backgroundColor: Colors.terra50 },
   propertyCardImg: { width: 94, height: 54, borderRadius: 8, marginBottom: 6, backgroundColor: Colors.warm100 },
@@ -712,7 +712,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.warm200, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4,
   },
   userBadgeText: { fontSize: 7, fontFamily: 'DMSans-SemiBold', color: Colors.warm600 },
-  selectedCheck: { position: 'absolute', top: 4, left: 4 },
+  selectedCheck: {
+    position: 'absolute', top: 6, left: 6, zIndex: 5,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2,
+    elevation: 3,
+  },
   customCard: { justifyContent: 'center' },
   customIconWrap: {
     width: 36, height: 36, borderRadius: 18,
