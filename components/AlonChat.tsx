@@ -29,6 +29,7 @@ import StagePinnedContent from './StagePinnedContent';
 import FinanceEMICard from './FinanceEMICard';
 import CostBreakdownCard from './CostBreakdownCard';
 import EligibilityResultCard from './EligibilityResultCard';
+import CibilSliderCard from './CibilSliderCard';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
@@ -39,7 +40,7 @@ import { Landmark } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'alon' | 'card' | 'property-carousel' | 'finance-emi' | 'finance-cost' | 'finance-eligibility' | 'cibil-prompt';
+  type: 'user' | 'alon' | 'card' | 'property-carousel' | 'finance-emi' | 'finance-cost' | 'finance-eligibility' | 'cibil-prompt' | 'cibil-slider';
   text?: string;
   card?: { title: string; items: string[] };
   properties?: Property[];
@@ -177,10 +178,6 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const prompts = (() => {
     if (stage === 'Compare' && likedPropertyIds.length < 2) {
       return ['How to compare properties?', 'Browse top matches', 'What is ALON\'s Pick?'];
-    }
-    const state = useOnboardingStore.getState();
-    if (stage === 'Finance' && !state.cibilScore && !state.cibilSkipped) {
-      return ['I know my score', 'I don\'t know my score', 'Skip for now'];
     }
     return STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
   })();
@@ -322,32 +319,25 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
     lastLikedCount.current = likedPropertyIds.length;
   }, [likedPropertyIds.length]);
 
-  // ── Finance: CIBIL collection prompt when entering Finance stage ──
-  const financeCibilPrompted = useRef(false);
+  // ── Finance: welcoming message when entering Finance stage ──
+  const financePrompted = useRef(false);
   useEffect(() => {
-    if (stage === 'Finance' && !financeCibilPrompted.current) {
-      financeCibilPrompted.current = true;
+    if (stage === 'Finance' && !financePrompted.current) {
+      financePrompted.current = true;
       const state = useOnboardingStore.getState();
-      if (!state.cibilScore && !state.cibilSkipped) {
-        const cibilMsg: ChatMessage = {
-          id: `cibil-prompt-${Date.now()}`,
-          type: 'cibil-prompt',
-          text: 'Before we dive into financing, I need your CIBIL score. This helps me give you accurate interest rates, loan eligibility, and bank recommendations.',
+      if (state.cibilScore) {
+        const rate = getInterestRate(state.cibilScore);
+        setMessages(prev => [...prev, {
+          id: `finance-welcome-${Date.now()}`, type: 'alon',
+          text: `Welcome to Finance! With your CIBIL score of ${state.cibilScore}, you can expect rates around ${rate.toFixed(1)}%. Let's calculate your EMI, check eligibility, or see the total acquisition cost.`,
           timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, cibilMsg]);
+        }]);
       } else {
-        const score = state.cibilScore;
-        const rate = getInterestRate(score);
-        const welcomeMsg: ChatMessage = {
-          id: `finance-welcome-${Date.now()}`,
-          type: 'alon',
-          text: score
-            ? `Welcome to Finance! With your CIBIL score of ${score}, you can expect interest rates around ${rate.toFixed(1)}%. Let's calculate your EMI, check eligibility, or see the total cost of your shortlisted properties.`
-            : `Welcome to Finance! I'm using an estimated CIBIL of 750 for calculations. You can update your score anytime for more accurate results.`,
+        setMessages(prev => [...prev, {
+          id: `finance-welcome-${Date.now()}`, type: 'alon',
+          text: 'Let\'s plan your home loan. I can calculate your EMI, check eligibility, and show you the real cost of buying. Tap "Plan Your Loan" below to get started!',
           timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, welcomeMsg]);
+        }]);
       }
     }
   }, [stage]);
@@ -652,46 +642,30 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         }
       }
 
-      // ── Finance: CIBIL input handling ──
-      if (text === 'I know my score') {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(), type: 'alon',
-          text: 'Great! Enter your CIBIL score (300–900) in the chat below.',
-          timestamp: Date.now(),
-        }]);
-        return;
-      }
-      // Handle raw CIBIL score input (3-digit number)
-      const cibilInput = parseInt(text, 10);
-      if (!isNaN(cibilInput) && cibilInput >= 300 && cibilInput <= 900 && !currentState.cibilScore && stage === 'Finance') {
-        const { setCibilScore } = useOnboardingStore.getState();
-        setCibilScore(cibilInput);
-        const rate = getInterestRate(cibilInput);
-        const bracket = cibilInput >= 750 ? 'Excellent' : cibilInput >= 700 ? 'Good' : cibilInput >= 650 ? 'Fair' : 'Below average';
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(), type: 'alon',
-          text: `Got it — CIBIL score ${cibilInput} (${bracket}). Your expected interest rate is around ${rate.toFixed(1)}% p.a. Now I can give you personalized EMI calculations, eligibility estimates, and cost breakdowns. What would you like to know first?`,
-          timestamp: Date.now(),
-        }]);
-        return;
-      }
-      if (text === 'I don\'t know my score') {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(), type: 'alon',
-          text: 'No worries! You can check your CIBIL score for free on:\n\n• Paisabazaar — paisabazaar.com/cibil-score\n• CRED — cred.club/cibil-score\n• OneScore — onescore.app\n\nCheck your score and come back — or tap "Skip for now" and I\'ll use an estimated score of 750.',
-          timestamp: Date.now(),
-        }]);
-        return;
-      }
-      if (text === 'Skip for now') {
-        const { setCibilSkipped } = useOnboardingStore.getState();
-        setCibilSkipped(true);
-        const rate = getInterestRate(null);
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(), type: 'alon',
-          text: `No problem — I'll use an estimated CIBIL of 750 for now (${rate.toFixed(1)}% rate). All calculations will be flagged as estimates. You can update your score anytime.\n\nWhat would you like to explore?`,
-          timestamp: Date.now(),
-        }]);
+      // ── Finance: "Plan Your Loan" triggers CIBIL slider ──
+      if (text === 'Plan Your Loan') {
+        if (currentState.cibilScore) {
+          // Already have CIBIL — go straight to prompts
+          const rate = getInterestRate(currentState.cibilScore);
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: `Your CIBIL score is ${currentState.cibilScore} (${rate.toFixed(1)}% rate). What would you like to explore — EMI calculator, total cost breakdown, or loan eligibility?`,
+            timestamp: Date.now(),
+          }]);
+          return;
+        }
+        // Show CIBIL slider
+        setMessages(prev => [...prev,
+          {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: 'Great, let\'s plan your loan! First, roughly where\'s your CIBIL score? Drag the slider or tap "I don\'t know" to use an estimate.',
+            timestamp: Date.now(),
+          },
+          {
+            id: `cibil-slider-${Date.now()}`, type: 'cibil-slider',
+            timestamp: Date.now(),
+          },
+        ]);
         return;
       }
 
@@ -931,6 +905,35 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
               </Animated.View>
             );
           }
+          if (msg.type === 'cibil-slider') {
+            return (
+              <CibilSliderCard
+                key={msg.id}
+                onConfirm={(score) => {
+                  const { setCibilScore } = useOnboardingStore.getState();
+                  setCibilScore(score);
+                  haptics.success();
+                  const rate = getInterestRate(score);
+                  const bracket = score >= 750 ? 'Excellent' : score >= 700 ? 'Good' : score >= 650 ? 'Fair' : 'Below average';
+                  setMessages(prev => [...prev, {
+                    id: `cibil-confirmed-${Date.now()}`, type: 'alon',
+                    text: `CIBIL ${score} — ${bracket}. Your expected rate is ${rate.toFixed(1)}% p.a. Now let's plan your loan. What would you like to explore first?`,
+                    timestamp: Date.now(),
+                  }]);
+                }}
+                onSkip={() => {
+                  const { setCibilSkipped } = useOnboardingStore.getState();
+                  setCibilSkipped(true);
+                  haptics.light();
+                  setMessages(prev => [...prev, {
+                    id: `cibil-skipped-${Date.now()}`, type: 'alon',
+                    text: 'No worries — I\'ll use an estimated CIBIL of 750. All calculations will note this is an estimate. You can update anytime.\n\nWhat would you like to explore?',
+                    timestamp: Date.now(),
+                  }]);
+                }}
+              />
+            );
+          }
           if (msg.type === 'finance-emi' && msg.financeData) {
             return (
               <FinanceEMICard
@@ -1111,29 +1114,20 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           );
         }
 
-        // ── Finance stage: "Calculate EMI" ──
+        // ── Finance stage: "Plan Your Loan" ──
         if (stage === 'Finance') {
-          const finState = useOnboardingStore.getState();
-          const hasCibil = !!finState.cibilScore || finState.cibilSkipped;
           return (
             <Animated.View entering={FadeIn.duration(250)}>
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  if (!hasCibil) {
-                    // Scroll to CIBIL prompt
-                    scrollRef.current?.scrollToEnd({ animated: true });
-                  } else {
-                    sendMessage('EMI calculator');
-                  }
+                  sendMessage('Plan Your Loan');
                 }}
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
                   <Landmark size={14} color={Colors.white} strokeWidth={2} />
-                  <Text style={styles.stageCtaText}>
-                    {hasCibil ? 'Calculate EMI' : 'Enter CIBIL Score'}
-                  </Text>
+                  <Text style={styles.stageCtaText}>Plan Your Loan</Text>
                 </Animated.View>
               </Pressable>
             </Animated.View>
