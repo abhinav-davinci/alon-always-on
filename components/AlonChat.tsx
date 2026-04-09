@@ -35,7 +35,7 @@ import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
-import { calculateEligibility, getInterestRate } from '../utils/financeCalc';
+import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
 import { Landmark, IndianRupee } from 'lucide-react-native';
 
 interface ChatMessage {
@@ -67,7 +67,7 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Shortlist: ['Is this property safe?', 'Compare my shortlist', 'Check for conflicts'],
   'Site Visits': ['Schedule a visit', 'Site visit checklist', 'What to inspect?'],
   Compare: ['Compare top 3', 'Which has best ROI?', 'Price vs market data'],
-  Finance: ['EMI calculator', 'Total cost breakdown', 'Check my eligibility'],
+  Finance: ['How home loans work', 'What CIBIL score do I need?', 'Hidden charges to watch'],
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
   Negotiate: ['Fair price analysis', 'Negotiation strategy', 'Market leverage data'],
   'Deal Closure': ['Deal timeline', 'Pending documents', 'Upcoming deadlines'],
@@ -111,13 +111,6 @@ const DEMO_RESPONSES: Record<string, { text: string; card?: { title: string; ite
   },
   'How to compare properties?': {
     text: 'To start comparing, head to your Shortlist and tap ♡ on at least 2 properties you like. Once shortlisted, tap the "Compare" button and I\'ll build a detailed side-by-side analysis with match scores, market data, and my recommendation.',
-  },
-  'Best loan options': {
-    text: 'Based on a ₹1 Cr loan amount at 80% LTV, here are the best rates I found:',
-    card: {
-      title: 'Top loan offers',
-      items: ['SBI · 8.40% · ₹76,500/mo EMI', 'HDFC · 8.55% · ₹77,200/mo EMI', 'ICICI · 8.60% · ₹77,400/mo EMI'],
-    },
   },
 };
 
@@ -178,6 +171,36 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const prompts = (() => {
     if (stage === 'Compare' && likedPropertyIds.length < 2) {
       return ['How to compare properties?', 'Browse top matches', 'What is ALON\'s Pick?'];
+    }
+    // Dynamic Finance prompts based on user state
+    if (stage === 'Finance') {
+      const fs = useOnboardingStore.getState();
+      const hasCibil = !!fs.cibilScore || fs.cibilSkipped;
+      const hasIncome = !!fs.monthlyIncome;
+      const hasLiked = likedPropertyIds.length > 0;
+      const cibilPoor = fs.cibilScore !== null && fs.cibilScore < 650;
+
+      if (!hasCibil) {
+        return ['How home loans work', 'What CIBIL score do I need?', 'Plan Your Loan'];
+      }
+      if (cibilPoor) {
+        return ['How to improve my CIBIL', 'Can I still get a loan?', 'Plan Your Loan'];
+      }
+      if (hasCibil && !hasIncome) {
+        return ['Am I eligible for a home loan?', 'How to improve my rate?', 'Hidden charges to watch'];
+      }
+      if (hasIncome && hasLiked) {
+        const propName = SHORTLIST_PROPERTIES.find(p => p.id === likedPropertyIds[0])?.name;
+        return [
+          propName ? `Can I afford ${propName}?` : 'Can I afford my shortlist?',
+          'Fixed vs floating rate?',
+          'How to reduce my EMI?',
+        ];
+      }
+      if (hasIncome) {
+        return ['Which bank is best for me?', 'Fixed vs floating rate?', 'How to reduce my EMI?'];
+      }
+      return STAGE_PROMPTS.Finance;
     }
     return STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
   })();
@@ -648,110 +671,91 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         return;
       }
 
-      // ── Finance: EMI Calculator ──
-      if (text === 'EMI calculator') {
-        const cibil = currentState.cibilScore;
-        // Pick the most recently liked property for pre-fill
-        const targetProp = likedProps.length > 0 ? likedProps[likedProps.length - 1] : SHORTLIST_PROPERTIES[0];
-        const propPrice = parsePriceToNumber(targetProp.price);
-        setMessages(prev => [...prev,
-          {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: `Here's your personalized EMI calculator${cibil ? ` based on your CIBIL score of ${cibil}` : ' (using estimated CIBIL 750)'}. Adjust the sliders to explore different scenarios.`,
-            timestamp: Date.now(),
-          },
-          {
-            id: (Date.now() + 2).toString(), type: 'finance-emi',
-            timestamp: Date.now(),
-            financeData: { propertyPrice: propPrice, propertyName: targetProp.name, cibilScore: cibil },
-          },
-        ]);
-        return;
-      }
-
-      // ── Finance: Total cost breakdown ──
-      if (text === 'Total cost breakdown') {
-        const targetProp = likedProps.length > 0 ? likedProps[likedProps.length - 1] : SHORTLIST_PROPERTIES[0];
-        const propPrice = parsePriceToNumber(targetProp.price);
-        setMessages(prev => [...prev,
-          {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: `Most buyers don't realize a listed price of ${targetProp.price} isn't what you'll actually pay. Here's the full picture:`,
-            timestamp: Date.now(),
-          },
-          {
-            id: (Date.now() + 2).toString(), type: 'finance-cost',
-            timestamp: Date.now(),
-            financeData: { propertyPrice: propPrice, propertyName: targetProp.name },
-          },
-        ]);
-        return;
-      }
-
-      // ── Finance: Eligibility check ──
-      if (text === 'Check my eligibility') {
-        const cibil = currentState.cibilScore;
-        const income = currentState.monthlyIncome;
-        const emis = currentState.existingEMIs;
-        if (!income) {
-          // Need to collect income first
-          setMessages(prev => [...prev, {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: 'To check your loan eligibility, I need a few details. What\'s your monthly take-home salary (in ₹)? Just type the number, e.g. 150000.',
-            timestamp: Date.now(),
-          }]);
-          return;
-        }
-        // Calculate and show result
-        const result = calculateEligibility(income, emis, cibil);
-        setMessages(prev => [...prev,
-          {
-            id: (Date.now() + 1).toString(), type: 'alon',
-            text: `Based on your income of ${formatIncomeINR(income)}/month${cibil ? ` and CIBIL score of ${cibil}` : ''}, here's your eligibility:`,
-            timestamp: Date.now(),
-          },
-          {
-            id: (Date.now() + 2).toString(), type: 'finance-eligibility',
-            timestamp: Date.now(),
-            financeData: { eligibilityResult: result, cibilScore: cibil, likedPropertyIds: currentLikedIds },
-          },
-        ]);
-        return;
-      }
-
-      // ── Finance: Handle income/EMI input for eligibility ──
-      const incomeInput = parseInt(text.replace(/[₹,\s]/g, ''), 10);
-      if (!isNaN(incomeInput) && incomeInput >= 10000 && incomeInput <= 10000000 && stage === 'Finance' && !currentState.monthlyIncome) {
-        const { setMonthlyIncome } = useOnboardingStore.getState();
-        setMonthlyIncome(incomeInput);
+      // ── Finance: Redirect tool prompts to Loan Planner ──
+      if (['EMI calculator', 'Total cost breakdown', 'Check my eligibility'].includes(text)) {
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(), type: 'alon',
-          text: `Got it — ₹${incomeInput.toLocaleString('en-IN')}/month. Do you have any existing EMIs (car loan, personal loan, credit card)? If yes, enter the total monthly EMI amount. If none, type 0.`,
+          text: 'I\'ve built a Loan Planner with all of that — EMI calculator, cost breakdown, and eligibility check in one place. Let me take you there.',
           timestamp: Date.now(),
         }]);
+        setTimeout(() => router.push('/onboarding/loan-planner'), 800);
         return;
       }
-      // Handle existing EMI input
-      if (stage === 'Finance' && currentState.monthlyIncome && !currentState.existingEMIs && currentState.existingEMIs !== 0) {
-        const emiInput = parseInt(text.replace(/[₹,\s]/g, ''), 10);
-        if (!isNaN(emiInput) && emiInput >= 0) {
-          const { setExistingEMIs } = useOnboardingStore.getState();
-          setExistingEMIs(emiInput);
-          const cibil = currentState.cibilScore;
-          const result = calculateEligibility(currentState.monthlyIncome, emiInput, cibil);
-          setMessages(prev => [...prev,
-            {
-              id: (Date.now() + 1).toString(), type: 'alon',
-              text: `Perfect. With ₹${currentState.monthlyIncome.toLocaleString('en-IN')}/month income and ₹${emiInput.toLocaleString('en-IN')} in existing EMIs, here's your eligibility:`,
-              timestamp: Date.now(),
-            },
-            {
-              id: (Date.now() + 2).toString(), type: 'finance-eligibility',
-              timestamp: Date.now(),
-              financeData: { eligibilityResult: result, cibilScore: cibil, likedPropertyIds: currentLikedIds },
-            },
-          ]);
-          return;
+
+      // ── Finance: Advisor responses ──
+      if (text === 'How home loans work') {
+        response = {
+          text: 'Here\'s the basics:\n\n1. You pay 20% as down payment, bank funds the rest\n2. EMI = principal + interest, paid monthly for 15-30 years\n3. Interest rate depends on your CIBIL score (higher score = lower rate)\n4. Banks check your FOIR — they won\'t let EMIs exceed ~50% of your income\n5. You\'ll also pay stamp duty (5%), registration (1%), and legal fees on top\n\nTap "Plan Your Loan" to see real numbers for your situation.',
+        };
+      }
+      if (text === 'What CIBIL score do I need?') {
+        response = {
+          text: 'For home loans in India:\n\n• 750+ — Excellent. Best rates (~8.5%), instant approvals\n• 700-749 — Good. Slightly higher rates (~8.75%), most banks approve\n• 650-699 — Fair. Rates jump (~9.25%), fewer bank options\n• Below 650 — Tough. High rates, may need co-applicant or larger down payment\n\nMost banks need minimum 650 for home loans. You can check your score free on Paisabazaar or CRED.',
+        };
+      }
+      if (text === 'Hidden charges to watch') {
+        response = {
+          text: 'Beyond the listed price, expect these:\n\n• Stamp duty — 5% in Maharashtra (non-negotiable)\n• Registration — 1%\n• GST — 5% if under-construction (1% for affordable housing)\n• Processing fee — 0.25-0.50% of loan amount\n• Legal charges — ₹15,000-30,000\n• Society transfer — ₹25,000-50,000 (resale only)\n• Parking — often ₹3-5L extra, not included in listed price\n\nA ₹1Cr property typically costs ₹1.08-1.12Cr all-in. Use the Loan Planner to see your exact numbers.',
+        };
+      }
+      if (text === 'How to improve my rate?') {
+        const cibil = currentState.cibilScore;
+        response = {
+          text: `Here\'s how to get a better rate${cibil ? ` (you\'re at ${cibil} now)` : ''}:\n\n• Improve CIBIL to 750+ — clear pending credit card dues, avoid new credit\n• Add a co-applicant (spouse/parent) — banks see combined income + best score\n• Choose a bank where you have a salary account — 0.05-0.10% discount\n• Opt for floating rate — usually 0.15-0.25% lower than fixed\n• Negotiate — banks have wiggle room, especially for 750+ scores\n• Compare at least 3 banks — rates vary significantly`,
+        };
+      }
+      if (text === 'How to improve my CIBIL') {
+        response = {
+          text: 'To improve your CIBIL score:\n\n• Pay all credit card bills in full before due date\n• Keep credit utilization below 30% of limit\n• Don\'t apply for multiple loans/cards at once (each inquiry drops score)\n• Keep old credit cards active (length of credit history matters)\n• Check your CIBIL report for errors — dispute any incorrect entries\n\nTypically takes 3-6 months to see improvement. If you need a loan sooner, a co-applicant with a higher score is the fastest workaround.',
+        };
+      }
+      if (text === 'Can I still get a loan?') {
+        const cibil = currentState.cibilScore;
+        response = {
+          text: `Yes, but with conditions${cibil ? ` (at CIBIL ${cibil})` : ''}:\n\n• Interest rates will be 1-2% higher than the best rates\n• You may need a larger down payment (25-30% instead of 20%)\n• Adding a co-applicant with a good score helps significantly\n• Some NBFCs (Bajaj, Tata Capital) are more flexible than traditional banks\n• Consider a smaller loan amount to improve approval chances\n\nI\'d recommend improving your score to 700+ before applying. Open the Loan Planner to see what you qualify for today.`,
+        };
+      }
+      if (text === 'Am I eligible for a home loan?' || text.startsWith('Am I eligible')) {
+        if (!currentState.monthlyIncome) {
+          response = { text: 'I need your income details to check eligibility. Open the Loan Planner — the Eligibility tab has a quick form where you can enter your income and existing EMIs, and I\'ll calculate your max loan amount instantly.' };
+        } else {
+          const result = calculateEligibility(currentState.monthlyIncome, currentState.existingEMIs || 0, currentState.cibilScore);
+          response = { text: `Based on your income of ${formatIncomeINR(currentState.monthlyIncome)}/month, you're eligible for up to ${formatINR(result.maxLoanAmount)} in home loans (max property ~${formatINR(result.maxPropertyPrice)}). Open the Loan Planner to see how this compares against your shortlisted properties.` };
+        }
+      }
+      if (text === 'Fixed vs floating rate?') {
+        response = {
+          text: 'For most home buyers, floating rate is better:\n\n• Floating — starts lower, moves with RBI repo rate. You benefit when rates drop.\n• Fixed — locked rate for 2-5 years, then usually resets to floating anyway.\n\nHistorically, floating rates have been cheaper over 15-20 year horizons. The "safety" of fixed rate is largely an illusion since banks reset it after the lock-in period.\n\nMy recommendation: Go floating, but keep some buffer in your budget for rate hikes.',
+        };
+      }
+      if (text === 'How to reduce my EMI?' || text === 'Can I reduce my EMI?') {
+        response = {
+          text: 'Several ways to lower your monthly EMI:\n\n1. Increase tenure — 25 years instead of 20 drops EMI ~8%, but you pay more interest overall\n2. Larger down payment — every extra ₹1L down saves ~₹900/month on EMI\n3. Improve CIBIL — going from 700 to 770 can save ₹1,500-2,000/month on a ₹1Cr loan\n4. Add a co-applicant — boosts eligible loan amount + may get better rate\n5. Negotiate the property price — even a 2-3% discount saves ₹2,000-3,000/month\n\nUse the Loan Planner sliders to see exactly how each change affects your EMI.',
+        };
+      }
+      if (text === 'Which bank is best for me?') {
+        const cibil = currentState.cibilScore;
+        const rate = getInterestRate(cibil);
+        response = {
+          text: `Based on ${cibil ? `your CIBIL score of ${cibil}` : 'an estimated CIBIL of 750'} (rate ~${rate.toFixed(1)}%):\n\n• SBI — Usually the lowest rate for salaried employees. Best if you have a salary account.\n• HDFC Bank — Fast processing, good for premium properties. Slightly higher rate.\n• ICICI — Competitive rates, good digital experience. Strong for 750+ scores.\n• Kotak — Aggressive rates for high-CIBIL customers.\n• LIC Housing — Good for longer tenures (up to 30 years).\n\nI\'d recommend applying to your salary account bank + one competitor for negotiation leverage.`,
+        };
+      }
+      // "Can I afford [property]?" — dynamic
+      if (text.startsWith('Can I afford') && likedProps.length > 0) {
+        const targetProp = likedProps[0];
+        const propPrice = parsePriceToNumber(targetProp.price);
+        if (currentState.monthlyIncome) {
+          const result = calculateEligibility(currentState.monthlyIncome, currentState.existingEMIs || 0, currentState.cibilScore);
+          const affordable = propPrice <= result.maxPropertyPrice;
+          const emiForProp = calculateEMI(getLoanAmount(propPrice), getInterestRate(currentState.cibilScore), 20);
+          const emiPercent = Math.round((emiForProp / currentState.monthlyIncome) * 100);
+          response = {
+            text: affordable
+              ? `Yes! ${targetProp.name} at ${targetProp.price} is within your eligibility. Your EMI would be ~${formatINR(emiForProp)}/month — that's ${emiPercent}% of your income. ${emiPercent > 45 ? 'It\'s on the tighter side — consider a longer tenure to ease the monthly burden.' : 'That\'s comfortable — well within the recommended 40-45% range.'}`
+              : `${targetProp.name} at ${targetProp.price} is above your current eligibility of ${formatINR(result.maxPropertyPrice)}. Options:\n\n• Increase down payment to reduce loan needed\n• Add a co-applicant to boost eligible amount\n• Consider ${likedProps.length > 1 ? likedProps[1].name + ' at ' + likedProps[1].price : 'a property in a lower price range'}\n\nOpen the Loan Planner to explore scenarios.`,
+          };
+        } else {
+          response = { text: `To check if you can afford ${targetProp.name}, I need your income details. Open the Loan Planner and fill in the Eligibility tab — I'll calculate it instantly.` };
         }
       }
 
