@@ -21,6 +21,7 @@ import {
   ChevronRight,
   TrendingUp,
   UserPlus,
+  Info,
 } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -620,6 +621,15 @@ export default function LoanPlannerScreen() {
             )}
           </Animated.View>
         )}
+
+        {/* AI Disclaimer */}
+        <View style={styles.disclaimer}>
+          <Info size={12} color={Colors.warm400} strokeWidth={1.5} />
+          <Text style={styles.disclaimerText}>
+            ALON's calculations are estimates based on publicly available rates and standard banking norms.
+            Actual loan terms may vary. Please consult your bank or a qualified financial advisor before making decisions.
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -896,4 +906,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, marginTop: 14,
   },
   eligSummaryText: { flex: 1, fontSize: 11, fontFamily: 'DMSans-Medium', color: Colors.terra600, lineHeight: 16 },
+
+  // Disclaimer
+  disclaimer: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginHorizontal: Spacing.xxl, marginTop: 24,
+    paddingHorizontal: 12, paddingVertical: 12,
+    backgroundColor: 'rgba(245,240,232,0.5)', borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.warm100,
+  },
+  disclaimerText: {
+    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 10, color: Colors.warm400, lineHeight: 15,
+  },
 });
