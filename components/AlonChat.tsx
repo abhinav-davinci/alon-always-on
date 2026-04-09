@@ -26,20 +26,33 @@ import Animated, {
 import AlonAvatar from './AlonAvatar';
 import ChatPropertyCarousel from './ChatPropertyCarousel';
 import StagePinnedContent from './StagePinnedContent';
+import FinanceEMICard from './FinanceEMICard';
+import CostBreakdownCard from './CostBreakdownCard';
+import EligibilityResultCard from './EligibilityResultCard';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
-import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY } from '../utils/compareScore';
+import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
+import { calculateEligibility, getInterestRate } from '../utils/financeCalc';
+import { Landmark } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'alon' | 'card' | 'property-carousel';
+  type: 'user' | 'alon' | 'card' | 'property-carousel' | 'finance-emi' | 'finance-cost' | 'finance-eligibility' | 'cibil-prompt';
   text?: string;
   card?: { title: string; items: string[] };
   properties?: Property[];
   isScanning?: boolean;
   timestamp: number;
+  // Finance-specific data
+  financeData?: {
+    propertyPrice?: number;
+    propertyName?: string;
+    cibilScore?: number | null;
+    eligibilityResult?: import('../utils/financeCalc').EligibilityResult;
+    likedPropertyIds?: string[];
+  };
 }
 
 interface AlonChatProps {
@@ -53,7 +66,7 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Shortlist: ['Is this property safe?', 'Compare my shortlist', 'Check for conflicts'],
   'Site Visits': ['Schedule a visit', 'Site visit checklist', 'What to inspect?'],
   Compare: ['Compare top 3', 'Which has best ROI?', 'Price vs market data'],
-  Finance: ['Best loan options', 'Check my eligibility', 'EMI calculator'],
+  Finance: ['EMI calculator', 'Total cost breakdown', 'Check my eligibility'],
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
   Negotiate: ['Fair price analysis', 'Negotiation strategy', 'Market leverage data'],
   'Deal Closure': ['Deal timeline', 'Pending documents', 'Upcoming deadlines'],
@@ -111,6 +124,11 @@ const DEFAULT_RESPONSE = {
   text: "I'm looking into that for you. Based on your preferences for properties in West Pune, I'll analyze the data and get back with specific insights.",
 };
 
+function formatIncomeINR(amount: number): string {
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
 export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const router = useRouter();
   const haptics = useHaptics();
@@ -159,6 +177,10 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   const prompts = (() => {
     if (stage === 'Compare' && likedPropertyIds.length < 2) {
       return ['How to compare properties?', 'Browse top matches', 'What is ALON\'s Pick?'];
+    }
+    const state = useOnboardingStore.getState();
+    if (stage === 'Finance' && !state.cibilScore && !state.cibilSkipped) {
+      return ['I know my score', 'I don\'t know my score', 'Skip for now'];
     }
     return STAGE_PROMPTS[stage] || STAGE_PROMPTS.Search;
   })();
@@ -299,6 +321,36 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
     }
     lastLikedCount.current = likedPropertyIds.length;
   }, [likedPropertyIds.length]);
+
+  // ── Finance: CIBIL collection prompt when entering Finance stage ──
+  const financeCibilPrompted = useRef(false);
+  useEffect(() => {
+    if (stage === 'Finance' && !financeCibilPrompted.current) {
+      financeCibilPrompted.current = true;
+      const state = useOnboardingStore.getState();
+      if (!state.cibilScore && !state.cibilSkipped) {
+        const cibilMsg: ChatMessage = {
+          id: `cibil-prompt-${Date.now()}`,
+          type: 'cibil-prompt',
+          text: 'Before we dive into financing, I need your CIBIL score. This helps me give you accurate interest rates, loan eligibility, and bank recommendations.',
+          timestamp: Date.now(),
+        };
+        setMessages(prev => [...prev, cibilMsg]);
+      } else {
+        const score = state.cibilScore;
+        const rate = getInterestRate(score);
+        const welcomeMsg: ChatMessage = {
+          id: `finance-welcome-${Date.now()}`,
+          type: 'alon',
+          text: score
+            ? `Welcome to Finance! With your CIBIL score of ${score}, you can expect interest rates around ${rate.toFixed(1)}%. Let's calculate your EMI, check eligibility, or see the total cost of your shortlisted properties.`
+            : `Welcome to Finance! I'm using an estimated CIBIL of 750 for calculations. You can update your score anytime for more accurate results.`,
+          timestamp: Date.now(),
+        };
+        setMessages(prev => [...prev, welcomeMsg]);
+      }
+    }
+  }, [stage]);
 
   // ── Send button animation ──
   const sendScale = useSharedValue(1);
@@ -600,6 +652,156 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         }
       }
 
+      // ── Finance: CIBIL input handling ──
+      if (text === 'I know my score') {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), type: 'alon',
+          text: 'Great! Enter your CIBIL score (300–900) in the chat below.',
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
+      // Handle raw CIBIL score input (3-digit number)
+      const cibilInput = parseInt(text, 10);
+      if (!isNaN(cibilInput) && cibilInput >= 300 && cibilInput <= 900 && !currentState.cibilScore && stage === 'Finance') {
+        const { setCibilScore } = useOnboardingStore.getState();
+        setCibilScore(cibilInput);
+        const rate = getInterestRate(cibilInput);
+        const bracket = cibilInput >= 750 ? 'Excellent' : cibilInput >= 700 ? 'Good' : cibilInput >= 650 ? 'Fair' : 'Below average';
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), type: 'alon',
+          text: `Got it — CIBIL score ${cibilInput} (${bracket}). Your expected interest rate is around ${rate.toFixed(1)}% p.a. Now I can give you personalized EMI calculations, eligibility estimates, and cost breakdowns. What would you like to know first?`,
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
+      if (text === 'I don\'t know my score') {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), type: 'alon',
+          text: 'No worries! You can check your CIBIL score for free on:\n\n• Paisabazaar — paisabazaar.com/cibil-score\n• CRED — cred.club/cibil-score\n• OneScore — onescore.app\n\nCheck your score and come back — or tap "Skip for now" and I\'ll use an estimated score of 750.',
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
+      if (text === 'Skip for now') {
+        const { setCibilSkipped } = useOnboardingStore.getState();
+        setCibilSkipped(true);
+        const rate = getInterestRate(null);
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), type: 'alon',
+          text: `No problem — I'll use an estimated CIBIL of 750 for now (${rate.toFixed(1)}% rate). All calculations will be flagged as estimates. You can update your score anytime.\n\nWhat would you like to explore?`,
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
+
+      // ── Finance: EMI Calculator ──
+      if (text === 'EMI calculator') {
+        const cibil = currentState.cibilScore;
+        // Pick the most recently liked property for pre-fill
+        const targetProp = likedProps.length > 0 ? likedProps[likedProps.length - 1] : SHORTLIST_PROPERTIES[0];
+        const propPrice = parsePriceToNumber(targetProp.price);
+        setMessages(prev => [...prev,
+          {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: `Here's your personalized EMI calculator${cibil ? ` based on your CIBIL score of ${cibil}` : ' (using estimated CIBIL 750)'}. Adjust the sliders to explore different scenarios.`,
+            timestamp: Date.now(),
+          },
+          {
+            id: (Date.now() + 2).toString(), type: 'finance-emi',
+            timestamp: Date.now(),
+            financeData: { propertyPrice: propPrice, propertyName: targetProp.name, cibilScore: cibil },
+          },
+        ]);
+        return;
+      }
+
+      // ── Finance: Total cost breakdown ──
+      if (text === 'Total cost breakdown') {
+        const targetProp = likedProps.length > 0 ? likedProps[likedProps.length - 1] : SHORTLIST_PROPERTIES[0];
+        const propPrice = parsePriceToNumber(targetProp.price);
+        setMessages(prev => [...prev,
+          {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: `Most buyers don't realize a listed price of ${targetProp.price} isn't what you'll actually pay. Here's the full picture:`,
+            timestamp: Date.now(),
+          },
+          {
+            id: (Date.now() + 2).toString(), type: 'finance-cost',
+            timestamp: Date.now(),
+            financeData: { propertyPrice: propPrice, propertyName: targetProp.name },
+          },
+        ]);
+        return;
+      }
+
+      // ── Finance: Eligibility check ──
+      if (text === 'Check my eligibility') {
+        const cibil = currentState.cibilScore;
+        const income = currentState.monthlyIncome;
+        const emis = currentState.existingEMIs;
+        if (!income) {
+          // Need to collect income first
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: 'To check your loan eligibility, I need a few details. What\'s your monthly take-home salary (in ₹)? Just type the number, e.g. 150000.',
+            timestamp: Date.now(),
+          }]);
+          return;
+        }
+        // Calculate and show result
+        const result = calculateEligibility(income, emis, cibil);
+        setMessages(prev => [...prev,
+          {
+            id: (Date.now() + 1).toString(), type: 'alon',
+            text: `Based on your income of ${formatIncomeINR(income)}/month${cibil ? ` and CIBIL score of ${cibil}` : ''}, here's your eligibility:`,
+            timestamp: Date.now(),
+          },
+          {
+            id: (Date.now() + 2).toString(), type: 'finance-eligibility',
+            timestamp: Date.now(),
+            financeData: { eligibilityResult: result, cibilScore: cibil, likedPropertyIds: currentLikedIds },
+          },
+        ]);
+        return;
+      }
+
+      // ── Finance: Handle income/EMI input for eligibility ──
+      const incomeInput = parseInt(text.replace(/[₹,\s]/g, ''), 10);
+      if (!isNaN(incomeInput) && incomeInput >= 10000 && incomeInput <= 10000000 && stage === 'Finance' && !currentState.monthlyIncome) {
+        const { setMonthlyIncome } = useOnboardingStore.getState();
+        setMonthlyIncome(incomeInput);
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(), type: 'alon',
+          text: `Got it — ₹${incomeInput.toLocaleString('en-IN')}/month. Do you have any existing EMIs (car loan, personal loan, credit card)? If yes, enter the total monthly EMI amount. If none, type 0.`,
+          timestamp: Date.now(),
+        }]);
+        return;
+      }
+      // Handle existing EMI input
+      if (stage === 'Finance' && currentState.monthlyIncome && !currentState.existingEMIs && currentState.existingEMIs !== 0) {
+        const emiInput = parseInt(text.replace(/[₹,\s]/g, ''), 10);
+        if (!isNaN(emiInput) && emiInput >= 0) {
+          const { setExistingEMIs } = useOnboardingStore.getState();
+          setExistingEMIs(emiInput);
+          const cibil = currentState.cibilScore;
+          const result = calculateEligibility(currentState.monthlyIncome, emiInput, cibil);
+          setMessages(prev => [...prev,
+            {
+              id: (Date.now() + 1).toString(), type: 'alon',
+              text: `Perfect. With ₹${currentState.monthlyIncome.toLocaleString('en-IN')}/month income and ₹${emiInput.toLocaleString('en-IN')} in existing EMIs, here's your eligibility:`,
+              timestamp: Date.now(),
+            },
+            {
+              id: (Date.now() + 2).toString(), type: 'finance-eligibility',
+              timestamp: Date.now(),
+              financeData: { eligibilityResult: result, cibilScore: cibil, likedPropertyIds: currentLikedIds },
+            },
+          ]);
+          return;
+        }
+      }
+
       const alonMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'alon',
@@ -714,6 +916,48 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                   </View>
                 ))}
               </Animated.View>
+            );
+          }
+          if (msg.type === 'cibil-prompt') {
+            return (
+              <Animated.View key={msg.id} style={styles.alonRow} entering={FadeInUp.duration(300)}>
+                <View style={styles.alonAvatarWrap}>
+                  <AlonAvatar size={28} showRings={false} showBlink={false} variant="default" />
+                </View>
+                <View style={[styles.alonBubble, styles.cibilPromptBubble]}>
+                  <Landmark size={16} color={Colors.terra500} strokeWidth={2} />
+                  <Text style={styles.alonText}>{msg.text}</Text>
+                </View>
+              </Animated.View>
+            );
+          }
+          if (msg.type === 'finance-emi' && msg.financeData) {
+            return (
+              <FinanceEMICard
+                key={msg.id}
+                propertyPrice={msg.financeData.propertyPrice!}
+                cibilScore={msg.financeData.cibilScore ?? null}
+                propertyName={msg.financeData.propertyName}
+              />
+            );
+          }
+          if (msg.type === 'finance-cost' && msg.financeData) {
+            return (
+              <CostBreakdownCard
+                key={msg.id}
+                propertyPrice={msg.financeData.propertyPrice!}
+                propertyName={msg.financeData.propertyName}
+              />
+            );
+          }
+          if (msg.type === 'finance-eligibility' && msg.financeData) {
+            return (
+              <EligibilityResultCard
+                key={msg.id}
+                result={msg.financeData.eligibilityResult!}
+                cibilScore={msg.financeData.cibilScore ?? null}
+                likedPropertyIds={msg.financeData.likedPropertyIds || []}
+              />
             );
           }
           return null;
@@ -861,6 +1105,35 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
                   <GitCompareArrows size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText}>Compare Now</Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── Finance stage: "Calculate EMI" ──
+        if (stage === 'Finance') {
+          const finState = useOnboardingStore.getState();
+          const hasCibil = !!finState.cibilScore || finState.cibilSkipped;
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (!hasCibil) {
+                    // Scroll to CIBIL prompt
+                    scrollRef.current?.scrollToEnd({ animated: true });
+                  } else {
+                    sendMessage('EMI calculator');
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <Landmark size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText}>
+                    {hasCibil ? 'Calculate EMI' : 'Enter CIBIL Score'}
+                  </Text>
                 </Animated.View>
               </Pressable>
             </Animated.View>
@@ -1035,6 +1308,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   alonText: { fontSize: 14, fontFamily: 'DMSans-Regular', color: Colors.textPrimary, lineHeight: 20 },
+  cibilPromptBubble: {
+    borderColor: Colors.terra200, borderWidth: 1, backgroundColor: Colors.terra50, gap: 8,
+  },
 
   // Scanning indicator inside ALON bubble
   scanIndicator: { marginTop: 8, gap: 6 },

@@ -23,9 +23,17 @@ export interface OnboardingState {
   comparePropertyIds: string[];
   scheduledVisits: Array<{ propertyId: string; propertyName: string; date: string; time: string }>;
   userProperties: UserProperty[];
+  cibilScore: number | null;
+  cibilSkipped: boolean;
+  monthlyIncome: number;
+  existingEMIs: number;
   chatExpanded: boolean;
   activeStage: string;
 
+  setCibilScore: (score: number | null) => void;
+  setCibilSkipped: (val: boolean) => void;
+  setMonthlyIncome: (val: number) => void;
+  setExistingEMIs: (val: number) => void;
   setGoal: (goal: GoalType) => void;
   setPersona: (persona: PersonaType) => void;
   setLocations: (locations: string[]) => void;
@@ -75,6 +83,10 @@ const initialState = {
   comparePropertyIds: [] as string[],
   scheduledVisits: [] as Array<{ propertyId: string; propertyName: string; date: string; time: string }>,
   userProperties: [] as UserProperty[],
+  cibilScore: null as number | null,
+  cibilSkipped: false,
+  monthlyIncome: 0,
+  existingEMIs: 0,
   chatExpanded: false,
   activeStage: 'Search',
 };
@@ -142,6 +154,10 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
     set((state) => ({ userProperties: [...state.userProperties, property] })),
   removeUserProperty: (id) =>
     set((state) => ({ userProperties: state.userProperties.filter((p) => p.id !== id) })),
+  setCibilScore: (cibilScore) => set({ cibilScore }),
+  setCibilSkipped: (cibilSkipped) => set({ cibilSkipped }),
+  setMonthlyIncome: (monthlyIncome) => set({ monthlyIncome }),
+  setExistingEMIs: (existingEMIs) => set({ existingEMIs }),
   setChatExpanded: (chatExpanded) => set({ chatExpanded }),
   setActiveStage: (activeStage) => set({ activeStage }),
   reset: () => set(initialState),

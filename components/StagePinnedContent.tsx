@@ -160,6 +160,28 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
+  // ── Finance: CIBIL status + quick stats ──
+  if (stage === 'Finance') {
+    const { cibilScore, cibilSkipped, monthlyIncome } = useOnboardingStore();
+    const hasCibil = !!cibilScore || cibilSkipped;
+    const displayScore = cibilScore || (cibilSkipped ? '~750' : null);
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <Landmark size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>
+            {!hasCibil
+              ? 'Enter your CIBIL score to get personalized loan rates and eligibility.'
+              : cibilScore
+                ? `CIBIL ${cibilScore} · Rate ~${(8.5 + (cibilScore >= 750 ? 0 : cibilScore >= 700 ? 0.25 : 0.75)).toFixed(1)}% · ${monthlyIncome ? 'Eligibility checked' : 'Check eligibility next'}`
+                : 'Using estimated CIBIL 750 · Update your score for better accuracy'}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+
   // ── Other stages: intro message ──
   const intro = STAGE_INTROS[stage];
   if (intro) {
