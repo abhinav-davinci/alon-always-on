@@ -16,8 +16,8 @@ export const STAGES: Stage[] = [
   { label: 'Site Visits', icon: MapPin, status: 'pending', alonTask: 'Books visits, number hidden' },
   { label: 'Compare', icon: GitCompare, status: 'pending', alonTask: 'Match scores, ALON\'s Pick & market data' },
   { label: 'Finance', icon: Landmark, status: 'pending', alonTask: 'Best rates from 10+ banks' },
-  { label: 'Legal', icon: Scale, status: 'pending', alonTask: 'Verify builder reputation & flag risky clauses' },
   { label: 'Negotiate', icon: Handshake, status: 'pending', alonTask: 'Price benchmarking + negotiation checklist' },
+  { label: 'Legal', icon: Scale, status: 'pending', alonTask: 'Verify builder reputation & flag risky clauses' },
   { label: 'Deal Closure', icon: ClipboardCheck, status: 'pending', alonTask: 'Timeline tracking, reminders & documentation' },
   { label: 'Possession', icon: Key, status: 'pending', alonTask: 'Key dates, reminders & handover checklist' },
 ];
