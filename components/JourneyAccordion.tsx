@@ -17,6 +17,7 @@ import { useOnboardingStore } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { STAGES } from '../constants/stages';
 import StageStrip from './StageStrip';
+import { getInterestRate, calculateEligibility, formatINRShort } from '../utils/financeCalc';
 
 interface JourneyAccordionProps {
   onStageChange?: (stage: string) => void;
@@ -24,7 +25,10 @@ interface JourneyAccordionProps {
 
 export default function JourneyAccordion({ onStageChange }: JourneyAccordionProps) {
   const haptics = useHaptics();
-  const { scheduledVisits, likedPropertyIds, activeStage, setActiveStage } = useOnboardingStore();
+  const {
+    scheduledVisits, likedPropertyIds, activeStage, setActiveStage,
+    cibilScore, cibilSkipped, monthlyIncome, existingEMIs,
+  } = useOnboardingStore();
   const [expanded, setExpanded] = useState(false);
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
@@ -33,6 +37,24 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
     () => SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id)).map((p) => p.name),
     [likedPropertyIds]
   );
+
+  // Finance activity signal — any engagement with the Finance step
+  const hasFinanceActivity = cibilScore !== null || cibilSkipped || monthlyIncome > 0;
+
+  const financeStatusText = React.useMemo(() => {
+    if (!hasFinanceActivity) return null;
+    const effectiveCibil = cibilScore ?? 750; // estimate when skipped
+    const rate = getInterestRate(effectiveCibil);
+    const cibilLabel = cibilScore ? `CIBIL ${cibilScore}` : 'CIBIL ~750';
+
+    // Full data: CIBIL + income → show eligibility
+    if (monthlyIncome > 0) {
+      const result = calculateEligibility(monthlyIncome, existingEMIs || 0, cibilScore);
+      return `${cibilLabel} · ${formatINRShort(result.maxLoanAmount)} eligible · ${rate.toFixed(1)}%`;
+    }
+    // CIBIL only — show rate, nudge for income
+    return `${cibilLabel} · Rate ~${rate.toFixed(1)}% · Add income for eligibility`;
+  }, [hasFinanceActivity, cibilScore, cibilSkipped, monthlyIncome, existingEMIs]);
 
   const stages = React.useMemo(() => {
     return STAGES.map((stage) => {
@@ -51,9 +73,16 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
           alonTask: `${scheduledVisits.length} visit${scheduledVisits.length > 1 ? 's' : ''} scheduled — ${names}`,
         };
       }
+      if (stage.label === 'Finance' && hasFinanceActivity && financeStatusText) {
+        return {
+          ...stage,
+          status: 'active' as const,
+          alonTask: financeStatusText,
+        };
+      }
       return stage;
     });
-  }, [scheduledVisits, likedPropertyIds, likedNames]);
+  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText]);
 
 
   // Pulsing dot for detail subtitle

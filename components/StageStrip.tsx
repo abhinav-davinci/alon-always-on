@@ -24,8 +24,19 @@ interface StageStripProps {
 
 export default function StageStrip({ compact = false }: StageStripProps) {
   const haptics = useHaptics();
-  const { activeStage, setActiveStage, likedPropertyIds, scheduledVisits } = useOnboardingStore();
+  const {
+    activeStage, setActiveStage, likedPropertyIds, scheduledVisits,
+    cibilScore, cibilSkipped, monthlyIncome,
+  } = useOnboardingStore();
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
+
+  const hasFinanceActivity = cibilScore !== null || cibilSkipped || monthlyIncome > 0;
+
+  // Non-numeric "has activity" indicator — used for stages where count doesn't apply (e.g. Finance)
+  const hasActivity = (label: string): boolean => {
+    if (label === 'Finance') return hasFinanceActivity;
+    return false;
+  };
 
   const scrollRef = useRef<ScrollView>(null);
   const containerWidth = useRef(0);
@@ -134,6 +145,7 @@ export default function StageStrip({ compact = false }: StageStripProps) {
             const badge = getBadge(stage.label);
             const isActive = activeIndex === i;
             const hasBadge = badge != null && badge > 0;
+            const showActivityDot = !hasBadge && hasActivity(stage.label);
 
             return (
               <Pressable
@@ -167,6 +179,7 @@ export default function StageStrip({ compact = false }: StageStripProps) {
                       </Text>
                     </View>
                   )}
+                  {showActivityDot && <View style={styles.activityDot} />}
                 </View>
               </Pressable>
             );
@@ -249,5 +262,11 @@ const styles = StyleSheet.create({
   },
   badgeTextActive: {
     color: Colors.terra600,
+  },
+  activityDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.terra500,
   },
 });
