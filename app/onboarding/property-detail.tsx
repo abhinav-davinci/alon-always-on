@@ -51,6 +51,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import BottomSheet from '../../components/BottomSheet';
+import { SkeletonPropertyDetail } from '../../components/skeleton';
 import { Colors, Spacing } from '../../constants/theme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useOnboardingStore } from '../../store/onboarding';
@@ -154,6 +155,12 @@ export default function PropertyDetailScreen() {
 
   const { addScheduledVisit } = useOnboardingStore();
   const property = PROPERTIES[params.id || ''] || DEFAULT_PROPERTY;
+  // Loading state — simulates API fetch (devs will wire to real fetch)
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 2200);
+    return () => clearTimeout(timer);
+  }, []);
   const [activeImage, setActiveImage] = React.useState(0);
   const [liked, setLiked] = React.useState(false);
   const [connectExpanded, setConnectExpanded] = useState(false);
@@ -259,6 +266,10 @@ export default function PropertyDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
         showsVerticalScrollIndicator={false}
       >
+        {isLoading ? (
+          <SkeletonPropertyDetail />
+        ) : (
+        <>
         {/* Image gallery */}
         <View style={styles.gallery}>
           <ScrollView
@@ -435,6 +446,8 @@ export default function PropertyDetailScreen() {
             </View>
           ))}
         </Animated.View>
+        </>
+        )}
       </ScrollView>
 
       {/* Sticky bottom CTAs */}

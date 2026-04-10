@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { Colors, Spacing } from '../constants/theme';
 import { useOnboardingStore } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { useHaptics } from '../hooks/useHaptics';
+import SkeletonStagePinned from './skeleton/SkeletonStagePinned';
 
 interface StagePinnedContentProps {
   stage: string;
@@ -35,6 +36,17 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
   const router = useRouter();
   const haptics = useHaptics();
   const { likedPropertyIds, scheduledVisits } = useOnboardingStore();
+
+  // Skeleton on initial mount only — stage toggles use the bottom bounce instead
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <SkeletonStagePinned stage={stage} />;
+  }
 
   // ── Search: show match count ──
   if (stage === 'Search') {

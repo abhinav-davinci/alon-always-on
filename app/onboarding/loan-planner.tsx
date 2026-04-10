@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,7 @@ import {
   EmploymentType,
 } from '../../constants/financeData';
 import { parsePriceToNumber } from '../../utils/compareScore';
+import { SkeletonLoanPlanner } from '../../components/skeleton';
 
 type Tab = 'emi' | 'cost' | 'eligibility';
 
@@ -116,6 +117,13 @@ export default function LoanPlannerScreen() {
   // Eligibility inputs
   const [incomeInput, setIncomeInput] = useState(monthlyIncome ? monthlyIncome.toString() : '');
   const [emisInput, setEmisInput] = useState(existingEMIs ? existingEMIs.toString() : '');
+
+  // Loading state — fetching loan rates / bank data
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ── Derived values ──
   const selectedProp = selectedId ? properties.find(p => p.id === selectedId) : null;
@@ -190,6 +198,10 @@ export default function LoanPlannerScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
+        {isLoading ? (
+          <SkeletonLoanPlanner />
+        ) : (
+        <>
         {/* ── Property Selector ── */}
         <Text style={styles.sectionLabel}>PLAN FOR</Text>
 
@@ -630,6 +642,8 @@ export default function LoanPlannerScreen() {
             Actual loan terms may vary. Please consult your bank or a qualified financial advisor before making decisions.
           </Text>
         </View>
+        </>
+        )}
       </ScrollView>
     </View>
   );

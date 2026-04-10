@@ -21,6 +21,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  withSpring,
   Easing,
 } from 'react-native-reanimated';
 import AlonAvatar from './AlonAvatar';
@@ -409,6 +410,36 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
     }
   }, [showShortlistPill]);
   const pillAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: pillPulse.value }] }));
+
+  // ── Bottom section bounce on stage change ──
+  const bottomBounce = useSharedValue(0);
+  const bottomHighlight = useSharedValue(0);
+  const prevStageRef = useRef(stage);
+
+  useEffect(() => {
+    if (prevStageRef.current !== stage) {
+      prevStageRef.current = stage;
+      haptics.selection();
+      // Subtle upward bounce
+      bottomBounce.value = withSequence(
+        withSpring(-6, { damping: 12, stiffness: 300, mass: 0.4 }),
+        withSpring(0, { damping: 14, stiffness: 200, mass: 0.5 })
+      );
+      // Brief background highlight pulse
+      bottomHighlight.value = withSequence(
+        withTiming(1, { duration: 150, easing: Easing.out(Easing.ease) }),
+        withTiming(0, { duration: 400, easing: Easing.inOut(Easing.ease) })
+      );
+    }
+  }, [stage]);
+
+  const bottomBounceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bottomBounce.value }],
+  }));
+  const bottomHighlightStyle = useAnimatedStyle(() => ({
+    backgroundColor: `rgba(201, 120, 83, ${bottomHighlight.value * 0.06})`,
+    borderRadius: 16,
+  }));
 
   const sendMessage = useCallback((text: string) => {
     if (isGenerating) return;
@@ -968,6 +999,10 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       </ScrollView>
       </GestureDetector>
 
+      {/* ── Bottom section: bounces on stage change ── */}
+      <Animated.View style={bottomBounceStyle}>
+      <Animated.View style={bottomHighlightStyle}>
+
       {/* ── Stage-aware CTA pill ── */}
       {showShortlistPill && (() => {
         const state = useOnboardingStore.getState();
@@ -1233,6 +1268,9 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           </TouchableOpacity>
         </Animated.View>
       </View>
+
+      </Animated.View>
+      </Animated.View>
 
     </View>
   );

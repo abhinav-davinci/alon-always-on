@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import CompareTable from '../../components/CompareTable';
 import AlonAvatar from '../../components/AlonAvatar';
+import { SkeletonCompareTable } from '../../components/skeleton';
 
 export default function CompareScreen() {
   const router = useRouter();
@@ -23,6 +24,13 @@ export default function CompareScreen() {
 
   const preferences = { budget, locations, propertySize };
   const hasEnough = comparePropertyIds.length >= 2;
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasEnough) { setIsLoading(false); return; }
+    const timer = setTimeout(() => setIsLoading(false), 2000);
+    return () => clearTimeout(timer);
+  }, [hasEnough]);
 
   const goToDashboard = () => {
     setActiveStage('Compare');
@@ -45,7 +53,9 @@ export default function CompareScreen() {
       </View>
 
       {/* --- Content --- */}
-      {hasEnough ? (
+      {hasEnough && isLoading ? (
+        <SkeletonCompareTable columns={comparePropertyIds.length === 3 ? 3 : 2} />
+      ) : hasEnough ? (
         <CompareTable propertyIds={comparePropertyIds} preferences={preferences} />
       ) : (
         <Animated.View entering={FadeIn.delay(200)} style={styles.emptyState}>

@@ -27,6 +27,7 @@ import { SHORTLIST_PROPERTIES } from '../../constants/properties';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
 import CompareSelectionBar from '../../components/CompareSelectionBar';
+import { SkeletonPropertyList } from '../../components/skeleton';
 
 type Tab = 'all' | 'shortlisted' | 'byYou';
 
@@ -50,6 +51,12 @@ export default function ShortlistScreen() {
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'all');
   const [selectMode, setSelectMode] = useState(false);
   const [showNudge, setShowNudge] = useState(params.nudge === 'shortlist');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1800);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Auto-enter select mode if navigated with selectMode param
   useEffect(() => {
@@ -89,6 +96,10 @@ export default function ShortlistScreen() {
         <View style={{ width: 36 }} />
       </View>
 
+      {isLoading ? (
+        <SkeletonPropertyList count={5} />
+      ) : (
+      <>
       {/* Tabs */}
       <View style={styles.tabBar}>
         <Pressable
@@ -375,6 +386,8 @@ export default function ShortlistScreen() {
         })}
         {/* close !isUserTab guard */}
       </ScrollView>
+      </>
+      )}
 
       {/* Floating Compare button — visible when 2+ total properties (shortlisted + user) and not in select mode */}
       {!selectMode && (shortlistedProperties.length + userProperties.length) >= 2 && (
