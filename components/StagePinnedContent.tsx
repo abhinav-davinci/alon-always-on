@@ -27,7 +27,6 @@ const STAGE_INTROS: Record<string, { icon: typeof Search; text: string }> = {
   Compare: { icon: GitCompare, text: 'ALON will compare your shortlisted properties with real transaction data when you\'re ready.' },
   Finance: { icon: Landmark, text: 'ALON will find the best loan rates from 10+ banks based on your eligibility.' },
   Legal: { icon: Scale, text: 'ALON will review your agreement, flag risky clauses, and verify RERA compliance.' },
-  Negotiate: { icon: Handshake, text: 'ALON will provide market leverage data from recent sales to help you negotiate.' },
   'Deal Closure': { icon: ClipboardCheck, text: 'ALON will track your deal timeline, send reminders for deadlines, and organize all documentation.' },
   Possession: { icon: Key, text: 'ALON will guide you through the full possession checklist — documents to key handover.' },
 };
@@ -190,6 +189,51 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
                 : 'Using estimated CIBIL 750 · Update your score for better accuracy'}
           </Text>
         </View>
+      </Animated.View>
+    );
+  }
+
+  // ── Negotiate: smart nudge based on pool + selection state ──
+  if (stage === 'Negotiate') {
+    const { negotiatePropertyId, userProperties } = useOnboardingStore();
+    const likedPool = SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id));
+    const count = likedPool.length + userProperties.length;
+    const selectedLiked = likedPool.find((p) => p.id === negotiatePropertyId);
+    const selectedUser = userProperties.find((p) => p.id === negotiatePropertyId);
+    const selectedName = selectedLiked?.name || selectedUser?.name || null;
+
+    let text = '';
+    let ctaLabel = '';
+    let ctaRoute: any = '';
+
+    if (count === 0) {
+      text = 'Negotiation works on one property. Let me show you your matches first.';
+      ctaLabel = 'Browse Properties';
+      ctaRoute = { pathname: '/onboarding/shortlist', params: { nudge: 'negotiate' } };
+    } else if (!selectedName) {
+      text = `You have ${count} shortlisted. Pick one — ALON will build your negotiation case.`;
+      ctaLabel = 'Pick a Property →';
+      ctaRoute = '/onboarding/negotiate';
+    } else {
+      text = `Negotiating on ${selectedName}. Continue to see market data and your checklist.`;
+      ctaLabel = 'Continue →';
+      ctaRoute = '/onboarding/negotiate';
+    }
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <Handshake size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
       </Animated.View>
     );
   }

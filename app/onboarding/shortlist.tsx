@@ -28,6 +28,7 @@ import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
 import CompareSelectionBar from '../../components/CompareSelectionBar';
 import { SkeletonPropertyList } from '../../components/skeleton';
+import { Handshake } from 'lucide-react-native';
 
 type Tab = 'all' | 'shortlisted' | 'byYou';
 
@@ -50,7 +51,8 @@ export default function ShortlistScreen() {
   const { likedPropertyIds, toggleLikedProperty, userProperties, comparePropertyIds, toggleCompareProperty, clearCompareProperties } = useOnboardingStore();
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'all');
   const [selectMode, setSelectMode] = useState(false);
-  const [showNudge, setShowNudge] = useState(params.nudge === 'shortlist');
+  const nudgeType = params.nudge; // 'shortlist' | 'negotiate' | undefined
+  const [showNudge, setShowNudge] = useState(!!nudgeType);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -146,10 +148,18 @@ export default function ShortlistScreen() {
       </Animated.View>
 
       {/* Compare nudge — arrived from Compare Now with 0 shortlisted */}
-      {showNudge && shortlistedProperties.length === 0 && (
+      {showNudge && nudgeType === 'shortlist' && shortlistedProperties.length === 0 && (
         <Animated.View style={styles.nudgeBanner} entering={FadeIn.duration(250)}>
           <GitCompareArrows size={12} color={Colors.terra400} strokeWidth={2} />
           <Text style={styles.nudgeBannerText}>Tap ♡ on at least 2 properties to start comparing</Text>
+        </Animated.View>
+      )}
+
+      {/* Negotiate nudge — arrived from Negotiate with 0 shortlisted AND 0 user-added */}
+      {showNudge && nudgeType === 'negotiate' && shortlistedProperties.length === 0 && userProperties.length === 0 && (
+        <Animated.View style={styles.nudgeBanner} entering={FadeIn.duration(250)}>
+          <Handshake size={12} color={Colors.terra400} strokeWidth={2} />
+          <Text style={styles.nudgeBannerText}>Pick at least one property to start negotiating</Text>
         </Animated.View>
       )}
 

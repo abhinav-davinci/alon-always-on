@@ -28,6 +28,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
   const {
     scheduledVisits, likedPropertyIds, activeStage, setActiveStage,
     cibilScore, cibilSkipped, monthlyIncome, existingEMIs,
+    negotiatePropertyId, userProperties,
   } = useOnboardingStore();
   const [expanded, setExpanded] = useState(false);
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
@@ -80,9 +81,21 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
           alonTask: financeStatusText,
         };
       }
+      if (stage.label === 'Negotiate' && negotiatePropertyId) {
+        const prop =
+          SHORTLIST_PROPERTIES.find((p) => p.id === negotiatePropertyId) ||
+          userProperties.find((p) => p.id === negotiatePropertyId);
+        if (prop) {
+          return {
+            ...stage,
+            status: 'active' as const,
+            alonTask: `Negotiating on ${prop.name}`,
+          };
+        }
+      }
       return stage;
     });
-  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText]);
+  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText, negotiatePropertyId, userProperties]);
 
 
   // Pulsing dot for detail subtitle

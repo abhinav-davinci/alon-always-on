@@ -29,6 +29,7 @@ export interface OnboardingState {
   existingEMIs: number;
   chatExpanded: boolean;
   activeStage: string;
+  negotiatePropertyId: string | null;
 
   setCibilScore: (score: number | null) => void;
   setCibilSkipped: (val: boolean) => void;
@@ -59,6 +60,7 @@ export interface OnboardingState {
   removeUserProperty: (id: string) => void;
   setChatExpanded: (val: boolean) => void;
   setActiveStage: (stage: string) => void;
+  setNegotiatePropertyId: (id: string | null) => void;
   reset: () => void;
 }
 
@@ -89,6 +91,7 @@ const initialState = {
   existingEMIs: 0,
   chatExpanded: false,
   activeStage: 'Search',
+  negotiatePropertyId: null as string | null,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -128,11 +131,18 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         : [...state.notifyVia, channel],
     })),
   toggleLikedProperty: (id) =>
-    set((state) => ({
-      likedPropertyIds: state.likedPropertyIds.includes(id)
+    set((state) => {
+      const isUnliking = state.likedPropertyIds.includes(id);
+      const nextLiked = isUnliking
         ? state.likedPropertyIds.filter((pid) => pid !== id)
-        : [...state.likedPropertyIds, id],
-    })),
+        : [...state.likedPropertyIds, id];
+      // If the unliked property was the one selected for negotiation, clear it
+      const nextNegotiateId =
+        isUnliking && state.negotiatePropertyId === id
+          ? null
+          : state.negotiatePropertyId;
+      return { likedPropertyIds: nextLiked, negotiatePropertyId: nextNegotiateId };
+    }),
   toggleCompareProperty: (id) =>
     set((state) => ({
       comparePropertyIds: state.comparePropertyIds.includes(id)
@@ -153,12 +163,16 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   addUserProperty: (property) =>
     set((state) => ({ userProperties: [...state.userProperties, property] })),
   removeUserProperty: (id) =>
-    set((state) => ({ userProperties: state.userProperties.filter((p) => p.id !== id) })),
+    set((state) => ({
+      userProperties: state.userProperties.filter((p) => p.id !== id),
+      negotiatePropertyId: state.negotiatePropertyId === id ? null : state.negotiatePropertyId,
+    })),
   setCibilScore: (cibilScore) => set({ cibilScore }),
   setCibilSkipped: (cibilSkipped) => set({ cibilSkipped }),
   setMonthlyIncome: (monthlyIncome) => set({ monthlyIncome }),
   setExistingEMIs: (existingEMIs) => set({ existingEMIs }),
   setChatExpanded: (chatExpanded) => set({ chatExpanded }),
   setActiveStage: (activeStage) => set({ activeStage }),
+  setNegotiatePropertyId: (negotiatePropertyId) => set({ negotiatePropertyId }),
   reset: () => set(initialState),
 }));

@@ -26,15 +26,16 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   const haptics = useHaptics();
   const {
     activeStage, setActiveStage, likedPropertyIds, scheduledVisits,
-    cibilScore, cibilSkipped, monthlyIncome,
+    cibilScore, cibilSkipped, monthlyIncome, negotiatePropertyId,
   } = useOnboardingStore();
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
   const hasFinanceActivity = cibilScore !== null || cibilSkipped || monthlyIncome > 0;
 
-  // Non-numeric "has activity" indicator — used for stages where count doesn't apply (e.g. Finance)
+  // Non-numeric "has activity" indicator — used for stages where count doesn't apply (e.g. Finance, Negotiate)
   const hasActivity = (label: string): boolean => {
     if (label === 'Finance') return hasFinanceActivity;
+    if (label === 'Negotiate') return negotiatePropertyId !== null;
     return false;
   };
 

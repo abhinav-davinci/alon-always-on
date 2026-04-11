@@ -37,7 +37,7 @@ import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
-import { Landmark, IndianRupee } from 'lucide-react-native';
+import { Landmark, IndianRupee, Handshake } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
@@ -70,7 +70,7 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Compare: ['Compare top 3', 'Which has best ROI?', 'Price vs market data'],
   Finance: ['How home loans work', 'What CIBIL score do I need?', 'Hidden charges to watch'],
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
-  Negotiate: ['Fair price analysis', 'Negotiation strategy', 'Market leverage data'],
+  Negotiate: ['Which one should I negotiate on?', 'Help me pick from my shortlist', 'Why pick just one?'],
   'Deal Closure': ['Deal timeline', 'Pending documents', 'Upcoming deadlines'],
   Possession: ['Possession checklist', 'Document list', 'Transfer process'],
 };
@@ -363,6 +363,36 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           timestamp: Date.now(),
         }]);
       }
+    }
+  }, [stage]);
+
+  // ── Negotiate: guiding message when entering Negotiate stage ──
+  const negotiatePrompted = useRef(false);
+  useEffect(() => {
+    if (stage === 'Negotiate' && !negotiatePrompted.current) {
+      negotiatePrompted.current = true;
+      const state = useOnboardingStore.getState();
+      const likedPool = SHORTLIST_PROPERTIES.filter(p => state.likedPropertyIds.includes(p.id));
+      const poolCount = likedPool.length + state.userProperties.length;
+      const selected =
+        likedPool.find(p => p.id === state.negotiatePropertyId) ||
+        state.userProperties.find(p => p.id === state.negotiatePropertyId);
+
+      let text: string;
+      if (poolCount === 0) {
+        text = "Before we negotiate, you need a shortlisted property. Browse your matches and tap ♡ on at least one you're serious about — then I can build your negotiation case.";
+      } else if (!selected) {
+        text = `You have ${poolCount} shortlisted propert${poolCount > 1 ? 'ies' : 'y'}. Negotiation works on one at a time — tap "Pick a Property to Negotiate" below to choose the one you want to focus on. I'll build your case with market data, comparable sales, and a checklist.`;
+      } else {
+        text = `Continuing your negotiation on ${selected.name}. I'm preparing market data and your negotiation checklist.`;
+      }
+
+      setMessages(prev => [...prev, {
+        id: `negotiate-welcome-${Date.now()}`,
+        type: 'alon',
+        text,
+        timestamp: Date.now(),
+      }]);
     }
   }, [stage]);
 
@@ -1146,6 +1176,43 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
                   <IndianRupee size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText}>Plan Your Loan</Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── Negotiate stage: "Pick a Property" / "Continue" ──
+        if (stage === 'Negotiate') {
+          const userProps = state.userProperties;
+          const negotiateId = state.negotiatePropertyId;
+          const likedPool = SHORTLIST_PROPERTIES.filter(p => liked.includes(p.id));
+          const poolCount = likedPool.length + userProps.length;
+          const selected =
+            likedPool.find(p => p.id === negotiateId) ||
+            userProps.find(p => p.id === negotiateId);
+
+          const label =
+            poolCount === 0 ? 'Start Shortlisting' :
+            selected ? `Continue — ${selected.name}` :
+            'Pick a Property to Negotiate';
+
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (poolCount === 0) {
+                    router.push({ pathname: '/onboarding/shortlist', params: { nudge: 'negotiate' } });
+                  } else {
+                    router.push('/onboarding/negotiate');
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <Handshake size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>
             </Animated.View>
