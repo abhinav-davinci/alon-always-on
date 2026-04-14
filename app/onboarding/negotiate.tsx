@@ -31,6 +31,8 @@ import {
   BarChart3,
   Square,
   CheckSquare,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -540,6 +542,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const scrollRef = useRef<ScrollView>(null);
   const requestInputY = useRef(0);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [checklistExpanded, setChecklistExpanded] = useState(false);
   const [selectedIndex2, setSelectedIndex2] = useState<Set<string>>(new Set());
 
   // Lookup property details + area trends
@@ -634,18 +637,10 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </TouchableOpacity>
       </Animated.View>
 
-      {/* ── Credibility pill ── */}
-      <Animated.View entering={FadeIn.delay(150).duration(300)} style={styles.credibilityPill}>
-        <Sparkles size={11} color={Colors.terra500} strokeWidth={2} />
-        <Text style={styles.credibilityText}>
-          Based on {areaTrends?.activeListings || 300}+ transactions in {areaName} · Prepared by ALON
-        </Text>
-      </Animated.View>
-
       {/* ═══ PRICE INTELLIGENCE ═══ */}
       {details && (
         <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-          <Text style={styles.wsLabel}>PRICE INTELLIGENCE</Text>
+          <Text style={[styles.wsLabel, styles.wsLabelStandalone]}>PRICE INTELLIGENCE</Text>
 
           {/* Fair price range */}
           <View style={styles.fairPriceCard}>
@@ -680,7 +675,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
       {/* ═══ AREA TRENDS ═══ */}
       {areaTrends && (
         <Animated.View entering={FadeInDown.delay(300).duration(300)}>
-          <Text style={styles.wsLabel}>AREA TRENDS — {areaName.toUpperCase()}</Text>
+          <Text style={[styles.wsLabel, styles.wsLabelStandalone]}>AREA TRENDS — {areaName.toUpperCase()}</Text>
           <View style={styles.areaTrendsCard}>
             <View style={styles.areaStatsRow}>
               <View style={styles.areaStat}>
@@ -723,7 +718,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
           </View>
         )}
         <View style={styles.checklistCard}>
-          {checklist.map((item) => {
+          {(checklistExpanded ? checklist : checklist.slice(0, 3)).map((item) => {
             const done = checkedItems.has(item.id);
             return (
               <TouchableOpacity
@@ -743,47 +738,60 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
               </TouchableOpacity>
             );
           })}
+          <TouchableOpacity
+            style={styles.checklistToggle}
+            onPress={() => { haptics.light(); setChecklistExpanded(!checklistExpanded); }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.checklistToggleText}>
+              {checklistExpanded ? 'Show less' : `See all ${totalChecklist} items`}
+            </Text>
+            {checklistExpanded ? (
+              <ChevronUp size={14} color={Colors.terra500} strokeWidth={2} />
+            ) : (
+              <ChevronDown size={14} color={Colors.terra500} strokeWidth={2} />
+            )}
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
       {/* ═══ INDEX II DATA ═══ */}
       <Animated.View entering={FadeInDown.delay(500).duration(300)}>
-        <Text style={styles.wsLabel}>INDEX II DATA</Text>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.wsLabel}>INDEX II DATA</Text>
+          <Text style={styles.checklistProgress}>{availableIndex2.length} available</Text>
+        </View>
         <View style={styles.index2Card}>
           <Text style={styles.index2Subtitle}>Available for {areaName}:</Text>
           {availableIndex2.map((doc) => {
             const isSelected = selectedIndex2.has(doc.id);
-            const isRequested = propertyRequests.some((r) => r.type === 'index2' && r.text === doc.label);
             return (
               <TouchableOpacity
                 key={doc.id}
                 style={styles.index2Row}
-                onPress={() => !isRequested && toggleIndex2(doc.id)}
-                activeOpacity={isRequested ? 1 : 0.7}
+                onPress={() => toggleIndex2(doc.id)}
+                activeOpacity={0.7}
               >
-                {isRequested ? (
-                  <CheckCircle2 size={16} color="#22C55E" strokeWidth={2} />
-                ) : isSelected ? (
+                {isSelected ? (
                   <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
                 ) : (
                   <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
                 )}
-                <Text style={[styles.index2Label, isRequested && styles.index2LabelDone]}>{doc.label}</Text>
-                {isRequested && (
-                  <View style={styles.statusBadge}>
-                    <PulsingDot />
-                    <Text style={styles.statusText}>Preparing</Text>
-                  </View>
-                )}
+                <Text style={styles.index2Label}>{doc.label}</Text>
               </TouchableOpacity>
             );
           })}
-          {selectedIndex2.size > 0 && (
-            <TouchableOpacity style={styles.index2DownloadBtn} onPress={downloadIndex2} activeOpacity={0.85}>
-              <Download size={14} color={Colors.white} strokeWidth={2.5} />
-              <Text style={styles.index2DownloadText}>Request {selectedIndex2.size} Selected</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.index2DownloadBtn, selectedIndex2.size === 0 && styles.index2DownloadBtnDisabled]}
+            onPress={downloadIndex2}
+            disabled={selectedIndex2.size === 0}
+            activeOpacity={0.85}
+          >
+            <Download size={14} color={Colors.white} strokeWidth={2.5} />
+            <Text style={styles.index2DownloadText}>
+              {selectedIndex2.size > 0 ? `Download Now (${selectedIndex2.size})` : 'Select to download'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -817,7 +825,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
               disabled={!customRequestText.trim()}
               activeOpacity={0.85}
             >
-              <Send size={16} color={Colors.white} strokeWidth={2.5} />
+              <ChevronRight size={18} color={Colors.white} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
           {customRequests.length > 0 && (
@@ -1158,9 +1166,11 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-SemiBold',
     color: Colors.textTertiary,
     letterSpacing: 0.8,
-    marginHorizontal: Spacing.xxl,
     marginTop: 20,
     marginBottom: 10,
+  },
+  wsLabelStandalone: {
+    marginHorizontal: Spacing.xxl,
   },
 
   // ── Fair price card ──
@@ -1348,6 +1358,19 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     textDecorationLine: 'line-through',
   },
+  checklistToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 11,
+    backgroundColor: Colors.warm50,
+  },
+  checklistToggleText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 12,
+    color: Colors.terra500,
+  },
 
   // ── Index II multi-select ──
   index2Card: {
@@ -1390,6 +1413,9 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     backgroundColor: Colors.terra500,
     borderRadius: 10,
+  },
+  index2DownloadBtnDisabled: {
+    backgroundColor: Colors.warm200,
   },
   index2DownloadText: {
     fontFamily: 'DMSans-SemiBold',
