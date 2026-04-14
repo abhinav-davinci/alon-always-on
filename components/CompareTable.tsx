@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { ChevronDown, ChevronUp, Award, Info, AlertCircle } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Award, Info, AlertCircle, Sparkles } from 'lucide-react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
 import { Property, UserProperty, SHORTLIST_PROPERTIES } from '../constants/properties';
 import { buildComparisonData, computeMatchScore, parseBHK, CompareGroup } from '../utils/compareScore';
@@ -310,6 +311,59 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
         );
       })}
 
+      {/* --- ALON's Verdict Summary --- */}
+      {recommendedId && (() => {
+        const pick = displayProperties.find((p) => p.id === recommendedId);
+        const pickScore = scores[displayProperties.findIndex((p) => p.id === recommendedId)];
+        const others = displayProperties.filter((p) => p.id !== recommendedId);
+
+        if (!pick || !pickScore) return null;
+
+        // Build verdict paragraph
+        const scoreDiff = others.length > 0
+          ? Math.round(pickScore.score - Math.max(...others.map((_, i) => {
+              const idx = displayProperties.indexOf(_);
+              return scores[idx]?.score || 0;
+            })))
+          : 0;
+
+        const topPro = pickScore.pros[0] || '';
+        const concern = pickScore.cons[0] || '';
+        const othersNames = others.map((p) => p.name).join(' and ');
+
+        let verdictText = `Based on your preferences, ${pick.name} stands out with a ${pickScore.score}% match score`;
+        if (scoreDiff > 0) {
+          verdictText += ` — ${scoreDiff} points ahead of ${othersNames}`;
+        }
+        verdictText += '.';
+        if (topPro) {
+          verdictText += ` Key strength: ${topPro.toLowerCase()}.`;
+        }
+        if (concern) {
+          verdictText += ` One thing to watch: ${concern.toLowerCase()}.`;
+        }
+        verdictText += ` We recommend moving forward with ${pick.name} for the best fit across price, location, and trust factors.`;
+
+        return (
+          <Animated.View entering={FadeInDown.delay(200).duration(300)} style={styles.verdictCard}>
+            <View style={styles.verdictHeader}>
+              <View style={styles.verdictIconWrap}>
+                <Sparkles size={16} color={Colors.white} strokeWidth={2} />
+              </View>
+              <Text style={styles.verdictTitle}>ALON's Verdict</Text>
+            </View>
+            <View style={styles.verdictPickRow}>
+              <Award size={14} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.verdictPickName}>{pick.name}</Text>
+              <View style={styles.verdictScoreBadge}>
+                <Text style={styles.verdictScoreText}>{pickScore.score}% match</Text>
+              </View>
+            </View>
+            <Text style={styles.verdictBody}>{verdictText}</Text>
+          </Animated.View>
+        );
+      })()}
+
       {/* --- AI Disclaimer --- */}
       <View style={styles.disclaimer}>
         <Info size={12} color={Colors.warm400} strokeWidth={1.5} />
@@ -536,6 +590,68 @@ const styles = StyleSheet.create({
   },
 
   // --- Disclaimer ---
+  // --- Verdict card ---
+  verdictCard: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xl,
+    padding: 16,
+    backgroundColor: Colors.terra50,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: Colors.terra200,
+  },
+  verdictHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  verdictIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: Colors.terra500,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verdictTitle: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 15,
+    color: Colors.terra600,
+  },
+  verdictPickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.terra200,
+  },
+  verdictPickName: {
+    flex: 1,
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  verdictScoreBadge: {
+    backgroundColor: Colors.navy800,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  verdictScoreText: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 10,
+    color: Colors.white,
+  },
+  verdictBody: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+
   disclaimer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
