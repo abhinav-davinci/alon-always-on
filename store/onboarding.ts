@@ -30,6 +30,14 @@ export interface OnboardingState {
   chatExpanded: boolean;
   activeStage: string;
   negotiatePropertyId: string | null;
+  negotiateDataRequests: Array<{
+    id: string;
+    type: 'index2' | 'custom';
+    text: string;
+    status: 'pending' | 'fulfilled';
+    propertyId: string;
+    timestamp: number;
+  }>;
 
   setCibilScore: (score: number | null) => void;
   setCibilSkipped: (val: boolean) => void;
@@ -61,6 +69,7 @@ export interface OnboardingState {
   setChatExpanded: (val: boolean) => void;
   setActiveStage: (stage: string) => void;
   setNegotiatePropertyId: (id: string | null) => void;
+  addNegotiateDataRequest: (req: { type: 'index2' | 'custom'; text: string; propertyId: string }) => void;
   reset: () => void;
 }
 
@@ -92,6 +101,14 @@ const initialState = {
   chatExpanded: false,
   activeStage: 'Search',
   negotiatePropertyId: null as string | null,
+  negotiateDataRequests: [] as Array<{
+    id: string;
+    type: 'index2' | 'custom';
+    text: string;
+    status: 'pending' | 'fulfilled';
+    propertyId: string;
+    timestamp: number;
+  }>,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -174,5 +191,19 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setChatExpanded: (chatExpanded) => set({ chatExpanded }),
   setActiveStage: (activeStage) => set({ activeStage }),
   setNegotiatePropertyId: (negotiatePropertyId) => set({ negotiatePropertyId }),
+  addNegotiateDataRequest: (req) =>
+    set((state) => ({
+      negotiateDataRequests: [
+        ...state.negotiateDataRequests,
+        {
+          id: `req-${Date.now()}`,
+          type: req.type,
+          text: req.text,
+          status: 'pending' as const,
+          propertyId: req.propertyId,
+          timestamp: Date.now(),
+        },
+      ],
+    })),
   reset: () => set(initialState),
 }));

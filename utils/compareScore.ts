@@ -172,7 +172,7 @@ export function computeMatchScore(
   const pros: string[] = [];
   const cons: string[] = [];
 
-  if (builderTrust >= 84) pros.push(`Top builder score (${property.builderScore}/5)`);
+  if (builderTrust >= 84) pros.push(`Builder score ${property.builderScore}/5`);
   if (budgetFit >= 90) pros.push('Within your budget');
   if (locationMatch >= 100) pros.push(`In your preferred area — ${areaName}`);
   if (!property.hasConflict && property.rera) pros.push('RERA verified, no conflicts');
@@ -341,11 +341,6 @@ export function buildComparisonData(
           higherIsBetter: true,
           bestIndex: getBestIndex(yoys, true),
         },
-        {
-          label: 'ALON Verdict',
-          values: properties.map((p) => p.alonVerdict || '—'),
-          bestIndex: -1,
-        },
       ],
     },
     {
@@ -357,6 +352,11 @@ export function buildComparisonData(
           numericValues: scores.map((s) => s.score),
           higherIsBetter: true,
           bestIndex: getBestIndex(scores.map((s) => s.score), true),
+        },
+        {
+          label: 'Verdict',
+          values: properties.map((p) => p.alonVerdict || '—'),
+          bestIndex: -1,
         },
         {
           label: 'Top Pro',

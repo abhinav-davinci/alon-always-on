@@ -34,7 +34,10 @@ const STAGE_INTROS: Record<string, { icon: typeof Search; text: string }> = {
 export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
   const router = useRouter();
   const haptics = useHaptics();
-  const { likedPropertyIds, scheduledVisits } = useOnboardingStore();
+  const {
+    likedPropertyIds, scheduledVisits, negotiatePropertyId, userProperties,
+    cibilScore, cibilSkipped, monthlyIncome,
+  } = useOnboardingStore();
 
   // Skeleton on initial mount only — stage toggles use the bottom bounce instead
   const [isLoading, setIsLoading] = useState(true);
@@ -100,34 +103,42 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
-  // ── Site Visits: show scheduled visits ──
+  // ── Site Visits: nudge or summary with CTA to dedicated screen ──
   if (stage === 'Site Visits') {
-    if (scheduledVisits.length === 0) {
-      return (
-        <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
-          <View style={styles.emptyHint}>
-            <Calendar size={14} color={Colors.warm300} strokeWidth={1.8} />
-            <Text style={styles.emptyHintText}>Schedule your first site visit from a property page</Text>
-          </View>
-        </Animated.View>
-      );
+    const visitCount = scheduledVisits.length;
+    const likedCount = likedPropertyIds.length + userProperties.length;
+
+    let text = '';
+    let ctaLabel = '';
+    let ctaRoute: any = '/onboarding/site-visits';
+
+    if (likedCount === 0) {
+      text = 'Shortlist some properties first — then you can schedule site visits.';
+      ctaLabel = 'Browse Properties';
+      ctaRoute = '/onboarding/shortlist';
+    } else if (visitCount === 0) {
+      text = `You have ${likedCount} shortlisted. Schedule your first visit — your number stays hidden.`;
+      ctaLabel = 'Schedule a Visit →';
+    } else {
+      const names = scheduledVisits.map((v) => v.propertyName).join(', ');
+      text = `${visitCount} visit${visitCount > 1 ? 's' : ''} scheduled — ${names}. Tap to manage or schedule more.`;
+      ctaLabel = 'View All Visits →';
     }
+
     return (
       <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
-        {scheduledVisits.map((v) => (
-          <View key={v.propertyId} style={styles.visitCard}>
-            <View style={styles.visitIconWrap}>
-              <MapPin size={14} color={Colors.terra500} strokeWidth={2} />
-            </View>
-            <View style={styles.visitInfo}>
-              <Text style={styles.visitName}>{v.propertyName}</Text>
-              <View style={styles.visitTimeRow}>
-                <Calendar size={10} color={Colors.textTertiary} strokeWidth={2} />
-                <Text style={styles.visitTime}>{v.date} at {v.time}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
+        <View style={styles.introCard}>
+          <MapPin size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
       </Animated.View>
     );
   }
@@ -173,7 +184,6 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
 
   // ── Finance: CIBIL status + quick stats ──
   if (stage === 'Finance') {
-    const { cibilScore, cibilSkipped, monthlyIncome } = useOnboardingStore();
     const hasCibil = !!cibilScore || cibilSkipped;
     const displayScore = cibilScore || (cibilSkipped ? '~750' : null);
 
@@ -195,7 +205,6 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
 
   // ── Negotiate: smart nudge based on pool + selection state ──
   if (stage === 'Negotiate') {
-    const { negotiatePropertyId, userProperties } = useOnboardingStore();
     const likedPool = SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id));
     const count = likedPool.length + userProperties.length;
     const selectedLiked = likedPool.find((p) => p.id === negotiatePropertyId);

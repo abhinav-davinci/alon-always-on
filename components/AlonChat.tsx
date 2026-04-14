@@ -70,7 +70,7 @@ const STAGE_PROMPTS: Record<string, string[]> = {
   Compare: ['Compare top 3', 'Which has best ROI?', 'Price vs market data'],
   Finance: ['How home loans work', 'What CIBIL score do I need?', 'Hidden charges to watch'],
   Legal: ['Review agreement', 'RERA compliance check', 'Red flag checklist'],
-  Negotiate: ['Which one should I negotiate on?', 'Help me pick from my shortlist', 'Why pick just one?'],
+  Negotiate: ['How to negotiate', 'Which one should I negotiate on?', 'Help me pick from my shortlist'],
   'Deal Closure': ['Deal timeline', 'Pending documents', 'Upcoming deadlines'],
   Possession: ['Possession checklist', 'Document list', 'Transfer process'],
 };
@@ -112,6 +112,9 @@ const DEMO_RESPONSES: Record<string, { text: string; card?: { title: string; ite
   },
   'How to compare properties?': {
     text: 'To start comparing, head to your Shortlist and tap ♡ on at least 2 properties you like. Once shortlisted, tap the "Compare" button and I\'ll build a detailed side-by-side analysis with match scores, market data, and my recommendation.',
+  },
+  'How to negotiate': {
+    text: "Here's how ALON helps you negotiate smarter:\n\n📊 Fair-price benchmark — I'll pull recent registered transactions (Index II) from the Sub-Registrar's office for your property's micro-market. This is government data that builders can't argue with.\n\n🏘️ Comparable deals — Side-by-side view of what other buyers actually paid for similar properties in the last 6 months. No broker quotes — real sale deed data.\n\n✅ Negotiation checklist — A step-by-step checklist tailored to your property: what to ask, when to push, and what's non-negotiable.\n\nTo get started, tap \"Pick a Property to Negotiate\" below — I need to know which property you're going in for. You can also request Index II data or any specific market data you need from the Negotiate screen.",
   },
 };
 
@@ -1087,35 +1090,14 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           );
         }
 
-        // ── Site Visits stage: "Schedule Visit" ──
+        // ── Site Visits stage: routes to dedicated screen ──
         if (stage === 'Site Visits') {
           return (
             <Animated.View entering={FadeIn.duration(250)}>
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  if (liked.length === 0) {
-                    // No shortlisted → chat nudge to shortlist first
-                    setMessages(prev => [...prev, {
-                      id: Date.now().toString(),
-                      type: 'alon',
-                      text: 'You haven\'t shortlisted any properties yet. Browse your matches and tap ♡ on properties you like — then we can schedule site visits for them.',
-                      timestamp: Date.now(),
-                    }]);
-                  } else if (visits.length === 0) {
-                    // Has shortlisted but no visits → go to first shortlisted property detail
-                    const firstLiked = liked[0];
-                    router.push({ pathname: '/onboarding/property-detail', params: { id: firstLiked } });
-                  } else {
-                    // Has visits → chat summary
-                    const visitSummary = visits.map(v => `• ${v.propertyName} — ${v.date}, ${v.time}`).join('\n');
-                    setMessages(prev => [...prev, {
-                      id: Date.now().toString(),
-                      type: 'alon',
-                      text: `You have ${visits.length} visit${visits.length > 1 ? 's' : ''} scheduled:\n\n${visitSummary}\n\nWant to schedule another? Tap on any shortlisted property to book a visit.`,
-                      timestamp: Date.now(),
-                    }]);
-                  }
+                  router.push('/onboarding/site-visits');
                 }}
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >

@@ -12,6 +12,7 @@ export interface Property {
   hasConflict: boolean;
   conflictType?: string;
   alonVerdict?: string;
+  possession: string;
 }
 
 export interface UserProperty {
@@ -44,6 +45,7 @@ export const SHORTLIST_PROPERTIES: Property[] = [
     builderScore: 4.5,
     hasConflict: false,
     alonVerdict: '12% annual appreciation — top pick in Baner',
+    possession: 'Dec 2026',
   },
   {
     id: 'pride-world-city',
@@ -58,6 +60,7 @@ export const SHORTLIST_PROPERTIES: Property[] = [
     builderScore: 4.2,
     hasConflict: false,
     alonVerdict: '15.7% YoY growth — ready to move in',
+    possession: 'Ready to move',
   },
   {
     id: 'kolte-patil-24k',
@@ -73,6 +76,7 @@ export const SHORTLIST_PROPERTIES: Property[] = [
     hasConflict: true,
     conflictType: 'Pending land title clarification',
     alonVerdict: 'Best value per sq.ft — title issue pending',
+    possession: 'Mar 2027',
   },
   {
     id: 'sobha-dream-acres',
@@ -87,6 +91,7 @@ export const SHORTLIST_PROPERTIES: Property[] = [
     builderScore: 4.3,
     hasConflict: false,
     alonVerdict: 'IT hub proximity — strong rental yield',
+    possession: 'Jun 2027',
   },
   {
     id: 'panchshil-towers',
@@ -100,6 +105,7 @@ export const SHORTLIST_PROPERTIES: Property[] = [
     rera: 'P52100056789',
     builderScore: 4.6,
     hasConflict: false,
-    alonVerdict: 'Highest builder trust score — 4.6/5',
+    alonVerdict: 'Builder score 4.6/5 — highest among your shortlist',
+    possession: 'Sep 2026',
   },
 ];

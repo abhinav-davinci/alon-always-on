@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Heart,
   Clock,
+  Calendar,
   ChevronRight,
   UserPlus,
   GitCompareArrows,
@@ -352,6 +353,12 @@ export default function ShortlistScreen() {
                     <Text style={styles.cardSize}>{p.size}</Text>
                   </View>
 
+                  {/* Possession date */}
+                  <View style={styles.cardPossessionRow}>
+                    <Calendar size={10} color={Colors.textTertiary} strokeWidth={1.8} />
+                    <Text style={styles.cardPossession}>{p.possession}</Text>
+                  </View>
+
                   {/* Tags — only for new */}
                   {p.isNew && (
                     <View style={styles.cardTags}>
@@ -643,6 +650,17 @@ const styles = StyleSheet.create({
   cardSize: {
     fontSize: 11,
     fontFamily: 'DMSans-Regular',
+    color: Colors.textTertiary,
+  },
+  cardPossessionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  cardPossession: {
+    fontSize: 10,
+    fontFamily: 'DMSans-Medium',
     color: Colors.textTertiary,
   },
   cardTags: {

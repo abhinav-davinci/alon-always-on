@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Image,
   Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,8 +22,21 @@ import {
   UserPlus,
   Info,
   ChevronRight,
+  Download,
+  FileText,
+  Send,
+  Clock,
+  MessageSquare,
 } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import { SHORTLIST_PROPERTIES, Property, UserProperty } from '../../constants/properties';
@@ -392,7 +408,7 @@ function ContextChip({ kind }: { kind: 'alon-pick' | 'visited' | 'by-you' }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// WORKSPACE (Phase 1 placeholder)
+// WORKSPACE
 // ═══════════════════════════════════════════════════════════════
 interface WorkspaceProps {
   property: Candidate;
@@ -401,13 +417,62 @@ interface WorkspaceProps {
 }
 
 function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: WorkspaceProps) {
+  const haptics = useHaptics();
+  const { negotiateDataRequests, addNegotiateDataRequest } = useOnboardingStore();
+  const [customRequestText, setCustomRequestText] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const requestInputY = useRef(0);
+
+  // Requests for the current property only
+  const propertyRequests = useMemo(
+    () => negotiateDataRequests.filter((r) => r.propertyId === property.id),
+    [negotiateDataRequests, property.id]
+  );
+  const hasIndex2Request = propertyRequests.some((r) => r.type === 'index2');
+  const index2Request = propertyRequests.find((r) => r.type === 'index2');
+  const customRequests = propertyRequests.filter((r) => r.type === 'custom');
+
+  const requestIndex2 = useCallback(() => {
+    if (hasIndex2Request) return;
+    haptics.medium();
+    addNegotiateDataRequest({
+      type: 'index2',
+      text: `Index II for ${property.area}`,
+      propertyId: property.id,
+    });
+  }, [hasIndex2Request, property]);
+
+  const submitCustomRequest = useCallback(() => {
+    const text = customRequestText.trim();
+    if (!text) return;
+    haptics.medium();
+    addNegotiateDataRequest({
+      type: 'custom',
+      text,
+      propertyId: property.id,
+    });
+    setCustomRequestText('');
+  }, [customRequestText, property]);
+
+  const scrollToInput = useCallback(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: requestInputY.current - 80, animated: true });
+    }, 300);
+  }, []);
+
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={[
         styles.workspaceContent,
         { paddingBottom: insetBottom + 24 },
       ]}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       {/* Selected property pinned header */}
       <Animated.View entering={FadeIn.duration(300)} style={styles.pinnedProperty}>
@@ -441,16 +506,133 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         <View style={styles.placeholderIconWrap}>
           <Handshake size={28} color={Colors.terra500} strokeWidth={1.8} />
         </View>
-        <Text style={styles.placeholderHeadline}>ALON is building your case</Text>
-        <Text style={styles.placeholderBody}>
-          Market data, comparable sales from the last 6 months, and a negotiation checklist are
-          on the way.
-        </Text>
+        <TypewriterText
+          text="ALON is building your case"
+          style={styles.placeholderHeadline}
+          speed={35}
+          delay={400}
+        />
+        <TypewriterText
+          text="Market data, comparable sales from the last 6 months, and a negotiation checklist are on the way."
+          style={styles.placeholderBody}
+          speed={18}
+          delay={1400}
+        />
         <View style={styles.placeholderBullets}>
           <PlaceholderBullet text="Fair-price benchmark against recent Pune transactions" />
           <PlaceholderBullet text="Comparable builder-buyer deals in the same micro-market" />
           <PlaceholderBullet text="Negotiation checklist tailored to this property" />
-          <PlaceholderBullet text="Walkaway price based on your budget and eligibility" />
+        </View>
+      </Animated.View>
+
+      {/* ── Index II download card ── */}
+      <Animated.View entering={FadeInDown.delay(250).duration(300)}>
+        <View style={styles.toolSection}>
+          <Text style={styles.toolSectionLabel}>NEGOTIATION TOOLS</Text>
+
+          <TouchableOpacity
+            style={[styles.toolCard, hasIndex2Request && styles.toolCardRequested]}
+            onPress={requestIndex2}
+            activeOpacity={hasIndex2Request ? 1 : 0.7}
+          >
+            <View style={[styles.toolIconWrap, hasIndex2Request && styles.toolIconWrapRequested]}>
+              {hasIndex2Request ? (
+                <Clock size={18} color={Colors.terra500} strokeWidth={1.8} />
+              ) : (
+                <Download size={18} color={Colors.terra500} strokeWidth={1.8} />
+              )}
+            </View>
+            <View style={styles.toolCardContent}>
+              <Text style={styles.toolCardTitle}>
+                {hasIndex2Request ? 'Index II requested' : 'Download Index II'}
+              </Text>
+              <Text style={styles.toolCardSub}>
+                {hasIndex2Request
+                  ? `For ${property.area}. We'll notify you when it's ready.`
+                  : `Registered transaction data for ${property.area} from the Sub-Registrar's office — the strongest proof of market price.`}
+              </Text>
+              {hasIndex2Request && index2Request && (
+                <View style={styles.statusBadge}>
+                  <PulsingDot fulfilled={index2Request.status === 'fulfilled'} />
+                  <Text style={[styles.statusText, index2Request.status === 'fulfilled' && styles.statusTextFulfilled]}>
+                    {index2Request.status === 'pending' ? 'Being prepared' : 'Ready to view'}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {!hasIndex2Request && (
+              <ChevronRight size={16} color={Colors.terra400} strokeWidth={2} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* ── Request custom data ── */}
+      <Animated.View entering={FadeInDown.delay(350).duration(300)}>
+        <View
+          style={styles.requestSection}
+          onLayout={(e) => { requestInputY.current = e.nativeEvent.layout.y; }}
+        >
+          <View style={styles.requestHeader}>
+            <MessageSquare size={14} color={Colors.terra500} strokeWidth={1.8} />
+            <Text style={styles.requestSectionTitle}>Request specific data</Text>
+          </View>
+          <Text style={styles.requestSub}>
+            Need something specific? Describe what data would help your negotiation — our team
+            will prepare it and notify you when it's ready.
+          </Text>
+
+          <View style={styles.requestInputRow}>
+            <TextInput
+              style={styles.requestInput}
+              placeholder="e.g. comparable 3BHK sales in Baner last 6 months"
+              placeholderTextColor={Colors.warm300}
+              value={customRequestText}
+              onChangeText={setCustomRequestText}
+              onFocus={scrollToInput}
+              multiline
+              maxLength={300}
+            />
+            <TouchableOpacity
+              style={[styles.requestSendBtn, !customRequestText.trim() && styles.requestSendBtnDisabled]}
+              onPress={submitCustomRequest}
+              disabled={!customRequestText.trim()}
+              activeOpacity={0.85}
+            >
+              <Send size={16} color={Colors.white} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Submitted requests */}
+          {customRequests.length > 0 && (
+            <View style={styles.requestList}>
+              <Text style={styles.requestListLabel}>YOUR REQUESTS</Text>
+              {customRequests.map((req) => (
+                <View key={req.id} style={styles.requestItem}>
+                  <FileText size={14} color={Colors.terra400} strokeWidth={1.8} />
+                  <View style={styles.requestItemContent}>
+                    <Text style={styles.requestItemText} numberOfLines={2}>
+                      {req.text}
+                    </Text>
+                    <View style={styles.statusBadge}>
+                      <PulsingDot fulfilled={req.status === 'fulfilled'} />
+                      <Text style={[styles.statusText, req.status === 'fulfilled' && styles.statusTextFulfilled]}>
+                        {req.status === 'pending' ? 'Being prepared' : 'Ready to view'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              {/* Notification info */}
+              <View style={styles.notifyInfo}>
+                <Info size={11} color={Colors.warm400} strokeWidth={1.8} />
+                <Text style={styles.notifyInfoText}>
+                  You'll be notified when your requested data is available
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </Animated.View>
 
@@ -463,6 +645,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </Text>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -472,6 +655,69 @@ function PlaceholderBullet({ text }: { text: string }) {
       <View style={styles.bulletDot} />
       <Text style={styles.bulletText}>{text}</Text>
     </View>
+  );
+}
+
+// ── Pulsing status dot for "Being prepared" ──
+function PulsingDot({ fulfilled }: { fulfilled?: boolean }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (!fulfilled) {
+      pulse.value = withRepeat(
+        withTiming(0.25, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+    } else {
+      pulse.value = 1;
+    }
+  }, [fulfilled]);
+  const animStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.statusDot,
+        fulfilled && styles.statusDotFulfilled,
+        !fulfilled && animStyle,
+      ]}
+    />
+  );
+}
+
+// ── Typewriter text — reveals text character by character ──
+function TypewriterText({
+  text,
+  style,
+  speed = 25,
+  delay = 0,
+}: {
+  text: string;
+  style?: any;
+  speed?: number;
+  delay?: number;
+}) {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    let idx = 0;
+    setDisplayed('');
+    const startTimeout = setTimeout(() => {
+      const interval = setInterval(() => {
+        idx++;
+        setDisplayed(text.slice(0, idx));
+        if (idx >= text.length) clearInterval(interval);
+      }, speed);
+      return () => clearInterval(interval);
+    }, delay);
+    return () => clearTimeout(startTimeout);
+  }, [text, speed, delay]);
+
+  const showCursor = displayed.length < text.length;
+  return (
+    <Text style={style}>
+      {displayed}
+      {showCursor && <Text style={{ opacity: 0.4 }}>|</Text>}
+    </Text>
   );
 }
 
@@ -777,6 +1023,192 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Regular',
     color: Colors.textSecondary,
     lineHeight: 17,
+  },
+
+  // ── Tool section (Index II + requests) ──
+  toolSection: {
+    marginHorizontal: Spacing.xxl,
+    marginTop: 20,
+  },
+  toolSectionLabel: {
+    fontSize: 10,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textTertiary,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  toolCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.warm200,
+  },
+  toolCardRequested: {
+    borderColor: Colors.terra200,
+    backgroundColor: Colors.terra50,
+  },
+  toolIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.terra50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolIconWrapRequested: {
+    backgroundColor: Colors.white,
+  },
+  toolCardContent: {
+    flex: 1,
+  },
+  toolCardTitle: {
+    fontSize: 14,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textPrimary,
+    marginBottom: 3,
+  },
+  toolCardSub: {
+    fontSize: 12,
+    fontFamily: 'DMSans-Regular',
+    color: Colors.textSecondary,
+    lineHeight: 17,
+  },
+
+  // ── Status badge ──
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.ember,
+  },
+  statusDotFulfilled: {
+    backgroundColor: '#22C55E',
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: 'DMSans-Medium',
+    color: Colors.ember,
+  },
+  statusTextFulfilled: {
+    color: '#22C55E',
+  },
+
+  // ── Request section ──
+  requestSection: {
+    marginHorizontal: Spacing.xxl,
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: Colors.cream,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  requestSectionTitle: {
+    fontSize: 14,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textPrimary,
+  },
+  requestSub: {
+    fontSize: 12,
+    fontFamily: 'DMSans-Regular',
+    color: Colors.textSecondary,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  requestInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  requestInput: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 88,
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    fontFamily: 'DMSans-Regular',
+    color: Colors.textPrimary,
+    textAlignVertical: 'top',
+  },
+  requestSendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.terra500,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestSendBtnDisabled: {
+    backgroundColor: Colors.warm200,
+  },
+
+  // ── Submitted requests list ──
+  requestList: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm200,
+    gap: 10,
+  },
+  requestListLabel: {
+    fontSize: 9,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textTertiary,
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  requestItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 10,
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.warm100,
+  },
+  requestItemContent: {
+    flex: 1,
+  },
+  requestItemText: {
+    fontSize: 12,
+    fontFamily: 'DMSans-Medium',
+    color: Colors.textPrimary,
+    lineHeight: 17,
+  },
+  notifyInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 2,
+  },
+  notifyInfoText: {
+    fontSize: 11,
+    fontFamily: 'DMSans-Regular',
+    color: Colors.warm400,
+    fontStyle: 'italic',
   },
 
   disclaimer: {

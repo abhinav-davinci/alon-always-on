@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, LayoutDashboard, Heart } from 'lucide-react-native';
+import { ChevronLeft, LayoutDashboard, Heart, Share2 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
 import CompareTable from '../../components/CompareTable';
 import AlonAvatar from '../../components/AlonAvatar';
+import CompareShareSheet from '../../components/CompareShareSheet';
 import { SkeletonCompareTable } from '../../components/skeleton';
 
 export default function CompareScreen() {
@@ -25,6 +26,7 @@ export default function CompareScreen() {
   const preferences = { budget, locations, propertySize };
   const hasEnough = comparePropertyIds.length >= 2;
   const [isLoading, setIsLoading] = useState(true);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     if (!hasEnough) { setIsLoading(false); return; }
@@ -49,7 +51,13 @@ export default function CompareScreen() {
           <ChevronLeft size={22} color={Colors.textPrimary} strokeWidth={1.8} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Property Comparison</Text>
-        <View style={{ width: 36 }} />
+        {hasEnough && !isLoading ? (
+          <TouchableOpacity style={styles.shareBtn} onPress={() => setShowShare(true)} activeOpacity={0.7}>
+            <Share2 size={18} color={Colors.textSecondary} strokeWidth={1.8} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       {/* --- Content --- */}
@@ -114,6 +122,12 @@ export default function CompareScreen() {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      <CompareShareSheet
+        visible={showShare}
+        onClose={() => setShowShare(false)}
+        propertyIds={comparePropertyIds}
+      />
     </View>
   );
 }
@@ -133,6 +147,14 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.warm50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,

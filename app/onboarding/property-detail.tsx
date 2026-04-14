@@ -91,7 +91,7 @@ const PROPERTIES: Record<string, any> = {
     ],
     highlights: [
       'RERA registered and verified',
-      'Godrej — Top 5 builder in Pune',
+      'Godrej — Builder score 4.5/5 in Pune',
       'Near Balewadi IT hub (3 km)',
       'Ready possession Dec 2026',
     ],

@@ -92,11 +92,6 @@ function buildUnifiedGroups(
           }),
           bestIndex: -1,
         },
-        {
-          label: 'ALON Verdict',
-          values: properties.map((p) => p.alonVerdict || (p.isUserAdded ? 'Add details for analysis' : NA)),
-          bestIndex: -1,
-        },
       ],
     },
     {
@@ -110,6 +105,11 @@ function buildUnifiedGroups(
             if (!alonProp) return NA;
             return `${computeMatchScore(alonProp, preferences).score}%`;
           }),
+          bestIndex: -1,
+        },
+        {
+          label: 'Verdict',
+          values: properties.map((p) => p.alonVerdict || (p.isUserAdded ? 'Add details for analysis' : NA)),
           bestIndex: -1,
         },
       ],
@@ -261,14 +261,16 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
       )}
 
       {/* --- Comparison groups --- */}
-      {groups.map((group) => (
+      {groups.map((group) => {
+        const isAlonGroup = group.title === "ALON's Analysis";
+        return (
         <View key={group.title} style={styles.group}>
           <TouchableOpacity
-            style={styles.groupHeader}
+            style={[styles.groupHeader, isAlonGroup && styles.groupHeaderAlon]}
             onPress={() => toggleGroup(group.title)}
             activeOpacity={0.7}
           >
-            <Text style={styles.groupTitle}>{group.title}</Text>
+            <Text style={[styles.groupTitle, isAlonGroup && styles.groupTitleAlon]}>{group.title}</Text>
             {collapsedGroups[group.title] ? (
               <ChevronDown size={16} color={Colors.warm400} strokeWidth={1.8} />
             ) : (
@@ -305,7 +307,8 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
               </View>
             ))}
         </View>
-      ))}
+        );
+      })}
 
       {/* --- AI Disclaimer --- */}
       <View style={styles.disclaimer}>
@@ -483,6 +486,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  groupHeaderAlon: {
+    backgroundColor: Colors.terra50,
+    borderColor: Colors.terra200,
+  },
+  groupTitleAlon: {
+    color: Colors.terra600,
   },
 
   // --- Data rows ---

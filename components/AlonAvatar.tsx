@@ -61,6 +61,7 @@ interface AlonAvatarProps {
   showBlink?: boolean;
   variant?: 'default' | 'light';
   interactive?: boolean; // explicit override; defaults based on size
+  autoGreet?: boolean;   // auto-show intro bubble after entrance animation
   onPress?: () => void;
 }
 
@@ -74,6 +75,7 @@ export default function AlonAvatar({
   showBlink = true,
   variant = 'default',
   interactive,
+  autoGreet = false,
   onPress,
 }: AlonAvatarProps) {
   const haptics = useHaptics();
@@ -185,6 +187,19 @@ export default function AlonAvatar({
     setBubbleText(text);
     bubbleTimeout.current = setTimeout(() => setBubbleText(null), 2000);
   }, []);
+
+  // Auto-greet on first appearance (intro screen)
+  // Delay accounts for splash intro sequence before avatar becomes visible
+  const autoGreetDone = useRef(false);
+  useEffect(() => {
+    if (autoGreet && !autoGreetDone.current) {
+      autoGreetDone.current = true;
+      const timer = setTimeout(() => {
+        showBubble("Hey, I'm ALON");
+      }, 4200); // ~3.4s for phase2 reveal + 0.8s after avatar is visible
+      return () => clearTimeout(timer);
+    }
+  }, [autoGreet]);
 
   const getGreeting = useCallback(() => {
     const count = tapCount.current;
