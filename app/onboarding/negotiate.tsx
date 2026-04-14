@@ -27,6 +27,10 @@ import {
   Send,
   Clock,
   MessageSquare,
+  TrendingUp,
+  BarChart3,
+  Square,
+  CheckSquare,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -42,6 +46,119 @@ import { useOnboardingStore } from '../../store/onboarding';
 import { SHORTLIST_PROPERTIES, Property, UserProperty } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
 import { getRecommended } from '../../utils/compareScore';
+
+// ── Demo data for negotiate workspace (mirrors property-detail) ──
+const PROPERTY_DETAILS: Record<string, {
+  priceHistory: { period: string; price: string; change: string }[];
+  pricePerSqFt: string;
+}> = {
+  'godrej-hillside': {
+    pricePerSqFt: '₹9,310',
+    priceHistory: [
+      { period: '6 mo ago', price: '₹1.28 Cr', change: '+5.5%' },
+      { period: '1 yr ago', price: '₹1.15 Cr', change: '+17.4%' },
+      { period: 'Launch', price: '₹95 L', change: '+42.1%' },
+    ],
+  },
+  'pride-world-city': {
+    pricePerSqFt: '₹8,940',
+    priceHistory: [
+      { period: '6 mo ago', price: '₹1.12 Cr', change: '+5.4%' },
+      { period: '1 yr ago', price: '₹1.02 Cr', change: '+15.7%' },
+      { period: 'Launch', price: '₹78 L', change: '+51.3%' },
+    ],
+  },
+  'kolte-patil-24k': {
+    pricePerSqFt: '₹9,330',
+    priceHistory: [
+      { period: '6 mo ago', price: '₹93 L', change: '+5.4%' },
+      { period: '1 yr ago', price: '₹85 L', change: '+15.3%' },
+      { period: 'Launch', price: '₹72 L', change: '+36.1%' },
+    ],
+  },
+  'sobha-dream-acres': {
+    pricePerSqFt: '₹8,898',
+    priceHistory: [
+      { period: '6 mo ago', price: '₹98 L', change: '+7.1%' },
+      { period: '1 yr ago', price: '₹88 L', change: '+19.3%' },
+      { period: 'Launch', price: '₹74 L', change: '+41.9%' },
+    ],
+  },
+  'panchshil-towers': {
+    pricePerSqFt: '₹9,340',
+    priceHistory: [
+      { period: '6 mo ago', price: '₹1.35 Cr', change: '+5.2%' },
+      { period: '1 yr ago', price: '₹1.22 Cr', change: '+16.4%' },
+      { period: 'Launch', price: '₹1.05 Cr', change: '+35.2%' },
+    ],
+  },
+};
+
+const AREA_TRENDS: Record<string, {
+  avgPriceSqFt: string; yoyGrowth: string; activeListings: number;
+  demandLevel: string; insight: string;
+}> = {
+  'Baner': {
+    avgPriceSqFt: '₹9,800', yoyGrowth: '12.3%', activeListings: 340,
+    demandLevel: 'High',
+    insight: 'Baner has seen consistent 12%+ annual growth driven by IT corridor expansion and proximity to Hinjewadi. Premium segment (₹1Cr+) is particularly strong.',
+  },
+  'Balewadi': {
+    avgPriceSqFt: '₹9,200', yoyGrowth: '15.7%', activeListings: 210,
+    demandLevel: 'Very High',
+    insight: 'Balewadi is one of Pune\'s fastest-growing micro-markets. Sports infrastructure and IT proximity are key demand drivers. Ready-to-move inventory is scarce.',
+  },
+  'Wakad': {
+    avgPriceSqFt: '₹8,400', yoyGrowth: '10.8%', activeListings: 420,
+    demandLevel: 'Moderate',
+    insight: 'Wakad offers competitive pricing compared to Baner/Balewadi with good connectivity. Higher inventory means more negotiation room for buyers.',
+  },
+  'Hinjewadi': {
+    avgPriceSqFt: '₹8,100', yoyGrowth: '14.2%', activeListings: 380,
+    demandLevel: 'High',
+    insight: 'Direct IT hub location drives strong rental demand. New metro line announcement has boosted capital appreciation. Supply is increasing with new launches.',
+  },
+  'Kharadi': {
+    avgPriceSqFt: '₹9,500', yoyGrowth: '11.5%', activeListings: 260,
+    demandLevel: 'High',
+    insight: 'Kharadi\'s EON IT Park proximity and Pune airport access make it a premium east-Pune market. Price growth is steady at 11-12% annually.',
+  },
+};
+
+// ── Index II mock available documents ──
+function getAvailableIndex2(area: string): { id: string; label: string }[] {
+  const areaName = area.split(',')[0].trim();
+  const year = new Date().getFullYear();
+  return [
+    { id: `${areaName.toLowerCase()}-${year}`, label: `Index II — ${areaName} ${year}` },
+    { id: `${areaName.toLowerCase()}-${year - 1}`, label: `Index II — ${areaName} ${year - 1}` },
+    { id: `${areaName.toLowerCase()}-nearby-${year}`, label: `Index II — Nearby areas ${year}` },
+  ];
+}
+
+// ── Negotiation checklist ──
+interface ChecklistItem { id: string; text: string; tier: 'price' | 'hidden' | 'contract' | 'specific' }
+
+function buildChecklist(property: { id: string; name: string; area: string; price: string }): ChecklistItem[] {
+  const items: ChecklistItem[] = [
+    // Tier 1: Price negotiation
+    { id: 'verify-index', tier: 'price', text: 'Verify quoted price against Index II registered transactions in the area' },
+    { id: 'itemized-cost', tier: 'price', text: 'Ask for itemized cost breakdown: base price, floor rise, PLC, amenity charges, GST' },
+    { id: 'compare-resale', tier: 'price', text: 'Compare with resale prices in the same society — often 10-15% lower than new launch' },
+    { id: 'carpet-area', tier: 'price', text: 'Confirm price is on carpet area (RERA mandate), not super built-up' },
+    // Tier 2: Hidden charges
+    { id: 'club-membership', tier: 'hidden', text: 'Push for waiver on club membership fee (typically ₹2-5L, often negotiable)' },
+    { id: 'parking', tier: 'hidden', text: 'Negotiate car parking charges — covered vs open, should not exceed ₹3-5L' },
+    { id: 'maintenance', tier: 'hidden', text: 'Check if maintenance deposit is one-time or monthly, and the per sq.ft rate' },
+    { id: 'stamp-duty', tier: 'hidden', text: 'Verify stamp duty calculation base: agreement value vs ready reckoner rate' },
+    // Tier 3: Contractual leverage
+    { id: 'possession-penalty', tier: 'contract', text: 'Request possession delay penalty clause (₹X per sq.ft per month of delay)' },
+    { id: 'payment-plan', tier: 'contract', text: 'Ask about payment plan: CLP (construction-linked) vs TLP (time-linked) — CLP gives you leverage' },
+    { id: 'cancellation', tier: 'contract', text: 'Negotiate cancellation/refund terms — push for 6-month refund window' },
+    { id: 'specification', tier: 'contract', text: 'Ask for specification upgrades: modular kitchen, flooring grade, bathroom fittings' },
+  ];
+  return items;
+}
 
 // ── Unified candidate shape (Property + UserProperty normalized) ──
 interface Candidate {
@@ -422,35 +539,61 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const [customRequestText, setCustomRequestText] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const requestInputY = useRef(0);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [selectedIndex2, setSelectedIndex2] = useState<Set<string>>(new Set());
+
+  // Lookup property details + area trends
+  const details = PROPERTY_DETAILS[property.id];
+  const areaName = property.area.split(',')[0].trim();
+  const areaTrends = AREA_TRENDS[areaName];
+  const availableIndex2 = useMemo(() => getAvailableIndex2(property.area), [property.area]);
+  const checklist = useMemo(() => buildChecklist(property), [property.id]);
 
   // Requests for the current property only
   const propertyRequests = useMemo(
     () => negotiateDataRequests.filter((r) => r.propertyId === property.id),
     [negotiateDataRequests, property.id]
   );
-  const hasIndex2Request = propertyRequests.some((r) => r.type === 'index2');
-  const index2Request = propertyRequests.find((r) => r.type === 'index2');
   const customRequests = propertyRequests.filter((r) => r.type === 'custom');
 
-  const requestIndex2 = useCallback(() => {
-    if (hasIndex2Request) return;
-    haptics.medium();
-    addNegotiateDataRequest({
-      type: 'index2',
-      text: `Index II for ${property.area}`,
-      propertyId: property.id,
+  const toggleChecklistItem = useCallback((id: string) => {
+    haptics.light();
+    setCheckedItems((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
-  }, [hasIndex2Request, property]);
+  }, []);
+
+  const toggleIndex2 = useCallback((id: string) => {
+    haptics.selection();
+    setSelectedIndex2((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const downloadIndex2 = useCallback(() => {
+    haptics.medium();
+    selectedIndex2.forEach((id) => {
+      const doc = availableIndex2.find((d) => d.id === id);
+      if (doc) {
+        addNegotiateDataRequest({
+          type: 'index2',
+          text: doc.label,
+          propertyId: property.id,
+        });
+      }
+    });
+    setSelectedIndex2(new Set());
+  }, [selectedIndex2, availableIndex2, property.id]);
 
   const submitCustomRequest = useCallback(() => {
     const text = customRequestText.trim();
     if (!text) return;
     haptics.medium();
-    addNegotiateDataRequest({
-      type: 'custom',
-      text,
-      propertyId: property.id,
-    });
+    addNegotiateDataRequest({ type: 'custom', text, propertyId: property.id });
     setCustomRequestText('');
   }, [customRequestText, property]);
 
@@ -460,21 +603,18 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
     }, 300);
   }, []);
 
+  const checkedCount = checkedItems.size;
+  const totalChecklist = checklist.length;
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView
       ref={scrollRef}
-      contentContainerStyle={[
-        styles.workspaceContent,
-        { paddingBottom: insetBottom + 24 },
-      ]}
+      contentContainerStyle={[styles.workspaceContent, { paddingBottom: insetBottom + 24 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Selected property pinned header */}
+      {/* ── Property header ── */}
       <Animated.View entering={FadeIn.duration(300)} style={styles.pinnedProperty}>
         {property.image ? (
           <Image source={{ uri: property.image }} style={styles.pinnedImage} />
@@ -485,12 +625,8 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         )}
         <View style={styles.pinnedInfo}>
           <Text style={styles.pinnedLabel}>NEGOTIATING ON</Text>
-          <Text style={styles.pinnedName} numberOfLines={1}>
-            {property.name}
-          </Text>
-          <Text style={styles.pinnedMeta} numberOfLines={1}>
-            {property.area} · {property.price}
-          </Text>
+          <Text style={styles.pinnedName} numberOfLines={1}>{property.name}</Text>
+          <Text style={styles.pinnedMeta} numberOfLines={1}>{property.area} · {property.price}</Text>
         </View>
         <TouchableOpacity onPress={onChangeProperty} style={styles.changeBtn} activeOpacity={0.7}>
           <Text style={styles.changeBtnText}>Change</Text>
@@ -498,77 +634,161 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Placeholder "building your case" card */}
-      <Animated.View
-        entering={FadeInDown.delay(150).duration(300)}
-        style={styles.placeholderCard}
-      >
-        <View style={styles.placeholderIconWrap}>
-          <Handshake size={28} color={Colors.terra500} strokeWidth={1.8} />
-        </View>
-        <TypewriterText
-          text="ALON is building your case"
-          style={styles.placeholderHeadline}
-          speed={35}
-          delay={400}
-        />
-        <TypewriterText
-          text="Market data, comparable sales from the last 6 months, and a negotiation checklist are on the way."
-          style={styles.placeholderBody}
-          speed={18}
-          delay={1400}
-        />
-        <View style={styles.placeholderBullets}>
-          <PlaceholderBullet text="Fair-price benchmark against recent Pune transactions" />
-          <PlaceholderBullet text="Comparable builder-buyer deals in the same micro-market" />
-          <PlaceholderBullet text="Negotiation checklist tailored to this property" />
-        </View>
+      {/* ── Credibility pill ── */}
+      <Animated.View entering={FadeIn.delay(150).duration(300)} style={styles.credibilityPill}>
+        <Sparkles size={11} color={Colors.terra500} strokeWidth={2} />
+        <Text style={styles.credibilityText}>
+          Based on {areaTrends?.activeListings || 300}+ transactions in {areaName} · Prepared by ALON
+        </Text>
       </Animated.View>
 
-      {/* ── Index II download card ── */}
-      <Animated.View entering={FadeInDown.delay(250).duration(300)}>
-        <View style={styles.toolSection}>
-          <Text style={styles.toolSectionLabel}>NEGOTIATION TOOLS</Text>
+      {/* ═══ PRICE INTELLIGENCE ═══ */}
+      {details && (
+        <Animated.View entering={FadeInDown.delay(200).duration(300)}>
+          <Text style={styles.wsLabel}>PRICE INTELLIGENCE</Text>
 
-          <TouchableOpacity
-            style={[styles.toolCard, hasIndex2Request && styles.toolCardRequested]}
-            onPress={requestIndex2}
-            activeOpacity={hasIndex2Request ? 1 : 0.7}
-          >
-            <View style={[styles.toolIconWrap, hasIndex2Request && styles.toolIconWrapRequested]}>
-              {hasIndex2Request ? (
-                <Clock size={18} color={Colors.terra500} strokeWidth={1.8} />
-              ) : (
-                <Download size={18} color={Colors.terra500} strokeWidth={1.8} />
-              )}
+          {/* Fair price range */}
+          <View style={styles.fairPriceCard}>
+            <View style={styles.fairPriceHeader}>
+              <TrendingUp size={14} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.fairPriceTitle}>Fair Price Range</Text>
             </View>
-            <View style={styles.toolCardContent}>
-              <Text style={styles.toolCardTitle}>
-                {hasIndex2Request ? 'Index II requested' : 'Download Index II'}
-              </Text>
-              <Text style={styles.toolCardSub}>
-                {hasIndex2Request
-                  ? `For ${property.area}. We'll notify you when it's ready.`
-                  : `Registered transaction data for ${property.area} from the Sub-Registrar's office — the strongest proof of market price.`}
-              </Text>
-              {hasIndex2Request && index2Request && (
-                <View style={styles.statusBadge}>
-                  <PulsingDot fulfilled={index2Request.status === 'fulfilled'} />
-                  <Text style={[styles.statusText, index2Request.status === 'fulfilled' && styles.statusTextFulfilled]}>
-                    {index2Request.status === 'pending' ? 'Being prepared' : 'Ready to view'}
-                  </Text>
+            <Text style={styles.fairPriceRange}>
+              {details.priceHistory[2]?.price || '—'} — {property.price}
+            </Text>
+            <Text style={styles.fairPriceSub}>
+              Your property at {property.price} · {details.pricePerSqFt}/sq.ft
+            </Text>
+
+            {/* Price history rows */}
+            <View style={styles.priceHistoryWrap}>
+              {details.priceHistory.map((ph, i) => (
+                <View key={ph.period} style={[styles.phRow, i > 0 && styles.phRowBorder]}>
+                  <Text style={styles.phPeriod}>{ph.period}</Text>
+                  <Text style={styles.phPrice}>{ph.price}</Text>
+                  <View style={styles.phChangeBadge}>
+                    <TrendingUp size={10} color="#16A34A" strokeWidth={2} />
+                    <Text style={styles.phChangeText}>{ph.change}</Text>
+                  </View>
                 </View>
-              )}
+              ))}
             </View>
-            {!hasIndex2Request && (
-              <ChevronRight size={16} color={Colors.terra400} strokeWidth={2} />
-            )}
-          </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ═══ AREA TRENDS ═══ */}
+      {areaTrends && (
+        <Animated.View entering={FadeInDown.delay(300).duration(300)}>
+          <Text style={styles.wsLabel}>AREA TRENDS — {areaName.toUpperCase()}</Text>
+          <View style={styles.areaTrendsCard}>
+            <View style={styles.areaStatsRow}>
+              <View style={styles.areaStat}>
+                <Text style={styles.areaStatValue}>{areaTrends.avgPriceSqFt}</Text>
+                <Text style={styles.areaStatLabel}>Avg/sq.ft</Text>
+              </View>
+              <View style={styles.areaStatDivider} />
+              <View style={styles.areaStat}>
+                <Text style={styles.areaStatValue}>{areaTrends.yoyGrowth}</Text>
+                <Text style={styles.areaStatLabel}>YoY growth</Text>
+              </View>
+              <View style={styles.areaStatDivider} />
+              <View style={styles.areaStat}>
+                <Text style={styles.areaStatValue}>{areaTrends.activeListings}</Text>
+                <Text style={styles.areaStatLabel}>Active listings</Text>
+              </View>
+              <View style={styles.areaStatDivider} />
+              <View style={styles.areaStat}>
+                <Text style={[styles.areaStatValue, { color: '#16A34A' }]}>{areaTrends.demandLevel}</Text>
+                <Text style={styles.areaStatLabel}>Demand</Text>
+              </View>
+            </View>
+            <View style={styles.areaInsightWrap}>
+              <BarChart3 size={12} color={Colors.terra400} strokeWidth={1.8} />
+              <Text style={styles.areaInsightText}>{areaTrends.insight}</Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ═══ NEGOTIATION CHECKLIST ═══ */}
+      <Animated.View entering={FadeInDown.delay(400).duration(300)}>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.wsLabel}>NEGOTIATION CHECKLIST</Text>
+          <Text style={styles.checklistProgress}>{checkedCount}/{totalChecklist}</Text>
+        </View>
+        {checkedCount > 0 && (
+          <View style={styles.checklistProgressBar}>
+            <View style={[styles.checklistProgressFill, { width: `${(checkedCount / totalChecklist) * 100}%` as any }]} />
+          </View>
+        )}
+        <View style={styles.checklistCard}>
+          {checklist.map((item) => {
+            const done = checkedItems.has(item.id);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.checklistRow, done && styles.checklistRowDone]}
+                onPress={() => toggleChecklistItem(item.id)}
+                activeOpacity={0.7}
+              >
+                {done ? (
+                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
+                ) : (
+                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
+                )}
+                <Text style={[styles.checklistText, done && styles.checklistTextDone]}>
+                  {item.text}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </Animated.View>
 
-      {/* ── Request custom data ── */}
-      <Animated.View entering={FadeInDown.delay(350).duration(300)}>
+      {/* ═══ INDEX II DATA ═══ */}
+      <Animated.View entering={FadeInDown.delay(500).duration(300)}>
+        <Text style={styles.wsLabel}>INDEX II DATA</Text>
+        <View style={styles.index2Card}>
+          <Text style={styles.index2Subtitle}>Available for {areaName}:</Text>
+          {availableIndex2.map((doc) => {
+            const isSelected = selectedIndex2.has(doc.id);
+            const isRequested = propertyRequests.some((r) => r.type === 'index2' && r.text === doc.label);
+            return (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.index2Row}
+                onPress={() => !isRequested && toggleIndex2(doc.id)}
+                activeOpacity={isRequested ? 1 : 0.7}
+              >
+                {isRequested ? (
+                  <CheckCircle2 size={16} color="#22C55E" strokeWidth={2} />
+                ) : isSelected ? (
+                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
+                ) : (
+                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
+                )}
+                <Text style={[styles.index2Label, isRequested && styles.index2LabelDone]}>{doc.label}</Text>
+                {isRequested && (
+                  <View style={styles.statusBadge}>
+                    <PulsingDot />
+                    <Text style={styles.statusText}>Preparing</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+          {selectedIndex2.size > 0 && (
+            <TouchableOpacity style={styles.index2DownloadBtn} onPress={downloadIndex2} activeOpacity={0.85}>
+              <Download size={14} color={Colors.white} strokeWidth={2.5} />
+              <Text style={styles.index2DownloadText}>Request {selectedIndex2.size} Selected</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
+
+      {/* ═══ REQUEST CUSTOM DATA ═══ */}
+      <Animated.View entering={FadeInDown.delay(600).duration(300)}>
         <View
           style={styles.requestSection}
           onLayout={(e) => { requestInputY.current = e.nativeEvent.layout.y; }}
@@ -578,10 +798,8 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
             <Text style={styles.requestSectionTitle}>Request specific data</Text>
           </View>
           <Text style={styles.requestSub}>
-            Need something specific? Describe what data would help your negotiation — our team
-            will prepare it and notify you when it's ready.
+            Need something specific? Our team will prepare it and notify you.
           </Text>
-
           <View style={styles.requestInputRow}>
             <TextInput
               style={styles.requestInput}
@@ -602,8 +820,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
               <Send size={16} color={Colors.white} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
-
-          {/* Submitted requests */}
           {customRequests.length > 0 && (
             <View style={styles.requestList}>
               <Text style={styles.requestListLabel}>YOUR REQUESTS</Text>
@@ -611,9 +827,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
                 <View key={req.id} style={styles.requestItem}>
                   <FileText size={14} color={Colors.terra400} strokeWidth={1.8} />
                   <View style={styles.requestItemContent}>
-                    <Text style={styles.requestItemText} numberOfLines={2}>
-                      {req.text}
-                    </Text>
+                    <Text style={styles.requestItemText} numberOfLines={2}>{req.text}</Text>
                     <View style={styles.statusBadge}>
                       <PulsingDot fulfilled={req.status === 'fulfilled'} />
                       <Text style={[styles.statusText, req.status === 'fulfilled' && styles.statusTextFulfilled]}>
@@ -623,13 +837,9 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
                   </View>
                 </View>
               ))}
-
-              {/* Notification info */}
               <View style={styles.notifyInfo}>
                 <Info size={11} color={Colors.warm400} strokeWidth={1.8} />
-                <Text style={styles.notifyInfoText}>
-                  You'll be notified when your requested data is available
-                </Text>
+                <Text style={styles.notifyInfoText}>You will be notified when your requested data is available</Text>
               </View>
             </View>
           )}
@@ -646,15 +856,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
       </View>
     </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function PlaceholderBullet({ text }: { text: string }) {
-  return (
-    <View style={styles.bulletRow}>
-      <View style={styles.bulletDot} />
-      <Text style={styles.bulletText}>{text}</Text>
-    </View>
   );
 }
 
@@ -682,42 +883,6 @@ function PulsingDot({ fulfilled }: { fulfilled?: boolean }) {
         !fulfilled && animStyle,
       ]}
     />
-  );
-}
-
-// ── Typewriter text — reveals text character by character ──
-function TypewriterText({
-  text,
-  style,
-  speed = 25,
-  delay = 0,
-}: {
-  text: string;
-  style?: any;
-  speed?: number;
-  delay?: number;
-}) {
-  const [displayed, setDisplayed] = useState('');
-  useEffect(() => {
-    let idx = 0;
-    setDisplayed('');
-    const startTimeout = setTimeout(() => {
-      const interval = setInterval(() => {
-        idx++;
-        setDisplayed(text.slice(0, idx));
-        if (idx >= text.length) clearInterval(interval);
-      }, speed);
-      return () => clearInterval(interval);
-    }, delay);
-    return () => clearTimeout(startTimeout);
-  }, [text, speed, delay]);
-
-  const showCursor = displayed.length < text.length;
-  return (
-    <Text style={style}>
-      {displayed}
-      {showCursor && <Text style={{ opacity: 0.4 }}>|</Text>}
-    </Text>
   );
 }
 
@@ -964,118 +1129,272 @@ const styles = StyleSheet.create({
     color: Colors.terra500,
   },
 
-  placeholderCard: {
-    marginHorizontal: Spacing.xxl,
-    marginTop: 16,
-    padding: 20,
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    alignItems: 'center',
-  },
-  placeholderIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.terra50,
+  // ── Credibility pill ──
+  credibilityPill: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    gap: 5,
+    marginHorizontal: Spacing.xxl,
+    marginTop: 10,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.terra50,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: Colors.terra200,
+    alignSelf: 'center',
   },
-  placeholderHeadline: {
-    fontFamily: 'DMSerifDisplay',
-    fontSize: 20,
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  placeholderBody: {
-    fontSize: 13,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 19,
-    marginBottom: 16,
-  },
-  placeholderBullets: {
-    width: '100%',
-    gap: 10,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.warm100,
-  },
-  bulletRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  bulletDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: Colors.terra400,
-    marginTop: 6,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    lineHeight: 17,
+  credibilityText: {
+    fontSize: 10,
+    fontFamily: 'DMSans-Medium',
+    color: Colors.terra600,
   },
 
-  // ── Tool section (Index II + requests) ──
-  toolSection: {
-    marginHorizontal: Spacing.xxl,
-    marginTop: 20,
-  },
-  toolSectionLabel: {
+  // ── Workspace section label ──
+  wsLabel: {
     fontSize: 10,
     fontFamily: 'DMSans-SemiBold',
     color: Colors.textTertiary,
     letterSpacing: 0.8,
+    marginHorizontal: Spacing.xxl,
+    marginTop: 20,
     marginBottom: 10,
   },
-  toolCard: {
+
+  // ── Fair price card ──
+  fairPriceCard: {
+    marginHorizontal: Spacing.xxl,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    overflow: 'hidden',
+  },
+  fairPriceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    padding: 12,
+    paddingBottom: 8,
+  },
+  fairPriceTitle: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 13,
+    color: Colors.textPrimary,
+  },
+  fairPriceRange: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 18,
+    color: Colors.terra600,
+    paddingHorizontal: 12,
+  },
+  fairPriceSub: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 11,
+    color: Colors.textTertiary,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    marginTop: 2,
+  },
+  priceHistoryWrap: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+  },
+  phRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  phRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+  },
+  phPeriod: {
+    flex: 1,
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  phPrice: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 13,
+    color: Colors.textPrimary,
+    marginRight: 10,
+  },
+  phChangeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  phChangeText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 10,
+    color: '#166534',
+  },
+
+  // ── Area trends ──
+  areaTrendsCard: {
+    marginHorizontal: Spacing.xxl,
+    backgroundColor: Colors.cream,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    overflow: 'hidden',
+  },
+  areaStatsRow: {
+    flexDirection: 'row',
+    padding: 12,
+  },
+  areaStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  areaStatValue: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 13,
+    color: Colors.textPrimary,
+  },
+  areaStatLabel: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 9,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+  areaStatDivider: {
+    width: 1,
+    backgroundColor: Colors.warm200,
+    marginVertical: 2,
+  },
+  areaInsightWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm200,
+    backgroundColor: Colors.white,
+  },
+  areaInsightText: {
+    flex: 1,
+    fontFamily: 'DMSans-Regular',
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+
+  // ── Negotiation checklist ──
+  checklistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: Spacing.xxl,
+    marginTop: 20,
+    marginBottom: 6,
+  },
+  checklistProgress: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 11,
+    color: Colors.terra500,
+  },
+  checklistProgressBar: {
+    marginHorizontal: Spacing.xxl,
+    height: 3,
+    backgroundColor: Colors.warm100,
+    borderRadius: 2,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  checklistProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.terra500,
+    borderRadius: 2,
+  },
+  checklistCard: {
+    marginHorizontal: Spacing.xxl,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    overflow: 'hidden',
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.warm100,
+  },
+  checklistRowDone: {
+    backgroundColor: Colors.warm50,
+  },
+  checklistText: {
+    flex: 1,
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: Colors.textPrimary,
+    lineHeight: 17,
+    paddingTop: 1,
+  },
+  checklistTextDone: {
+    color: Colors.textTertiary,
+    textDecorationLine: 'line-through',
+  },
+
+  // ── Index II multi-select ──
+  index2Card: {
+    marginHorizontal: Spacing.xxl,
     padding: 14,
     backgroundColor: Colors.white,
     borderRadius: 14,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.warm200,
   },
-  toolCardRequested: {
-    borderColor: Colors.terra200,
-    backgroundColor: Colors.terra50,
+  index2Subtitle: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 10,
   },
-  toolIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.terra50,
+  index2Row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.warm100,
+  },
+  index2Label: {
+    flex: 1,
+    fontFamily: 'DMSans-Medium',
+    fontSize: 13,
+    color: Colors.textPrimary,
+  },
+  index2LabelDone: {
+    color: Colors.textTertiary,
+  },
+  index2DownloadBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 11,
+    backgroundColor: Colors.terra500,
+    borderRadius: 10,
   },
-  toolIconWrapRequested: {
-    backgroundColor: Colors.white,
-  },
-  toolCardContent: {
-    flex: 1,
-  },
-  toolCardTitle: {
-    fontSize: 14,
+  index2DownloadText: {
     fontFamily: 'DMSans-SemiBold',
-    color: Colors.textPrimary,
-    marginBottom: 3,
-  },
-  toolCardSub: {
-    fontSize: 12,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    lineHeight: 17,
+    fontSize: 13,
+    color: Colors.white,
   },
 
   // ── Status badge ──
