@@ -112,6 +112,7 @@ export default function SiteVisitsScreen() {
   const [scheduleForProperty, setScheduleForProperty] = useState<{ id: string; name: string } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [conflictData, setConflictData] = useState<{ conflictName: string; newName: string; newId: string; date: string; time: string } | null>(null);
   const upcomingDates = useMemo(getUpcomingDates, []);
 
   const openScheduleSheet = useCallback((id: string, name: string) => {
@@ -123,6 +124,25 @@ export default function SiteVisitsScreen() {
 
   const confirmSchedule = useCallback(() => {
     if (!scheduleForProperty || !selectedDate || !selectedTime) return;
+
+    // Check for time conflict with existing visits
+    const conflict = scheduledVisits.find(
+      (v) => v.date === selectedDate && v.time === selectedTime && v.propertyId !== scheduleForProperty.id
+    );
+
+    if (conflict) {
+      haptics.medium();
+      setConflictData({
+        conflictName: conflict.propertyName,
+        newName: scheduleForProperty.name,
+        newId: scheduleForProperty.id,
+        date: selectedDate,
+        time: selectedTime,
+      });
+      setScheduleForProperty(null);
+      return;
+    }
+
     haptics.success();
     addScheduledVisit({
       propertyId: scheduleForProperty.id,
@@ -131,7 +151,7 @@ export default function SiteVisitsScreen() {
       time: selectedTime,
     });
     setScheduleForProperty(null);
-  }, [scheduleForProperty, selectedDate, selectedTime]);
+  }, [scheduleForProperty, selectedDate, selectedTime, scheduledVisits]);
 
   const downloadPdf = () => {
     haptics.medium();
@@ -168,8 +188,8 @@ export default function SiteVisitsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ══ EMPTY STATE: No properties ══ */}
-        {!hasProperties && (
+        {/* ══ EMPTY STATE: No properties AND no visits ══ */}
+        {!hasProperties && !hasVisits && (
           <Animated.View entering={FadeIn.duration(300)} style={styles.emptyState}>
             <View style={styles.emptyIconWrap}>
               <Heart size={28} color={Colors.warm300} strokeWidth={1.5} />
@@ -388,20 +408,33 @@ export default function SiteVisitsScreen() {
         <View style={styles.timeGrid}>
           {TIME_SLOTS.map((t) => {
             const isSelected = selectedTime === t;
+            const conflictVisit = selectedDate
+              ? scheduledVisits.find((v) => v.date === selectedDate && v.time === t)
+              : null;
+            const hasConflict = !!conflictVisit;
             return (
               <Pressable
                 key={t}
-                style={[styles.timeChip, isSelected && styles.timeChipActive]}
+                style={[styles.timeChip, isSelected && styles.timeChipActive, hasConflict && !isSelected && styles.timeChipConflict]}
                 onPress={() => { haptics.selection(); setSelectedTime(t); }}
               >
-                <Clock size={11} color={isSelected ? '#fff' : Colors.textTertiary} strokeWidth={2} />
-                <Text style={[styles.timeChipText, isSelected && styles.timeChipTextActive]}>
+                <Clock size={11} color={isSelected ? '#fff' : hasConflict ? Colors.ember : Colors.textTertiary} strokeWidth={2} />
+                <Text style={[styles.timeChipText, isSelected && styles.timeChipTextActive, hasConflict && !isSelected && styles.timeChipTextConflict]}>
                   {t}
                 </Text>
+                {hasConflict && !isSelected && <View style={styles.conflictDot} />}
               </Pressable>
             );
           })}
         </View>
+        {selectedDate && selectedTime && scheduledVisits.find((v) => v.date === selectedDate && v.time === selectedTime) && (
+          <View style={styles.conflictWarning}>
+            <Info size={12} color={Colors.ember} strokeWidth={2} />
+            <Text style={styles.conflictWarningText}>
+              You have a visit to {scheduledVisits.find((v) => v.date === selectedDate && v.time === selectedTime)!.propertyName} at this time
+            </Text>
+          </View>
+        )}
 
         {/* Privacy */}
         <View style={styles.sheetPrivacy}>
@@ -423,6 +456,64 @@ export default function SiteVisitsScreen() {
               : 'Select date & time'}
           </Text>
         </TouchableOpacity>
+      </BottomSheet>
+
+      {/* ══ CONFLICT RESOLUTION SHEET ══ */}
+      <BottomSheet
+        visible={!!conflictData}
+        title="Time conflict"
+        onClose={() => setConflictData(null)}
+      >
+        {conflictData && (
+          <View style={styles.conflictSheet}>
+            <View style={styles.conflictIconWrap}>
+              <Clock size={24} color={Colors.ember} strokeWidth={1.8} />
+            </View>
+            <Text style={styles.conflictSheetBody}>
+              You already have a visit to{' '}
+              <Text style={styles.conflictSheetBold}>{conflictData.conflictName}</Text> at{' '}
+              <Text style={styles.conflictSheetBold}>{conflictData.time}</Text> on{' '}
+              <Text style={styles.conflictSheetBold}>{conflictData.date}</Text>.
+            </Text>
+            <Text style={styles.conflictSheetSub}>
+              Would you like to pick a different time for {conflictData.newName}, or keep this time and reschedule the other visit later?
+            </Text>
+
+            <TouchableOpacity
+              style={styles.conflictBtnPrimary}
+              onPress={() => {
+                setConflictData(null);
+                // Reopen the scheduler for the same property
+                setScheduleForProperty({ id: conflictData.newId, name: conflictData.newName });
+                setSelectedDate(conflictData.date);
+                setSelectedTime(null);
+              }}
+              activeOpacity={0.85}
+            >
+              <Calendar size={15} color={Colors.white} strokeWidth={2} />
+              <Text style={styles.conflictBtnPrimaryText}>Pick a different time</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.conflictBtnSecondary}
+              onPress={() => {
+                haptics.success();
+                addScheduledVisit({
+                  propertyId: conflictData.newId,
+                  propertyName: conflictData.newName,
+                  date: conflictData.date,
+                  time: conflictData.time,
+                });
+                setConflictData(null);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.conflictBtnSecondaryText}>
+                Keep this time — I'll reschedule {conflictData.conflictName.split(' ')[0]} later
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </BottomSheet>
     </View>
   );
@@ -635,6 +726,100 @@ const styles = StyleSheet.create({
   timeChipActive: { backgroundColor: Colors.terra500, borderColor: Colors.terra500 },
   timeChipText: { fontFamily: 'DMSans-Medium', fontSize: 12, color: Colors.textSecondary },
   timeChipTextActive: { color: '#fff' },
+  timeChipConflict: {
+    borderColor: Colors.ember,
+    backgroundColor: '#FFF7ED',
+  },
+  timeChipTextConflict: { color: Colors.ember },
+  conflictDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.ember,
+  },
+  conflictWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  conflictWarningText: {
+    flex: 1,
+    fontFamily: 'DMSans-Medium',
+    fontSize: 11,
+    color: '#9A3412',
+    lineHeight: 15,
+  },
+
+  // ── Conflict resolution sheet ──
+  conflictSheet: {
+    alignItems: 'center',
+  },
+  conflictIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFF7ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  conflictSheetBody: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 14,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  conflictSheetBold: {
+    fontFamily: 'DMSans-SemiBold',
+  },
+  conflictSheetSub: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 12,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  conflictBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    width: '100%',
+    paddingVertical: 14,
+    backgroundColor: Colors.terra500,
+    borderRadius: 14,
+    marginBottom: 10,
+  },
+  conflictBtnPrimaryText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 15,
+    color: Colors.white,
+  },
+  conflictBtnSecondary: {
+    width: '100%',
+    paddingVertical: 12,
+    backgroundColor: Colors.warm50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    alignItems: 'center',
+  },
+  conflictBtnSecondaryText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
 
   sheetPrivacy: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
