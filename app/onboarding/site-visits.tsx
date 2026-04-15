@@ -8,6 +8,7 @@ import {
   Image,
   Pressable,
   Alert,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,8 +25,12 @@ import {
   Shield,
   Info,
   Lightbulb,
+  RefreshCw,
+  X,
+  CalendarPlus,
+  Pencil,
 } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import BottomSheet from '../../components/BottomSheet';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
@@ -71,6 +76,7 @@ function getUpcomingDates() {
 }
 
 const TIME_SLOTS = ['10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function SiteVisitsScreen() {
   const router = useRouter();
@@ -81,6 +87,7 @@ export default function SiteVisitsScreen() {
     userProperties,
     scheduledVisits,
     addScheduledVisit,
+    removeScheduledVisit,
   } = useOnboardingStore();
 
   // ── Data ──
@@ -113,6 +120,13 @@ export default function SiteVisitsScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [conflictData, setConflictData] = useState<{ conflictName: string; newName: string; newId: string; date: string; time: string } | null>(null);
+  const [showCustomDate, setShowCustomDate] = useState(false);
+  const [customDay, setCustomDay] = useState('');
+  const [customMonth, setCustomMonth] = useState(new Date().getMonth());
+  const [showCustomTime, setShowCustomTime] = useState(false);
+  const [customHour, setCustomHour] = useState('');
+  const [customMinute, setCustomMinute] = useState('');
+  const [customAmPm, setCustomAmPm] = useState<'AM' | 'PM'>('AM');
   const upcomingDates = useMemo(getUpcomingDates, []);
 
   const openScheduleSheet = useCallback((id: string, name: string) => {
@@ -120,7 +134,29 @@ export default function SiteVisitsScreen() {
     setScheduleForProperty({ id, name });
     setSelectedDate(null);
     setSelectedTime(null);
+    setShowCustomDate(false);
+    setShowCustomTime(false);
   }, []);
+
+  const applyCustomDate = useCallback(() => {
+    const dayNum = parseInt(customDay, 10);
+    if (!dayNum || dayNum < 1 || dayNum > 31) return;
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const d = new Date(new Date().getFullYear(), customMonth, dayNum);
+    setSelectedDate(`${days[d.getDay()]}, ${dayNum} ${MONTHS[customMonth]}`);
+    setShowCustomDate(false);
+    haptics.selection();
+  }, [customDay, customMonth]);
+
+  const applyCustomTime = useCallback(() => {
+    const h = parseInt(customHour, 10);
+    const m = parseInt(customMinute || '0', 10);
+    if (!h || h < 1 || h > 12) return;
+    const mm = m < 10 ? `0${m}` : `${m}`;
+    setSelectedTime(`${h}:${mm} ${customAmPm}`);
+    setShowCustomTime(false);
+    haptics.selection();
+  }, [customHour, customMinute, customAmPm]);
 
   const confirmSchedule = useCallback(() => {
     if (!scheduleForProperty || !selectedDate || !selectedTime) return;
@@ -289,6 +325,33 @@ export default function SiteVisitsScreen() {
                         ))}
                       </Animated.View>
                     )}
+
+                    {/* Reschedule + Cancel */}
+                    <View style={styles.visitActions}>
+                      <TouchableOpacity
+                        style={styles.visitActionBtn}
+                        onPress={() => {
+                          haptics.light();
+                          openScheduleSheet(visit.propertyId, visit.propertyName);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <RefreshCw size={12} color={Colors.terra500} strokeWidth={2} />
+                        <Text style={styles.visitActionText}>Reschedule</Text>
+                      </TouchableOpacity>
+                      <View style={styles.visitActionDivider} />
+                      <TouchableOpacity
+                        style={styles.visitActionBtn}
+                        onPress={() => {
+                          haptics.light();
+                          removeScheduledVisit(visit.propertyId);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <X size={12} color={Colors.warm500} strokeWidth={2} />
+                        <Text style={[styles.visitActionText, styles.visitActionTextCancel]}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </Animated.View>
               );
@@ -390,7 +453,7 @@ export default function SiteVisitsScreen() {
               <Pressable
                 key={d.full}
                 style={[styles.dateChip, isSelected && styles.dateChipActive]}
-                onPress={() => { haptics.selection(); setSelectedDate(d.full); }}
+                onPress={() => { haptics.selection(); setSelectedDate(d.full); setShowCustomDate(false); }}
               >
                 <Text style={[styles.dateChipLabel, isSelected && styles.dateChipLabelActive]}>
                   {d.label}
@@ -401,7 +464,57 @@ export default function SiteVisitsScreen() {
               </Pressable>
             );
           })}
+          {/* Custom date chip */}
+          <Pressable
+            style={[styles.dateChip, styles.dateChipCustom, showCustomDate && styles.dateChipActive]}
+            onPress={() => { haptics.selection(); setShowCustomDate(!showCustomDate); }}
+          >
+            <CalendarPlus size={14} color={showCustomDate ? '#fff' : Colors.terra500} strokeWidth={2} />
+            <Text style={[styles.dateChipLabel, showCustomDate && styles.dateChipLabelActive, { marginTop: 2 }]}>Custom</Text>
+          </Pressable>
         </ScrollView>
+
+        {/* Custom date picker */}
+        {showCustomDate && (
+          <Animated.View style={styles.customDateRow} entering={FadeInUp.duration(200)}>
+            <View style={styles.customFieldGroup}>
+              <Text style={styles.customFieldLabel}>Day</Text>
+              <TextInput
+                style={styles.customInput}
+                placeholder="DD"
+                placeholderTextColor={Colors.warm300}
+                keyboardType="number-pad"
+                maxLength={2}
+                value={customDay}
+                onChangeText={setCustomDay}
+              />
+            </View>
+            <View style={styles.customFieldGroup}>
+              <Text style={styles.customFieldLabel}>Month</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.monthRow}>
+                  {MONTHS.map((m, i) => (
+                    <Pressable
+                      key={m}
+                      style={[styles.monthChip, customMonth === i && styles.monthChipActive]}
+                      onPress={() => { setCustomMonth(i); haptics.selection(); }}
+                    >
+                      <Text style={[styles.monthChipText, customMonth === i && styles.monthChipTextActive]}>{m}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+            <TouchableOpacity
+              style={[styles.customApplyBtn, !customDay && styles.customApplyBtnDisabled]}
+              onPress={applyCustomDate}
+              disabled={!customDay}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.customApplyText}>Set date</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* Time selection */}
         <Text style={[styles.sheetLabel, { marginTop: 20 }]}>Pick a time</Text>
@@ -416,7 +529,7 @@ export default function SiteVisitsScreen() {
               <Pressable
                 key={t}
                 style={[styles.timeChip, isSelected && styles.timeChipActive, hasConflict && !isSelected && styles.timeChipConflict]}
-                onPress={() => { haptics.selection(); setSelectedTime(t); }}
+                onPress={() => { haptics.selection(); setSelectedTime(t); setShowCustomTime(false); }}
               >
                 <Clock size={11} color={isSelected ? '#fff' : hasConflict ? Colors.ember : Colors.textTertiary} strokeWidth={2} />
                 <Text style={[styles.timeChipText, isSelected && styles.timeChipTextActive, hasConflict && !isSelected && styles.timeChipTextConflict]}>
@@ -426,7 +539,73 @@ export default function SiteVisitsScreen() {
               </Pressable>
             );
           })}
+          {/* Custom time chip */}
+          <Pressable
+            style={[styles.timeChip, showCustomTime && styles.timeChipActive]}
+            onPress={() => { haptics.selection(); setShowCustomTime(!showCustomTime); }}
+          >
+            <Pencil size={11} color={showCustomTime ? '#fff' : Colors.textTertiary} strokeWidth={2} />
+            <Text style={[styles.timeChipText, showCustomTime && styles.timeChipTextActive]}>Custom</Text>
+          </Pressable>
         </View>
+
+        {/* Custom time input */}
+        {showCustomTime && (
+          <Animated.View style={styles.customTimeRow} entering={FadeInUp.duration(200)}>
+            <View style={styles.customTimeInputs}>
+              <View style={styles.customFieldGroup}>
+                <Text style={styles.customFieldLabel}>Hour</Text>
+                <TextInput
+                  style={styles.customInputSmall}
+                  placeholder="HH"
+                  placeholderTextColor={Colors.warm300}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  value={customHour}
+                  onChangeText={setCustomHour}
+                />
+              </View>
+              <Text style={styles.customTimeSep}>:</Text>
+              <View style={styles.customFieldGroup}>
+                <Text style={styles.customFieldLabel}>Min</Text>
+                <TextInput
+                  style={styles.customInputSmall}
+                  placeholder="MM"
+                  placeholderTextColor={Colors.warm300}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  value={customMinute}
+                  onChangeText={setCustomMinute}
+                />
+              </View>
+              <View style={styles.customFieldGroup}>
+                <Text style={styles.customFieldLabel}>{' '}</Text>
+                <View style={styles.amPmToggle}>
+                  <Pressable
+                    style={[styles.amPmBtn, customAmPm === 'AM' && styles.amPmBtnActive]}
+                    onPress={() => { setCustomAmPm('AM'); haptics.selection(); }}
+                  >
+                    <Text style={[styles.amPmText, customAmPm === 'AM' && styles.amPmTextActive]}>AM</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.amPmBtn, customAmPm === 'PM' && styles.amPmBtnActive]}
+                    onPress={() => { setCustomAmPm('PM'); haptics.selection(); }}
+                  >
+                    <Text style={[styles.amPmText, customAmPm === 'PM' && styles.amPmTextActive]}>PM</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.customApplyBtn, !customHour && styles.customApplyBtnDisabled]}
+              onPress={applyCustomTime}
+              disabled={!customHour}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.customApplyText}>Set time</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
         {selectedDate && selectedTime && scheduledVisits.find((v) => v.date === selectedDate && v.time === selectedTime) && (
           <View style={styles.conflictWarning}>
             <Info size={12} color={Colors.ember} strokeWidth={2} />
@@ -632,6 +811,32 @@ const styles = StyleSheet.create({
   checklistToggleText: {
     flex: 1, fontFamily: 'DMSans-Medium', fontSize: 12, color: Colors.terra500,
   },
+  visitActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+  },
+  visitActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+  },
+  visitActionDivider: {
+    width: 1,
+    backgroundColor: Colors.warm100,
+    marginVertical: 6,
+  },
+  visitActionText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 12,
+    color: Colors.terra500,
+  },
+  visitActionTextCancel: {
+    color: Colors.warm500,
+  },
   checklistBody: {
     paddingHorizontal: 12, paddingVertical: 10,
     backgroundColor: Colors.warm50, gap: 8,
@@ -820,6 +1025,124 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
+
+  dateChipCustom: {
+    justifyContent: 'center',
+    gap: 4,
+  },
+
+  // Custom date picker
+  customDateRow: {
+    marginTop: 12,
+    backgroundColor: Colors.warm50,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+  customFieldGroup: { gap: 4 },
+  customFieldLabel: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 10,
+    color: Colors.textTertiary,
+  },
+  customInput: {
+    width: 70,
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 16,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  monthRow: { flexDirection: 'row', gap: 6 },
+  monthChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+  },
+  monthChipActive: {
+    backgroundColor: Colors.terra500,
+    borderColor: Colors.terra500,
+  },
+  monthChipText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  monthChipTextActive: { color: '#fff' },
+  customApplyBtn: {
+    backgroundColor: Colors.terra500,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  customApplyBtnDisabled: { backgroundColor: Colors.warm200 },
+  customApplyText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 13,
+    color: '#fff',
+  },
+
+  // Custom time picker
+  customTimeRow: {
+    marginTop: 12,
+    backgroundColor: Colors.warm50,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+  customTimeInputs: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  customInputSmall: {
+    width: 52,
+    backgroundColor: Colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 16,
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  customTimeSep: {
+    fontFamily: 'DMSans-Bold',
+    fontSize: 20,
+    color: Colors.textTertiary,
+    marginBottom: 8,
+  },
+  amPmToggle: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.warm200,
+  },
+  amPmBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    backgroundColor: Colors.white,
+  },
+  amPmBtnActive: {
+    backgroundColor: Colors.terra500,
+  },
+  amPmText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  amPmTextActive: { color: '#fff' },
 
   sheetPrivacy: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

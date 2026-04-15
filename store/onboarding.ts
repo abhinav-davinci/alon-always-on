@@ -64,6 +64,7 @@ export interface OnboardingState {
   setComparePropertyIds: (ids: string[]) => void;
   clearCompareProperties: () => void;
   addScheduledVisit: (visit: { propertyId: string; propertyName: string; date: string; time: string }) => void;
+  removeScheduledVisit: (propertyId: string) => void;
   addUserProperty: (property: UserProperty) => void;
   removeUserProperty: (id: string) => void;
   setChatExpanded: (val: boolean) => void;
@@ -176,6 +177,10 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         ...state.scheduledVisits.filter((v) => v.propertyId !== visit.propertyId),
         visit,
       ],
+    })),
+  removeScheduledVisit: (propertyId) =>
+    set((state) => ({
+      scheduledVisits: state.scheduledVisits.filter((v) => v.propertyId !== propertyId),
     })),
   addUserProperty: (property) =>
     set((state) => ({ userProperties: [...state.userProperties, property] })),
