@@ -706,8 +706,48 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </Animated.View>
       )}
 
-      {/* ═══ NEGOTIATION CHECKLIST ═══ */}
+      {/* ═══ INDEX II DATA ═══ */}
       <Animated.View entering={FadeInDown.delay(400).duration(300)}>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.wsLabel}>INDEX II DATA</Text>
+          <Text style={styles.checklistProgress}>{availableIndex2.length} available</Text>
+        </View>
+        <View style={styles.index2Card}>
+          <Text style={styles.index2Subtitle}>Available for {areaName}:</Text>
+          {availableIndex2.map((doc) => {
+            const isSelected = selectedIndex2.has(doc.id);
+            return (
+              <TouchableOpacity
+                key={doc.id}
+                style={styles.index2Row}
+                onPress={() => toggleIndex2(doc.id)}
+                activeOpacity={0.7}
+              >
+                {isSelected ? (
+                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
+                ) : (
+                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
+                )}
+                <Text style={styles.index2Label}>{doc.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={[styles.index2DownloadBtn, selectedIndex2.size === 0 && styles.index2DownloadBtnDisabled]}
+            onPress={downloadIndex2}
+            disabled={selectedIndex2.size === 0}
+            activeOpacity={0.85}
+          >
+            <Download size={14} color={Colors.white} strokeWidth={2.5} />
+            <Text style={styles.index2DownloadText}>
+              {selectedIndex2.size > 0 ? `Download Now (${selectedIndex2.size})` : 'Select to download'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* ═══ NEGOTIATION CHECKLIST ═══ */}
+      <Animated.View entering={FadeInDown.delay(500).duration(300)}>
         <View style={styles.checklistHeader}>
           <Text style={styles.wsLabel}>NEGOTIATION CHECKLIST</Text>
           <Text style={styles.checklistProgress}>{checkedCount}/{totalChecklist}</Text>
@@ -751,46 +791,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
             ) : (
               <ChevronDown size={14} color={Colors.terra500} strokeWidth={2} />
             )}
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      {/* ═══ INDEX II DATA ═══ */}
-      <Animated.View entering={FadeInDown.delay(500).duration(300)}>
-        <View style={styles.checklistHeader}>
-          <Text style={styles.wsLabel}>INDEX II DATA</Text>
-          <Text style={styles.checklistProgress}>{availableIndex2.length} available</Text>
-        </View>
-        <View style={styles.index2Card}>
-          <Text style={styles.index2Subtitle}>Available for {areaName}:</Text>
-          {availableIndex2.map((doc) => {
-            const isSelected = selectedIndex2.has(doc.id);
-            return (
-              <TouchableOpacity
-                key={doc.id}
-                style={styles.index2Row}
-                onPress={() => toggleIndex2(doc.id)}
-                activeOpacity={0.7}
-              >
-                {isSelected ? (
-                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
-                ) : (
-                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
-                )}
-                <Text style={styles.index2Label}>{doc.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-          <TouchableOpacity
-            style={[styles.index2DownloadBtn, selectedIndex2.size === 0 && styles.index2DownloadBtnDisabled]}
-            onPress={downloadIndex2}
-            disabled={selectedIndex2.size === 0}
-            activeOpacity={0.85}
-          >
-            <Download size={14} color={Colors.white} strokeWidth={2.5} />
-            <Text style={styles.index2DownloadText}>
-              {selectedIndex2.size > 0 ? `Download Now (${selectedIndex2.size})` : 'Select to download'}
-            </Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
