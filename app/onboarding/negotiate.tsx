@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -127,14 +128,39 @@ const AREA_TRENDS: Record<string, {
   },
 };
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 // ── Index II mock available documents ──
-function getAvailableIndex2(area: string): { id: string; label: string }[] {
+interface Index2Doc {
+  id: string;
+  label: string;
+  description: string;
+  tag?: string;
+}
+
+function getAvailableIndex2(area: string, propertyName: string): Index2Doc[] {
   const areaName = area.split(',')[0].trim();
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const fromDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() - 1}`;
+  const toDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
   return [
-    { id: `${areaName.toLowerCase()}-${year}`, label: `Index II — ${areaName} ${year}` },
-    { id: `${areaName.toLowerCase()}-${year - 1}`, label: `Index II — ${areaName} ${year - 1}` },
-    { id: `${areaName.toLowerCase()}-nearby-${year}`, label: `Index II — Nearby areas ${year}` },
+    {
+      id: `${areaName.toLowerCase()}-latest`,
+      label: `Index II — Latest`,
+      description: `Most recent registered transactions near ${propertyName} — ${MONTHS[now.getMonth()]} ${now.getFullYear()}`,
+      tag: 'Recent',
+    },
+    {
+      id: `${areaName.toLowerCase()}-project`,
+      label: `Index II — Project Data`,
+      description: `All registered transactions for ${propertyName} and the same building/society`,
+    },
+    {
+      id: `${areaName.toLowerCase()}-area`,
+      label: `Index II — ${areaName} (1 year)`,
+      description: `All transactions in ${areaName} from ${fromDate} to ${toDate}`,
+    },
   ];
 }
 
@@ -541,7 +567,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const [customRequestText, setCustomRequestText] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const requestInputY = useRef(0);
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [checklistExpanded, setChecklistExpanded] = useState(false);
   const [selectedIndex2, setSelectedIndex2] = useState<Set<string>>(new Set());
 
@@ -549,7 +574,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const details = PROPERTY_DETAILS[property.id];
   const areaName = property.area.split(',')[0].trim();
   const areaTrends = AREA_TRENDS[areaName];
-  const availableIndex2 = useMemo(() => getAvailableIndex2(property.area), [property.area]);
+  const availableIndex2 = useMemo(() => getAvailableIndex2(property.area, property.name), [property.area, property.name]);
   const checklist = useMemo(() => buildChecklist(property), [property.id]);
 
   // Requests for the current property only
@@ -558,15 +583,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
     [negotiateDataRequests, property.id]
   );
   const customRequests = propertyRequests.filter((r) => r.type === 'custom');
-
-  const toggleChecklistItem = useCallback((id: string) => {
-    haptics.light();
-    setCheckedItems((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
 
   const toggleIndex2 = useCallback((id: string) => {
     haptics.selection();
@@ -606,7 +622,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
     }, 300);
   }, []);
 
-  const checkedCount = checkedItems.size;
   const totalChecklist = checklist.length;
 
   return (
@@ -713,13 +728,12 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
           <Text style={styles.checklistProgress}>{availableIndex2.length} available</Text>
         </View>
         <View style={styles.index2Card}>
-          <Text style={styles.index2Subtitle}>Available for {areaName}:</Text>
-          {availableIndex2.map((doc) => {
+          {availableIndex2.map((doc, i) => {
             const isSelected = selectedIndex2.has(doc.id);
             return (
               <TouchableOpacity
                 key={doc.id}
-                style={styles.index2Row}
+                style={[styles.index2Row, i > 0 && styles.index2RowBorder]}
                 onPress={() => toggleIndex2(doc.id)}
                 activeOpacity={0.7}
               >
@@ -728,7 +742,17 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
                 ) : (
                   <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
                 )}
-                <Text style={styles.index2Label}>{doc.label}</Text>
+                <View style={styles.index2Info}>
+                  <View style={styles.index2LabelRow}>
+                    <Text style={styles.index2Label}>{doc.label}</Text>
+                    {doc.tag && (
+                      <View style={styles.index2Tag}>
+                        <Text style={styles.index2TagText}>{doc.tag}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.index2Desc}>{doc.description}</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -746,57 +770,8 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </View>
       </Animated.View>
 
-      {/* ═══ NEGOTIATION CHECKLIST ═══ */}
-      <Animated.View entering={FadeInDown.delay(500).duration(300)}>
-        <View style={styles.checklistHeader}>
-          <Text style={styles.wsLabel}>NEGOTIATION CHECKLIST</Text>
-          <Text style={styles.checklistProgress}>{checkedCount}/{totalChecklist}</Text>
-        </View>
-        {checkedCount > 0 && (
-          <View style={styles.checklistProgressBar}>
-            <View style={[styles.checklistProgressFill, { width: `${(checkedCount / totalChecklist) * 100}%` as any }]} />
-          </View>
-        )}
-        <View style={styles.checklistCard}>
-          {(checklistExpanded ? checklist : checklist.slice(0, 3)).map((item) => {
-            const done = checkedItems.has(item.id);
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.checklistRow, done && styles.checklistRowDone]}
-                onPress={() => toggleChecklistItem(item.id)}
-                activeOpacity={0.7}
-              >
-                {done ? (
-                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
-                ) : (
-                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
-                )}
-                <Text style={[styles.checklistText, done && styles.checklistTextDone]}>
-                  {item.text}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          <TouchableOpacity
-            style={styles.checklistToggle}
-            onPress={() => { haptics.light(); setChecklistExpanded(!checklistExpanded); }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.checklistToggleText}>
-              {checklistExpanded ? 'Show less' : `See all ${totalChecklist} items`}
-            </Text>
-            {checklistExpanded ? (
-              <ChevronUp size={14} color={Colors.terra500} strokeWidth={2} />
-            ) : (
-              <ChevronDown size={14} color={Colors.terra500} strokeWidth={2} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
       {/* ═══ REQUEST CUSTOM DATA ═══ */}
-      <Animated.View entering={FadeInDown.delay(600).duration(300)}>
+      <Animated.View entering={FadeInDown.delay(500).duration(300)}>
         <View
           style={styles.requestSection}
           onLayout={(e) => { requestInputY.current = e.nativeEvent.layout.y; }}
@@ -806,12 +781,12 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
             <Text style={styles.requestSectionTitle}>Request specific data</Text>
           </View>
           <Text style={styles.requestSub}>
-            Need something specific? Our team will prepare it and notify you.
+            Request market data, comparable sales, builder agreements, or any document that strengthens your negotiation.
           </Text>
           <View style={styles.requestInputRow}>
             <TextInput
               style={styles.requestInput}
-              placeholder="e.g. comparable 3BHK sales in Baner last 6 months"
+              placeholder="e.g. sample builder agreement, comparable 3BHK sales in Baner"
               placeholderTextColor={Colors.warm300}
               value={customRequestText}
               onChangeText={setCustomRequestText}
@@ -851,6 +826,47 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
               </View>
             </View>
           )}
+        </View>
+      </Animated.View>
+
+      {/* ═══ NEGOTIATION CHECKLIST ═══ */}
+      <Animated.View entering={FadeInDown.delay(600).duration(300)}>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.wsLabel}>NEGOTIATION CHECKLIST</Text>
+          <Text style={styles.checklistProgress}>{totalChecklist} points</Text>
+        </View>
+        <View style={styles.checklistCard}>
+          {(checklistExpanded ? checklist : checklist.slice(0, 3)).map((item, i) => (
+            <View key={item.id} style={[styles.checklistRow, i > 0 && styles.checklistRowBorder]}>
+              <View style={styles.checklistBullet} />
+              <Text style={styles.checklistText}>{item.text}</Text>
+            </View>
+          ))}
+          <TouchableOpacity
+            style={styles.checklistToggle}
+            onPress={() => { haptics.light(); setChecklistExpanded(!checklistExpanded); }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.checklistToggleText}>
+              {checklistExpanded ? 'Show less' : `See all ${totalChecklist} points`}
+            </Text>
+            {checklistExpanded ? (
+              <ChevronUp size={14} color={Colors.terra500} strokeWidth={2} />
+            ) : (
+              <ChevronDown size={14} color={Colors.terra500} strokeWidth={2} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.checklistDownloadBtn}
+            onPress={() => {
+              haptics.medium();
+              Alert.alert('Coming soon', 'PDF download of your negotiation checklist will be available in the next update.', [{ text: 'OK' }]);
+            }}
+            activeOpacity={0.85}
+          >
+            <Download size={13} color={Colors.terra500} strokeWidth={2} />
+            <Text style={styles.checklistDownloadText}>Download as PDF</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -1313,19 +1329,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.terra500,
   },
-  checklistProgressBar: {
-    marginHorizontal: Spacing.xxl,
-    height: 3,
-    backgroundColor: Colors.warm100,
-    borderRadius: 2,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  checklistProgressFill: {
-    height: '100%',
-    backgroundColor: Colors.terra500,
-    borderRadius: 2,
-  },
   checklistCard: {
     marginHorizontal: Spacing.xxl,
     backgroundColor: Colors.white,
@@ -1339,12 +1342,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.warm100,
+    paddingVertical: 10,
   },
-  checklistRowDone: {
-    backgroundColor: Colors.warm50,
+  checklistRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+  },
+  checklistBullet: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.terra400,
+    marginTop: 6,
   },
   checklistText: {
     flex: 1,
@@ -1352,11 +1361,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textPrimary,
     lineHeight: 17,
-    paddingTop: 1,
   },
-  checklistTextDone: {
-    color: Colors.textTertiary,
-    textDecorationLine: 'line-through',
+  checklistDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+    backgroundColor: Colors.terra50,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+  checklistDownloadText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 12,
+    color: Colors.terra500,
   },
   checklistToggle: {
     flexDirection: 'row',
@@ -1381,28 +1402,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.warm200,
   },
-  index2Subtitle: {
-    fontFamily: 'DMSans-Medium',
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 10,
-  },
   index2Row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.warm100,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  index2RowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.warm100,
+  },
+  index2Info: {
+    flex: 1,
+    gap: 2,
+  },
+  index2LabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   index2Label: {
-    flex: 1,
-    fontFamily: 'DMSans-Medium',
+    fontFamily: 'DMSans-SemiBold',
     fontSize: 13,
     color: Colors.textPrimary,
   },
-  index2LabelDone: {
+  index2Tag: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  index2TagText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 9,
+    color: '#166534',
+  },
+  index2Desc: {
+    fontFamily: 'DMSans-Regular',
+    fontSize: 11,
     color: Colors.textTertiary,
+    lineHeight: 15,
   },
   index2DownloadBtn: {
     flexDirection: 'row',
