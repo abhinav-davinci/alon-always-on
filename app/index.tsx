@@ -17,232 +17,191 @@ import { Colors, Typography, Spacing } from '../constants/theme';
 
 const trythatWhite = require('../assets/trythat-logo-white.png');
 
-const { width: SW } = Dimensions.get('window');
-const LOGO_W = SW * 0.52;
-const LOGO_H = LOGO_W * (174 / 800);
+const { width: SW, height: SH } = Dimensions.get('window');
+const LOGO_LARGE = SW * 0.62;
+const LOGO_SMALL = 100;
+const LOGO_RATIO = 174 / 800;
 
-// ── Timings (single connected sequence) ──
-const T_LOGO = 300;         // TryThat logo fades in
-const T_PRESENTS = 1000;    // "Presents" appears below logo
-const T_ALON = 1700;        // ALON avatar scales in below
-const T_TAGLINE = 2200;     // Tagline under ALON
-const T_DIVIDER = 2600;     // Thin divider line draws
-const T_TRANSITION = 3200;  // Intro block lifts, main screen appears
-const T_PROMISES = 3600;    // Trust promises
-const T_CTA = 3900;         // CTA + bottom badge
+// ── Timings ──
+const T = {
+  LOGO_IN: 200,           // TryThat fades in at center
+  MOVE_START: 1100,       // Logo starts moving up + shrinking
+  MOVE_END: 2100,         // Logo settles at top
+  PRESENTS: 1800,         // "presents" fades in (during the move)
+  ALON: 2200,             // ALON avatar scales in
+  WORDMARK: 2600,         // "ALON" text
+  SUBTITLE: 2800,         // Tagline
+  PROMISES: 3100,         // Promises card
+  CTA: 3400,              // Launch button
+};
 
 export default function SplashScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // ── Intro sequence (all in one centered block) ──
-  const logoOp = useSharedValue(0);
-  const logoScale = useSharedValue(0.9);
+  // Logo starts at screen center, moves to top of hero zone
+  // move: 0 = center of screen, 1 = final top position
+  const ttOp = useSharedValue(0);
+  const move = useSharedValue(0);
+
   const presentsOp = useSharedValue(0);
-  const presentsY = useSharedValue(6);
-  const alonIntroOp = useSharedValue(0);
-  const alonIntroScale = useSharedValue(0.85);
-  const taglineOp = useSharedValue(0);
-  const taglineY = useSharedValue(8);
-  const dividerW = useSharedValue(0);
-
-  // ── Transition: intro lifts away, main screen reveals ──
-  const phase = useSharedValue(0); // 0 = intro, 1 = main
-
-  // ── Main screen elements ──
-  const mainLogoOp = useSharedValue(0);
-  const mainLogoScale = useSharedValue(0.95);
-  const mainTextOp = useSharedValue(0);
-  const mainTextY = useSharedValue(12);
+  const alonOp = useSharedValue(0);
+  const alonScale = useSharedValue(0);
+  const wordmarkOp = useSharedValue(0);
+  const wordmarkY = useSharedValue(10);
+  const subtitleOp = useSharedValue(0);
+  const subtitleY = useSharedValue(10);
   const promisesOp = useSharedValue(0);
-  const promisesY = useSharedValue(12);
+  const promisesY = useSharedValue(15);
   const ctaOp = useSharedValue(0);
   const ctaY = useSharedValue(12);
 
   useEffect(() => {
     const ease = Easing.out(Easing.ease);
+    const cubic = Easing.inOut(Easing.cubic);
 
-    // Intro sequence
-    logoOp.value = withDelay(T_LOGO, withTiming(1, { duration: 600 }));
-    logoScale.value = withDelay(T_LOGO, withTiming(1, { duration: 600, easing: ease }));
+    // Beat 1: Logo appears at center
+    ttOp.value = withDelay(T.LOGO_IN, withTiming(1, { duration: 500 }));
 
-    presentsOp.value = withDelay(T_PRESENTS, withTiming(1, { duration: 400 }));
-    presentsY.value = withDelay(T_PRESENTS, withTiming(0, { duration: 400, easing: ease }));
+    // Beat 2: Logo moves up + shrinks to final position
+    move.value = withDelay(T.MOVE_START, withTiming(1, { duration: 1000, easing: cubic }));
 
-    alonIntroOp.value = withDelay(T_ALON, withTiming(1, { duration: 500 }));
-    alonIntroScale.value = withDelay(T_ALON, withTiming(1, { duration: 500, easing: ease }));
+    // "presents" appears as logo is settling
+    presentsOp.value = withDelay(T.PRESENTS, withTiming(1, { duration: 500 }));
 
-    taglineOp.value = withDelay(T_TAGLINE, withTiming(1, { duration: 400 }));
-    taglineY.value = withDelay(T_TAGLINE, withTiming(0, { duration: 400, easing: ease }));
+    // Beat 3: ALON grows in
+    alonOp.value = withDelay(T.ALON, withTiming(1, { duration: 500 }));
+    alonScale.value = withDelay(T.ALON, withTiming(1, { duration: 600, easing: ease }));
 
-    dividerW.value = withDelay(T_DIVIDER, withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) }));
-
-    // Transition to main
-    phase.value = withDelay(T_TRANSITION, withTiming(1, { duration: 600, easing: Easing.inOut(Easing.ease) }));
-
-    // Main screen
-    mainLogoOp.value = withDelay(T_TRANSITION + 200, withTiming(1, { duration: 500 }));
-    mainLogoScale.value = withDelay(T_TRANSITION + 200, withTiming(1, { duration: 500, easing: ease }));
-    mainTextOp.value = withDelay(T_TRANSITION + 400, withTiming(1, { duration: 400 }));
-    mainTextY.value = withDelay(T_TRANSITION + 400, withTiming(0, { duration: 400 }));
-    promisesOp.value = withDelay(T_PROMISES, withTiming(1, { duration: 400 }));
-    promisesY.value = withDelay(T_PROMISES, withTiming(0, { duration: 400 }));
-    ctaOp.value = withDelay(T_CTA, withTiming(1, { duration: 400 }));
-    ctaY.value = withDelay(T_CTA, withTiming(0, { duration: 400 }));
+    // Beat 4: Content cascade
+    wordmarkOp.value = withDelay(T.WORDMARK, withTiming(1, { duration: 400 }));
+    wordmarkY.value = withDelay(T.WORDMARK, withTiming(0, { duration: 400, easing: ease }));
+    subtitleOp.value = withDelay(T.SUBTITLE, withTiming(1, { duration: 400 }));
+    subtitleY.value = withDelay(T.SUBTITLE, withTiming(0, { duration: 400, easing: ease }));
+    promisesOp.value = withDelay(T.PROMISES, withTiming(1, { duration: 400 }));
+    promisesY.value = withDelay(T.PROMISES, withTiming(0, { duration: 400, easing: ease }));
+    ctaOp.value = withDelay(T.CTA, withTiming(1, { duration: 400 }));
+    ctaY.value = withDelay(T.CTA, withTiming(0, { duration: 400, easing: ease }));
   }, []);
 
-  // ── Intro styles ──
-  const introOverlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(phase.value, [0, 0.6], [1, 0]),
-    transform: [
-      { translateY: interpolate(phase.value, [0, 1], [0, -50]) },
-      { scale: interpolate(phase.value, [0, 1], [1, 0.92]) },
-    ],
-  }));
-  const logoStyle = useAnimatedStyle(() => ({
-    opacity: logoOp.value,
-    transform: [{ scale: logoScale.value }],
-  }));
+  // ── TryThat logo: absolute overlay that moves from center → top ──
+  const ttStyle = useAnimatedStyle(() => {
+    const scale = interpolate(move.value, [0, 1], [1, LOGO_SMALL / LOGO_LARGE]);
+    // Start at roughly center of screen, end at top of hero
+    const translateY = interpolate(move.value, [0, 1], [SH * 0.35, 0]);
+    return {
+      opacity: ttOp.value,
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  // "presents" — fades in at its layout position, only after logo starts moving
   const presentsStyle = useAnimatedStyle(() => ({
     opacity: presentsOp.value,
-    transform: [{ translateY: presentsY.value }],
-  }));
-  const alonIntroStyle = useAnimatedStyle(() => ({
-    opacity: alonIntroOp.value,
-    transform: [{ scale: alonIntroScale.value }],
-  }));
-  const taglineStyle = useAnimatedStyle(() => ({
-    opacity: taglineOp.value,
-    transform: [{ translateY: taglineY.value }],
-  }));
-  const dividerStyle = useAnimatedStyle(() => ({
-    width: interpolate(dividerW.value, [0, 1], [0, 60]),
-    opacity: interpolate(dividerW.value, [0, 0.3, 1], [0, 1, 1]),
   }));
 
-  // ── Main screen styles ──
-  const mainStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(phase.value, [0.3, 1], [0, 1]),
+  const alonStyle = useAnimatedStyle(() => ({
+    opacity: alonOp.value,
+    transform: [{ scale: alonScale.value }],
   }));
-  const mLogoStyle = useAnimatedStyle(() => ({
-    opacity: mainLogoOp.value,
-    transform: [{ scale: mainLogoScale.value }],
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: wordmarkOp.value,
+    transform: [{ translateY: wordmarkY.value }],
   }));
-  const mTextStyle = useAnimatedStyle(() => ({
-    opacity: mainTextOp.value,
-    transform: [{ translateY: mainTextY.value }],
+  const subtitleStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOp.value,
+    transform: [{ translateY: subtitleY.value }],
   }));
-  const mPromisesStyle = useAnimatedStyle(() => ({
+  const promisesStyle = useAnimatedStyle(() => ({
     opacity: promisesOp.value,
     transform: [{ translateY: promisesY.value }],
   }));
-  const mCtaStyle = useAnimatedStyle(() => ({
+  const ctaStyle = useAnimatedStyle(() => ({
     opacity: ctaOp.value,
     transform: [{ translateY: ctaY.value }],
-  }));
-  const badgeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(phase.value, [0.6, 1], [0, 0.6]),
   }));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 }]}>
 
-      {/* ══════════════════════════════════════════
-           MAIN SCREEN (underneath, fades in Phase 2)
-           ══════════════════════════════════════════ */}
-      <Animated.View style={[styles.mainWrap, mainStyle]}>
-        <View style={styles.topSection}>
-          <Animated.View style={[styles.mainLogoWrap, mLogoStyle]}>
-            <AlonAvatar size={100} showRings showBlink autoGreet variant="light" />
-          </Animated.View>
-          <Animated.View style={[styles.textWrap, mTextStyle]}>
-            <Text style={styles.wordmark}>ALON</Text>
-            <Text style={styles.subtitle}>
-              Your personal AI for the entire{'\n'}home-buying journey
-            </Text>
-          </Animated.View>
-        </View>
-
-        <Animated.View style={[styles.promisesCard, mPromisesStyle]}>
-          <Text style={styles.promisesHeading}>My Promises</Text>
-          <View style={styles.promisesList}>
-            <View style={styles.promiseRow}>
-              <View style={[styles.promiseIcon, styles.promiseIconBlue]}>
-                <ShieldCheck size={15} color="#7B9BF2" strokeWidth={2} />
-              </View>
-              <View style={styles.promiseContent}>
-                <Text style={styles.promiseBold}>Your contact is yours</Text>
-                <Text style={styles.promiseSub}>Never shared without your go-ahead</Text>
-              </View>
-            </View>
-            <View style={styles.promiseDivider} />
-            <View style={styles.promiseRow}>
-              <View style={[styles.promiseIcon, styles.promiseIconAmber]}>
-                <Route size={15} color="#F5C16C" strokeWidth={2} />
-              </View>
-              <View style={styles.promiseContent}>
-                <Text style={styles.promiseBold}>Complete journey, not just listings</Text>
-                <Text style={styles.promiseSub}>Search to possession — all 9 stages</Text>
-              </View>
-            </View>
-            <View style={styles.promiseDivider} />
-            <View style={styles.promiseRow}>
-              <View style={[styles.promiseIcon, styles.promiseIconBlue]}>
-                <UserCheck size={15} color="#7B9BF2" strokeWidth={2} />
-              </View>
-              <View style={styles.promiseContent}>
-                <Text style={styles.promiseBold}>Always in your corner</Text>
-                <Text style={styles.promiseSub}>Works for you — never the builder or agent</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View style={[styles.ctaWrap, mCtaStyle]}>
-          <Button
-            title="Launch ALON →"
-            onPress={() => router.push('/onboarding/goal')}
-            variant="primaryWhite"
+      {/* ── Main layout (everything in normal flow) ── */}
+      <View style={styles.heroZone}>
+        {/* TryThat logo — final resting position at top of hero */}
+        <Animated.View style={[styles.ttFinalPos, ttStyle]}>
+          <Image
+            source={trythatWhite}
+            style={{ width: LOGO_LARGE, height: LOGO_LARGE * LOGO_RATIO }}
+            resizeMode="contain"
           />
-          <Text style={styles.finePrint}>Free forever for buyers · No spam, ever</Text>
         </Animated.View>
 
-        {/* TryThat badge below CTA */}
-        <Animated.View style={[styles.bottomBadge, badgeStyle]}>
-          <Text style={styles.bottomBadgeLabel}>Powered by</Text>
-          <Image source={trythatWhite} style={styles.bottomBadgeImg} resizeMode="contain" />
-        </Animated.View>
-      </Animated.View>
-
-      {/* ══════════════════════════════════════════
-           INTRO: Connected TryThat → ALON reveal
-           ══════════════════════════════════════════ */}
-      <Animated.View style={[styles.introOverlay, introOverlayStyle]} pointerEvents="none">
-        {/* TryThat logo — large, white */}
-        <Animated.View style={logoStyle}>
-          <Image source={trythatWhite} style={styles.introLogo} resizeMode="contain" />
+        {/* ── presents ── */}
+        <Animated.View style={[styles.presentsWrap, presentsStyle]}>
+          <View style={styles.presentsLine} />
+          <Text style={styles.presentsText}>PRESENTS</Text>
+          <View style={styles.presentsLine} />
         </Animated.View>
 
-        {/* "Presents" */}
-        <Animated.View style={presentsStyle}>
-          <Text style={styles.presentsText}>presents</Text>
+        {/* ALON avatar */}
+        <Animated.View style={[styles.alonWrap, alonStyle]}>
+          <AlonAvatar size={100} showRings showBlink autoGreet variant="light" />
         </Animated.View>
 
-        {/* Thin divider */}
-        <Animated.View style={[styles.divider, dividerStyle]} />
-
-        {/* ALON avatar — smaller */}
-        <Animated.View style={alonIntroStyle}>
-          <AlonAvatar size={52} showRings={false} showBlink={false} variant="light" />
+        {/* Wordmark + subtitle */}
+        <Animated.View style={[styles.textWrap, wordmarkStyle]}>
+          <Text style={styles.wordmark}>ALON</Text>
         </Animated.View>
-
-        {/* Tagline */}
-        <Animated.View style={taglineStyle}>
-          <Text style={styles.introWordmark}>ALON</Text>
-          <Text style={styles.introTagline}>
-            The AI that never leaves your side{'\n'}from search to possession
+        <Animated.View style={subtitleStyle}>
+          <Text style={styles.subtitle}>
+            Your personal AI for the entire{'\n'}home-buying journey
           </Text>
         </Animated.View>
+      </View>
+
+      {/* ── Promises card ── */}
+      <Animated.View style={[styles.promisesCard, promisesStyle]}>
+        <Text style={styles.promisesHeading}>My Promises</Text>
+        <View style={styles.promisesList}>
+          <View style={styles.promiseRow}>
+            <View style={[styles.promiseIcon, styles.promiseIconBlue]}>
+              <ShieldCheck size={15} color="#7B9BF2" strokeWidth={2} />
+            </View>
+            <View style={styles.promiseContent}>
+              <Text style={styles.promiseBold}>Your contact is yours</Text>
+              <Text style={styles.promiseSub}>Never shared without your go-ahead</Text>
+            </View>
+          </View>
+          <View style={styles.promiseDivider} />
+          <View style={styles.promiseRow}>
+            <View style={[styles.promiseIcon, styles.promiseIconAmber]}>
+              <Route size={15} color="#F5C16C" strokeWidth={2} />
+            </View>
+            <View style={styles.promiseContent}>
+              <Text style={styles.promiseBold}>Complete journey, not just listings</Text>
+              <Text style={styles.promiseSub}>Search to possession — all 9 stages</Text>
+            </View>
+          </View>
+          <View style={styles.promiseDivider} />
+          <View style={styles.promiseRow}>
+            <View style={[styles.promiseIcon, styles.promiseIconBlue]}>
+              <UserCheck size={15} color="#7B9BF2" strokeWidth={2} />
+            </View>
+            <View style={styles.promiseContent}>
+              <Text style={styles.promiseBold}>Always in your corner</Text>
+              <Text style={styles.promiseSub}>Works for you — never the builder or agent</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* ── CTA ── */}
+      <Animated.View style={[styles.ctaWrap, ctaStyle]}>
+        <Button
+          title="Launch ALON →"
+          onPress={() => router.push('/onboarding/goal')}
+          variant="primaryWhite"
+        />
+        <Text style={styles.finePrint}>Free forever for buyers · No spam, ever</Text>
       </Animated.View>
     </View>
   );
@@ -255,66 +214,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
   },
 
-  // ── Intro overlay ──
-  introOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    zIndex: 10,
-  },
-  introLogo: {
-    width: SW * 0.52,
-    height: (SW * 0.52) * (174 / 800),
-  },
-  presentsText: {
-    fontFamily: 'DMSans-Medium',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 4,
-    textTransform: 'lowercase',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  introWordmark: {
-    fontFamily: 'DMSerifDisplay',
-    fontSize: 26,
-    color: Colors.white,
-    letterSpacing: 1.5,
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  introTagline: {
-    fontFamily: 'DMSans-Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-
-  // ── Main screen ──
-  mainWrap: { flex: 1 },
-  topSection: {
+  heroZone: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mainLogoWrap: { marginBottom: Spacing.xl },
-  textWrap: { alignItems: 'center' },
+  ttFinalPos: {
+    marginBottom: 4,
+  },
+  presentsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
+  },
+  presentsLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  presentsText: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.28)',
+    letterSpacing: 3,
+  },
+  alonWrap: {
+    marginBottom: 12,
+  },
+  textWrap: {
+    alignItems: 'center',
+  },
   wordmark: {
     fontFamily: 'DMSerifDisplay',
-    fontSize: 32,
+    fontSize: 30,
     color: Colors.white,
     letterSpacing: 1,
-    marginBottom: Spacing.xxl,
+    marginBottom: 8,
   },
   subtitle: {
     ...Typography.bodyMedium,
     color: Colors.white,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
+    fontSize: 15,
   },
 
   // Promises card
@@ -324,9 +270,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
     borderRadius: 18,
     paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 14,
-    marginBottom: Spacing.xxl,
+    paddingTop: 14,
+    paddingBottom: 12,
+    marginBottom: Spacing.lg,
   },
   promisesHeading: {
     fontFamily: 'DMSerifDisplay',
@@ -372,22 +318,4 @@ const styles = StyleSheet.create({
   // CTA
   ctaWrap: { alignItems: 'center', gap: Spacing.lg },
   finePrint: { ...Typography.small, color: 'rgba(255,255,255,0.25)' },
-
-  // Bottom TryThat badge
-  bottomBadge: {
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 14,
-    paddingBottom: 4,
-  },
-  bottomBadgeLabel: {
-    fontFamily: 'DMSans-Regular',
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.25)',
-    letterSpacing: 0.5,
-  },
-  bottomBadgeImg: {
-    width: 90,
-    height: 90 * (174 / 800),
-  },
 });
