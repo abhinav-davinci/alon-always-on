@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   Pressable,
-  Alert,
   TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +16,6 @@ import {
   MapPin,
   Calendar,
   Clock,
-  Download,
   ChevronDown,
   ChevronUp,
   CheckCircle2,
@@ -190,15 +188,6 @@ export default function SiteVisitsScreen() {
     setScheduleForProperty(null);
   }, [scheduleForProperty, selectedDate, selectedTime, scheduledVisits]);
 
-  const downloadPdf = () => {
-    haptics.medium();
-    Alert.alert(
-      'Coming soon',
-      'PDF download of your visit schedule will be available in the next update.',
-      [{ text: 'OK' }]
-    );
-  };
-
   const tipIndex = scheduledVisits.length % VISIT_TIPS.length;
 
   return (
@@ -212,13 +201,7 @@ export default function SiteVisitsScreen() {
           <MapPin size={16} color={Colors.terra500} strokeWidth={2} />
           <Text style={styles.headerTitle}>Site Visits</Text>
         </View>
-        {hasVisits ? (
-          <TouchableOpacity style={styles.downloadBtn} onPress={downloadPdf} activeOpacity={0.7}>
-            <Download size={18} color={Colors.textSecondary} strokeWidth={1.8} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView
@@ -770,10 +753,6 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerTitle: { fontSize: 17, fontFamily: 'DMSans-Bold', color: Colors.textPrimary },
-  downloadBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.warm50, alignItems: 'center', justifyContent: 'center',
-  },
 
   content: { paddingTop: Spacing.lg },
 
