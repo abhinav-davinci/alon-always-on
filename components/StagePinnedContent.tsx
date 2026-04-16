@@ -26,7 +26,6 @@ interface StagePinnedContentProps {
 const STAGE_INTROS: Record<string, { icon: typeof Search; text: string }> = {
   Compare: { icon: GitCompare, text: 'ALON will compare your shortlisted properties with real transaction data when you\'re ready.' },
   Finance: { icon: Landmark, text: 'ALON will find the best loan rates from 10+ banks based on your eligibility.' },
-  Legal: { icon: Scale, text: 'ALON will review your agreement, flag risky clauses, and verify RERA compliance.' },
   'Deal Closure': { icon: ClipboardCheck, text: 'ALON will track your deal timeline, send reminders for deadlines, and organize all documentation.' },
   Possession: { icon: Key, text: 'ALON will guide you through the full possession checklist — documents to key handover.' },
 };
@@ -37,6 +36,7 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
   const {
     likedPropertyIds, scheduledVisits, negotiatePropertyId, userProperties,
     cibilScore, cibilSkipped, monthlyIncome,
+    legalAnalysisDone, legalDocName,
   } = useOnboardingStore();
 
   // Skeleton on initial mount only — stage toggles use the bottom bounce instead
@@ -233,6 +233,54 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
       <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
         <View style={styles.introCard}>
           <Handshake size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // ── Legal: uses locked property from Negotiate stage ──
+  if (stage === 'Legal') {
+    const likedPool = SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id));
+    const selectedLiked = likedPool.find((p) => p.id === negotiatePropertyId);
+    const selectedUser = userProperties.find((p) => p.id === negotiatePropertyId);
+    const selectedName = selectedLiked?.name || selectedUser?.name || null;
+    const hasPropertyPool = likedPool.length + userProperties.length > 0;
+
+    let text = '';
+    let ctaLabel = '';
+    let ctaRoute: any = '';
+
+    if (!hasPropertyPool) {
+      text = 'Pick a property first — Legal analysis needs a specific agreement to review.';
+      ctaLabel = 'Browse Properties';
+      ctaRoute = { pathname: '/onboarding/shortlist', params: { nudge: 'negotiate' } };
+    } else if (!selectedName) {
+      text = 'Lock in your property in the Negotiate step — then I can analyze your agreement.';
+      ctaLabel = 'Go to Negotiate →';
+      ctaRoute = '/onboarding/negotiate';
+    } else if (legalAnalysisDone) {
+      text = `Your agreement for ${selectedName} is analyzed (${legalDocName || 'document'}). Review findings or re-upload.`;
+      ctaLabel = 'View Analysis →';
+      ctaRoute = '/onboarding/legal-analysis';
+    } else {
+      text = `Upload your agreement for ${selectedName}. I'll flag risky clauses, check affordability, and benchmark against MahaRERA standards.`;
+      ctaLabel = 'Analyze Agreement →';
+      ctaRoute = '/onboarding/legal-analysis';
+    }
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <Scale size={16} color={Colors.terra400} strokeWidth={1.8} />
           <Text style={styles.introText}>{text}</Text>
         </View>
         <TouchableOpacity

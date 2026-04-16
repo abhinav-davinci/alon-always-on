@@ -27,6 +27,7 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   const {
     activeStage, setActiveStage, likedPropertyIds, scheduledVisits,
     cibilScore, cibilSkipped, monthlyIncome, negotiatePropertyId,
+    legalAnalysisDone,
   } = useOnboardingStore();
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
@@ -36,6 +37,7 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   const hasActivity = (label: string): boolean => {
     if (label === 'Finance') return hasFinanceActivity;
     if (label === 'Negotiate') return negotiatePropertyId !== null;
+    if (label === 'Legal') return legalAnalysisDone;
     return false;
   };
 

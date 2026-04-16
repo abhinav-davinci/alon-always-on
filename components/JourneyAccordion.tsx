@@ -29,6 +29,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
     scheduledVisits, likedPropertyIds, activeStage, setActiveStage,
     cibilScore, cibilSkipped, monthlyIncome, existingEMIs,
     negotiatePropertyId, userProperties,
+    legalAnalysisDone, legalDocName,
   } = useOnboardingStore();
   const [expanded, setExpanded] = useState(false);
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
@@ -93,9 +94,16 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
           };
         }
       }
+      if (stage.label === 'Legal' && legalAnalysisDone) {
+        return {
+          ...stage,
+          status: 'active' as const,
+          alonTask: `Agreement analyzed${legalDocName ? ` · ${legalDocName}` : ''}`,
+        };
+      }
       return stage;
     });
-  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText, negotiatePropertyId, userProperties]);
+  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText, negotiatePropertyId, userProperties, legalAnalysisDone, legalDocName]);
 
 
   // Pulsing dot for detail subtitle
