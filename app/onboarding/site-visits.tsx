@@ -120,6 +120,7 @@ export default function SiteVisitsScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [conflictData, setConflictData] = useState<{ conflictName: string; newName: string; newId: string; date: string; time: string } | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ propertyId: string; propertyName: string; date: string; time: string } | null>(null);
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [customDay, setCustomDay] = useState('');
   const [customMonth, setCustomMonth] = useState(new Date().getMonth());
@@ -343,8 +344,13 @@ export default function SiteVisitsScreen() {
                       <TouchableOpacity
                         style={styles.visitActionBtn}
                         onPress={() => {
-                          haptics.light();
-                          removeScheduledVisit(visit.propertyId);
+                          haptics.medium();
+                          setCancelTarget({
+                            propertyId: visit.propertyId,
+                            propertyName: visit.propertyName,
+                            date: visit.date,
+                            time: visit.time,
+                          });
                         }}
                         activeOpacity={0.7}
                       >
@@ -694,6 +700,50 @@ export default function SiteVisitsScreen() {
           </View>
         )}
       </BottomSheet>
+
+      {/* ══ CANCEL CONFIRMATION SHEET ══ */}
+      <BottomSheet
+        visible={!!cancelTarget}
+        title="Cancel this visit?"
+        onClose={() => setCancelTarget(null)}
+      >
+        {cancelTarget && (
+          <View style={styles.conflictSheet}>
+            <View style={styles.cancelIconWrap}>
+              <X size={24} color="#DC2626" strokeWidth={2} />
+            </View>
+            <Text style={styles.conflictSheetBody}>
+              Cancel your visit to{' '}
+              <Text style={styles.conflictSheetBold}>{cancelTarget.propertyName}</Text> on{' '}
+              <Text style={styles.conflictSheetBold}>{cancelTarget.date}</Text> at{' '}
+              <Text style={styles.conflictSheetBold}>{cancelTarget.time}</Text>?
+            </Text>
+            <Text style={styles.conflictSheetSub}>
+              You can reschedule any time — but the current slot will be released.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.conflictBtnSecondary}
+              onPress={() => setCancelTarget(null)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.conflictBtnSecondaryText}>Keep visit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtnDestructive}
+              onPress={() => {
+                haptics.medium();
+                removeScheduledVisit(cancelTarget.propertyId);
+                setCancelTarget(null);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.cancelBtnDestructiveText}>Yes, cancel visit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </BottomSheet>
     </View>
   );
 }
@@ -1024,6 +1074,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  cancelIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  cancelBtnDestructive: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  cancelBtnDestructiveText: {
+    fontFamily: 'DMSans-SemiBold',
+    fontSize: 13,
+    color: '#DC2626',
   },
 
   dateChipCustom: {
