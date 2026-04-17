@@ -337,7 +337,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         const likeMsg: ChatMessage = {
           id: `like-${Date.now()}`,
           type: 'alon',
-          text: `Nice pick! ${property.name} has been added to your shortlist. You now have ${likedPropertyIds.length} shortlisted propert${likedPropertyIds.length > 1 ? 'ies' : 'y'}.`,
+          text: `Nice pick! ${property.name} has been added to your shortlist. You now have ${likedPropertyIds.length} shortlisted propert${likedPropertyIds.length > 1 ? 'ies' : 'y'}. If you already have a property in mind that's not listed here, tap "Add Now" on the dashboard to add it manually.`,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, likeMsg]);

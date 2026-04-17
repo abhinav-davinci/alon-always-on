@@ -132,7 +132,7 @@ export default function DashboardScreen() {
             activeOpacity={0.7}
             onPress={() => setShowAddSheet(true)}
           >
-            <Text style={styles.addPropertyLabel}>Got a shortlisted property?</Text>
+            <Text style={styles.addPropertyLabel}>Already got a shortlisted property?</Text>
             <View style={styles.addNowPill}>
               <Plus size={10} color="#fff" strokeWidth={2.5} />
               <Text style={styles.addNowText}>Add now</Text>
