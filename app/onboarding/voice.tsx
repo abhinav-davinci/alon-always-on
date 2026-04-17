@@ -77,6 +77,70 @@ function PulsingMic() {
   );
 }
 
+// ── Compact recording orb for inline header (replaces scaled VoiceOrb) ──
+function CompactRecordingOrb({ active }: { active: boolean }) {
+  const pulse = useSharedValue(1);
+  const ring = useSharedValue(0);
+  useEffect(() => {
+    if (active) {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, true,
+      );
+      ring.value = withRepeat(withTiming(1, { duration: 1400 }), -1, false);
+    } else {
+      pulse.value = withTiming(1, { duration: 300 });
+      ring.value = withTiming(0, { duration: 300 });
+    }
+  }, [active]);
+  const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + ring.value * 0.8 }],
+    opacity: 0.35 * (1 - ring.value),
+  }));
+  return (
+    <View style={styles.compactOrbWrap}>
+      <Animated.View style={[styles.compactOrbRing, ringStyle]} />
+      <Animated.View style={[styles.compactOrb, orbStyle]}>
+        <CompactWaveform active={active} />
+      </Animated.View>
+    </View>
+  );
+}
+
+function CompactWaveform({ active }: { active: boolean }) {
+  return (
+    <View style={styles.compactWaveRow}>
+      {[0, 1, 2, 3].map(i => <CompactWaveBar key={i} index={i} active={active} />)}
+    </View>
+  );
+}
+
+function CompactWaveBar({ index, active }: { index: number; active: boolean }) {
+  const h = useSharedValue(4);
+  useEffect(() => {
+    if (active) {
+      h.value = withDelay(
+        index * 80,
+        withRepeat(
+          withSequence(
+            withTiming(10 + Math.random() * 8, { duration: 220 + Math.random() * 150 }),
+            withTiming(4 + Math.random() * 3, { duration: 220 + Math.random() * 150 }),
+          ),
+          -1, true,
+        ),
+      );
+    } else {
+      h.value = withTiming(4, { duration: 200 });
+    }
+  }, [active]);
+  const s = useAnimatedStyle(() => ({ height: h.value }));
+  return <Animated.View style={[styles.compactWaveBar, s]} />;
+}
+
 // ── Animated sequencing glow for field chips ──
 function FieldGlow({ index }: { index: number }) {
   const opacity = useSharedValue(0);
@@ -300,7 +364,6 @@ export default function VoiceScreen() {
 
   // ── Recording Phase ──
   const detectedFields = getDetectedFields(liveTranscript);
-  const orbState = voiceState === 'paused' ? 'idle' : voiceState === 'done' ? 'done' : voiceState === 'idle' ? 'idle' : 'listening';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -319,9 +382,7 @@ export default function VoiceScreen() {
 
         {/* Inline orb + timer + status */}
         <View style={styles.recStatusRow}>
-          <View style={styles.miniOrbWrap}>
-            <VoiceOrb state={orbState} onPress={() => {}} />
-          </View>
+          <CompactRecordingOrb active={voiceState === 'listening'} />
           <View style={styles.recStatusText}>
             <Text style={styles.recTimer}>{formatTime(recordSeconds)}</Text>
             {voiceState === 'listening' && (
@@ -567,16 +628,34 @@ const styles = StyleSheet.create({
   // ── Recording phase ──
   recTopBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
   },
   recStatusRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  miniOrbWrap: {
-    transform: [{ scale: 0.35 }], marginHorizontal: -30, marginVertical: -30,
+
+  // Compact inline orb (replaces scaled VoiceOrb)
+  compactOrbWrap: {
+    width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
   },
+  compactOrbRing: {
+    position: 'absolute', width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1.5, borderColor: Colors.terra400,
+  },
+  compactOrb: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: Colors.terra500,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  compactWaveRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 2.5,
+  },
+  compactWaveBar: {
+    width: 2.5, backgroundColor: '#fff', borderRadius: 1.5,
+  },
+
   recStatusText: {
-    alignItems: 'flex-start', gap: 2,
+    alignItems: 'flex-start', gap: 3,
   },
   recTimer: {
     fontSize: 20, fontFamily: 'DMSans-SemiBold', color: '#fff', letterSpacing: 1,
@@ -598,18 +677,18 @@ const styles = StyleSheet.create({
   },
 
   recBody: {
-    flex: 1, paddingHorizontal: Spacing.xxl, paddingTop: Spacing.sm, gap: Spacing.md,
+    flex: 1, paddingHorizontal: Spacing.xxl, paddingTop: Spacing.lg, gap: Spacing.lg,
   },
 
   // Transcript card
   transcriptCard: {
     flex: 1,
     backgroundColor: Colors.navy700, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
   },
   transcriptCardLabel: {
     fontSize: 10, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.3)',
-    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10,
   },
   transcriptCardText: {
     fontSize: 15, fontFamily: 'DMSans-Regular', color: 'rgba(255,255,255,0.85)',
@@ -625,11 +704,11 @@ const styles = StyleSheet.create({
 
   // Field check section — compact chips
   fieldCheckSection: {
-    gap: 8,
+    gap: 0,
   },
   fieldCheckLabel: {
     fontSize: 10, fontFamily: 'DMSans-SemiBold', color: 'rgba(255,255,255,0.3)',
-    textTransform: 'uppercase', letterSpacing: 0.6,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10,
   },
   fieldCheckGrid: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 6,
@@ -649,7 +728,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   fieldCheckHint: {
-    fontSize: 10, fontFamily: 'DMSans-Regular', color: Colors.terra400, fontStyle: 'italic',
+    fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.terra400, fontStyle: 'italic',
+    marginTop: 14, lineHeight: 16,
   },
 
   // Recording action buttons
@@ -685,7 +765,8 @@ const styles = StyleSheet.create({
   },
 
   bottomWrap: {
-    paddingHorizontal: Spacing.xxl, alignItems: 'center', gap: Spacing.lg,
+    paddingHorizontal: Spacing.xxl, paddingTop: Spacing.md,
+    alignItems: 'center', gap: Spacing.sm,
   },
 
   switchLink: { paddingVertical: Spacing.xs },
