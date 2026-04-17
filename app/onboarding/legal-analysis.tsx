@@ -579,7 +579,7 @@ export default function LegalAnalysisScreen() {
 
         {/* Disclaimer */}
         <View style={styles.disclaimer}>
-          <Shield size={12} color={Colors.warm400} strokeWidth={1.5} />
+          <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
             ALON's analysis is AI-generated and informational only. For binding legal opinions on
             your builder agreement, consult a registered advocate.

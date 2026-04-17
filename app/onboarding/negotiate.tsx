@@ -925,7 +925,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
 
       {/* Disclaimer */}
       <View style={styles.disclaimer}>
-        <Info size={12} color={Colors.warm400} strokeWidth={1.5} />
+        <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
         <Text style={styles.disclaimerText}>
           Negotiation data is AI-assisted and informational only. Final price depends on the
           builder, market conditions, and your own discretion.

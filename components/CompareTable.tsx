@@ -366,7 +366,7 @@ export default function CompareTable({ propertyIds, preferences }: CompareTableP
 
       {/* --- AI Disclaimer --- */}
       <View style={styles.disclaimer}>
-        <Info size={12} color={Colors.warm400} strokeWidth={1.5} />
+        <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
         <Text style={styles.disclaimerText}>
           ALON's recommendations are AI-generated based on available data and your preferences.
           Please consult qualified real estate and legal professionals before making any property decisions.

@@ -414,7 +414,7 @@ export default function SiteVisitsScreen() {
 
         {/* Privacy note */}
         <View style={styles.disclaimer}>
-          <Shield size={12} color={Colors.warm400} strokeWidth={1.5} />
+          <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
             Your phone number is never shared with the builder. ALON books visits using a
             reference ID — you stay anonymous until you choose to connect.

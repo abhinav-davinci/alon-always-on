@@ -636,7 +636,7 @@ export default function LoanPlannerScreen() {
 
         {/* AI Disclaimer */}
         <View style={styles.disclaimer}>
-          <Info size={12} color={Colors.warm400} strokeWidth={1.5} />
+          <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
             ALON's calculations are estimates based on publicly available rates and standard banking norms.
             Actual loan terms may vary. Please consult your bank or a qualified financial advisor before making decisions.
