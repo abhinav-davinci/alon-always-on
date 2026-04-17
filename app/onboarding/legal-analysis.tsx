@@ -335,19 +335,6 @@ export default function LegalAnalysisScreen() {
                 <Text style={styles.uploadBtnText}>Choose a PDF or image</Text>
               </TouchableOpacity>
 
-              <View style={styles.orDivider}>
-                <View style={styles.orLine} />
-                <Text style={styles.orText}>or</Text>
-                <View style={styles.orLine} />
-              </View>
-
-              <TouchableOpacity
-                style={styles.sampleBtn}
-                onPress={() => startAnalysis('MahaRERA Model Agreement')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.sampleBtnText}>Try with sample agreement</Text>
-              </TouchableOpacity>
             </View>
 
             {/* What ALON checks */}
@@ -1017,18 +1004,6 @@ const styles = StyleSheet.create({
     borderRadius: 12, alignSelf: 'stretch',
   },
   uploadBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white },
-  orDivider: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch',
-    marginVertical: 12,
-  },
-  orLine: { flex: 1, height: 1, backgroundColor: Colors.warm200 },
-  orText: { fontFamily: 'DMSans-Medium', fontSize: 10, color: Colors.textTertiary, letterSpacing: 1 },
-  sampleBtn: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 10, borderWidth: 1, borderColor: Colors.terra200, backgroundColor: Colors.terra50,
-    alignSelf: 'stretch', alignItems: 'center',
-  },
-  sampleBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra500 },
 
   featuresCard: {
     marginHorizontal: Spacing.xxl, marginTop: 16, padding: 14,

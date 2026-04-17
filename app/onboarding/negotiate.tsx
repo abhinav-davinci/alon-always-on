@@ -11,6 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -30,10 +33,10 @@ import {
   MessageSquare,
   TrendingUp,
   BarChart3,
-  Square,
-  CheckSquare,
   ChevronDown,
   ChevronUp,
+  Eye,
+  X,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -49,6 +52,7 @@ import { useOnboardingStore } from '../../store/onboarding';
 import { SHORTLIST_PROPERTIES, Property, UserProperty } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
 import { getRecommended } from '../../utils/compareScore';
+import { WebView } from 'react-native-webview';
 
 // ── Demo data for negotiate workspace (mirrors property-detail) ──
 const PROPERTY_DETAILS: Record<string, {
@@ -131,11 +135,19 @@ const AREA_TRENDS: Record<string, {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ── Index II mock available documents ──
+interface Index2SubDoc {
+  id: string;
+  title: string;
+  type: string;
+  monthYear: string;
+}
+
 interface Index2Doc {
   id: string;
   label: string;
   description: string;
   tag?: string;
+  subDocs?: Index2SubDoc[];
 }
 
 function getAvailableIndex2(area: string, propertyName: string): Index2Doc[] {
@@ -143,6 +155,17 @@ function getAvailableIndex2(area: string, propertyName: string): Index2Doc[] {
   const now = new Date();
   const fromDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() - 1}`;
   const toDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+  const projectSubDocs: Index2SubDoc[] = [];
+  for (let m = 0; m < 8; m++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+    projectSubDocs.push({
+      id: `proj-${m}`,
+      title: `${propertyName} — ${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+      type: 'Sale Deed',
+      monthYear: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`,
+    });
+  }
 
   return [
     {
@@ -155,6 +178,7 @@ function getAvailableIndex2(area: string, propertyName: string): Index2Doc[] {
       id: `${areaName.toLowerCase()}-project`,
       label: `Index II — Project Data`,
       description: `All registered transactions for ${propertyName} and the same building/society`,
+      subDocs: projectSubDocs,
     },
     {
       id: `${areaName.toLowerCase()}-area`,
@@ -162,6 +186,56 @@ function getAvailableIndex2(area: string, propertyName: string): Index2Doc[] {
       description: `All transactions in ${areaName} from ${fromDate} to ${toDate}`,
     },
   ];
+}
+
+// ── Index II HTML renderer (bypasses file:// issues in Expo Go; production will use S3 URLs) ──
+function buildIndex2Html(docTitle: string, areaName: string): string {
+  const now = new Date();
+  const rows = [
+    ['15/03/2026', 'Flat 1204, Wing A', 'Sale', '₹1.32 Cr', '1,420 sq.ft', '₹9,296/sq.ft'],
+    ['28/02/2026', 'Flat 803, Wing B', 'Sale', '₹1.18 Cr', '1,310 sq.ft', '₹9,007/sq.ft'],
+    ['14/02/2026', 'Flat 1502, Wing A', 'Sale', '₹1.41 Cr', '1,450 sq.ft', '₹9,724/sq.ft'],
+    ['03/01/2026', 'Flat 601, Wing C', 'Sale', '₹98.5 L', '1,050 sq.ft', '₹9,381/sq.ft'],
+    ['18/12/2025', 'Flat 904, Wing A', 'Sale', '₹1.28 Cr', '1,380 sq.ft', '₹9,275/sq.ft'],
+    ['25/11/2025', 'Flat 702, Wing B', 'Resale', '₹1.15 Cr', '1,320 sq.ft', '₹8,712/sq.ft'],
+    ['09/11/2025', 'Flat 1101, Wing A', 'Sale', '₹1.35 Cr', '1,450 sq.ft', '₹9,310/sq.ft'],
+    ['22/10/2025', 'Flat 405, Wing C', 'Sale', '₹92 L', '1,050 sq.ft', '₹8,762/sq.ft'],
+    ['15/09/2025', 'Flat 1303, Wing B', 'Resale', '₹1.22 Cr', '1,310 sq.ft', '₹9,313/sq.ft'],
+    ['01/08/2025', 'Flat 506, Wing A', 'Sale', '₹1.25 Cr', '1,380 sq.ft', '₹9,058/sq.ft'],
+  ];
+  const tableRows = rows.map((r, i) =>
+    '<tr style="background:' + (i % 2 === 0 ? '#faf8f4' : '#fff') + '">' +
+    '<td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td>' +
+    '<td style="font-weight:600;color:#B8451E">' + r[3] + '</td>' +
+    '<td>' + r[4] + '</td><td>' + r[5] + '</td></tr>'
+  ).join('');
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=3">' +
+    '<style>*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{font-family:-apple-system,system-ui,sans-serif;background:#F5F0E8;padding:16px;color:#0D1F4A}' +
+    '.page{background:#fff;border-radius:8px;padding:20px 16px;border:1px solid #E0D8CC;box-shadow:0 2px 8px rgba(0,0,0,0.05)}' +
+    '.header{text-align:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0D1F4A}' +
+    '.header h1{font-size:15px;font-weight:700;letter-spacing:0.5px;margin-bottom:4px}' +
+    '.header h2{font-size:11px;font-weight:500;color:#5C554A}' +
+    '.header .sub{font-size:9px;color:#A89E8E;margin-top:4px}' +
+    '.meta{display:flex;justify-content:space-between;font-size:9px;color:#A89E8E;margin-bottom:12px;padding:0 2px}' +
+    'table{width:100%;border-collapse:collapse;font-size:10px}' +
+    'th{text-align:left;padding:8px 6px;background:#0D1F4A;color:#fff;font-weight:600;font-size:9px;letter-spacing:0.3px}' +
+    'td{padding:7px 6px;border-bottom:1px solid #E0D8CC;font-size:10px;vertical-align:top}' +
+    '.footer{margin-top:16px;padding-top:10px;border-top:1px solid #E0D8CC;font-size:8px;color:#A89E8E;text-align:center;line-height:1.4}' +
+    '.stamp{display:inline-block;border:1.5px solid #D95F2B;color:#D95F2B;font-size:8px;font-weight:700;padding:2px 6px;border-radius:3px;margin-top:6px;letter-spacing:0.5px}' +
+    '</style></head><body>' +
+    '<div class="page">' +
+    '<div class="header"><h1>INDEX II \u2014 ' + areaName + ' Sub-Registrar Office</h1>' +
+    '<h2>' + docTitle + '</h2>' +
+    '<div class="sub">Government of Maharashtra \u00b7 Department of Registration & Stamps</div></div>' +
+    '<div class="meta"><span>Document No: IGR/' + areaName.toUpperCase() + '/2026/' + Math.floor(Math.random() * 9000 + 1000) + '</span>' +
+    '<span>Generated: ' + now.getDate().toString().padStart(2, '0') + '/' + (now.getMonth() + 1).toString().padStart(2, '0') + '/' + now.getFullYear() + '</span></div>' +
+    '<table><thead><tr><th>Date</th><th>Unit</th><th>Type</th><th>Amount</th><th>Area</th><th>Rate</th></tr></thead>' +
+    '<tbody>' + tableRows + '</tbody></table>' +
+    '<div class="footer">This is a computer-generated document from the Sub-Registrar office, ' + areaName + ', Pune.<br/>' +
+    'Data sourced from registered sale deeds. For verification, contact the office directly.<br/>' +
+    '<span class="stamp">VERIFIED COPY</span></div></div></body></html>';
 }
 
 // ── Negotiation checklist ──
@@ -568,7 +642,9 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const scrollRef = useRef<ScrollView>(null);
   const requestInputY = useRef(0);
   const [checklistExpanded, setChecklistExpanded] = useState(false);
-  const [selectedIndex2, setSelectedIndex2] = useState<Set<string>>(new Set());
+  const [previewDoc, setPreviewDoc] = useState<Index2Doc | null>(null);
+  const [previewSubIdx, setPreviewSubIdx] = useState(0);
+  const [showSubList, setShowSubList] = useState(false);
 
   // Lookup property details + area trends
   const details = PROPERTY_DETAILS[property.id];
@@ -583,30 +659,6 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
     [negotiateDataRequests, property.id]
   );
   const customRequests = propertyRequests.filter((r) => r.type === 'custom');
-
-  const toggleIndex2 = useCallback((id: string) => {
-    haptics.selection();
-    setSelectedIndex2((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
-
-  const downloadIndex2 = useCallback(() => {
-    haptics.medium();
-    selectedIndex2.forEach((id) => {
-      const doc = availableIndex2.find((d) => d.id === id);
-      if (doc) {
-        addNegotiateDataRequest({
-          type: 'index2',
-          text: doc.label,
-          propertyId: property.id,
-        });
-      }
-    });
-    setSelectedIndex2(new Set());
-  }, [selectedIndex2, availableIndex2, property.id]);
 
   const submitCustomRequest = useCallback(() => {
     const text = customRequestText.trim();
@@ -625,6 +677,7 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
   const totalChecklist = checklist.length;
 
   return (
+    <>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView
       ref={scrollRef}
@@ -729,19 +782,22 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
         </View>
         <View style={styles.index2Card}>
           {availableIndex2.map((doc, i) => {
-            const isSelected = selectedIndex2.has(doc.id);
+            const hasSubDocs = doc.subDocs && doc.subDocs.length > 0;
             return (
               <TouchableOpacity
                 key={doc.id}
                 style={[styles.index2Row, i > 0 && styles.index2RowBorder]}
-                onPress={() => toggleIndex2(doc.id)}
+                onPress={() => {
+                  haptics.light();
+                  setPreviewDoc(doc);
+                  setPreviewSubIdx(0);
+                  setShowSubList(false);
+                }}
                 activeOpacity={0.7}
               >
-                {isSelected ? (
-                  <CheckSquare size={16} color={Colors.terra500} strokeWidth={2} />
-                ) : (
-                  <Square size={16} color={Colors.warm300} strokeWidth={1.5} />
-                )}
+                <View style={styles.index2IconWrap}>
+                  <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
+                </View>
                 <View style={styles.index2Info}>
                   <View style={styles.index2LabelRow}>
                     <Text style={styles.index2Label}>{doc.label}</Text>
@@ -750,23 +806,18 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
                         <Text style={styles.index2TagText}>{doc.tag}</Text>
                       </View>
                     )}
+                    {hasSubDocs && (
+                      <View style={styles.index2CountBadge}>
+                        <Text style={styles.index2CountText}>{doc.subDocs!.length} docs</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.index2Desc}>{doc.description}</Text>
                 </View>
+                <Eye size={14} color={Colors.warm400} strokeWidth={1.8} />
               </TouchableOpacity>
             );
           })}
-          <TouchableOpacity
-            style={[styles.index2DownloadBtn, selectedIndex2.size === 0 && styles.index2DownloadBtnDisabled]}
-            onPress={downloadIndex2}
-            disabled={selectedIndex2.size === 0}
-            activeOpacity={0.85}
-          >
-            <Download size={14} color={Colors.white} strokeWidth={2.5} />
-            <Text style={styles.index2DownloadText}>
-              {selectedIndex2.size > 0 ? `Download Now (${selectedIndex2.size})` : 'Select to download'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -880,6 +931,121 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
       </View>
     </ScrollView>
     </KeyboardAvoidingView>
+
+    {/* ═══ INDEX II PREVIEW BOTTOM SHEET ═══ */}
+    {previewDoc && (
+      <Modal visible transparent animationType="slide" statusBarTranslucent>
+        <TouchableWithoutFeedback onPress={() => setPreviewDoc(null)}>
+          <View style={previewStyles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={[previewStyles.sheet, { paddingBottom: Math.max(insetBottom, 16) }]}>
+                {/* Handle + header */}
+                <View style={previewStyles.handle} />
+                <View style={previewStyles.header}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={previewStyles.headerTitle} numberOfLines={1}>
+                      {previewDoc.subDocs && previewDoc.subDocs.length > 0
+                        ? previewDoc.subDocs[previewSubIdx]?.title || previewDoc.label
+                        : previewDoc.label}
+                    </Text>
+                    <Text style={previewStyles.headerSub}>
+                      {previewDoc.subDocs && previewDoc.subDocs.length > 0
+                        ? `${previewDoc.subDocs[previewSubIdx]?.type || 'Document'} · ${previewDoc.subDocs[previewSubIdx]?.monthYear || ''}`
+                        : previewDoc.description}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={previewStyles.downloadIcon}
+                    onPress={() => { haptics.medium(); Alert.alert('Downloading', 'Your document will be saved to Downloads.'); }}
+                    activeOpacity={0.7}
+                  >
+                    <Download size={18} color={Colors.terra500} strokeWidth={2} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={previewStyles.closeIcon}
+                    onPress={() => setPreviewDoc(null)}
+                    activeOpacity={0.7}
+                  >
+                    <X size={18} color={Colors.textTertiary} strokeWidth={2} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Document preview — rendered as styled HTML via WebView */}
+                <View style={previewStyles.pdfArea}>
+                  <WebView
+                    key={previewDoc.id + '-' + previewSubIdx}
+                    source={{ html: buildIndex2Html(
+                      previewDoc.subDocs && previewDoc.subDocs.length > 0
+                        ? previewDoc.subDocs[previewSubIdx]?.title || previewDoc.label
+                        : previewDoc.label,
+                      property.area.split(',')[0].trim()
+                    ) }}
+                    style={previewStyles.pdfWebView}
+                    scalesPageToFit
+                    bounces
+                  />
+                </View>
+
+                {/* Floating "See N more" — only for docs with sub-documents */}
+                {previewDoc.subDocs && previewDoc.subDocs.length > 1 && !showSubList && (
+                  <TouchableOpacity
+                    style={previewStyles.seeMoreBtn}
+                    onPress={() => { haptics.light(); setShowSubList(true); }}
+                    activeOpacity={0.85}
+                  >
+                    <FileText size={13} color={Colors.white} strokeWidth={2} />
+                    <Text style={previewStyles.seeMoreText}>
+                      See {previewDoc.subDocs.length - 1} more documents
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Sub-document list (shown when "See more" is tapped) */}
+                {showSubList && previewDoc.subDocs && (
+                  <View style={previewStyles.subList}>
+                    <View style={previewStyles.subListHeader}>
+                      <Text style={previewStyles.subListTitle}>
+                        {previewDoc.label} ({previewDoc.subDocs.length})
+                      </Text>
+                      <TouchableOpacity onPress={() => setShowSubList(false)}>
+                        <Text style={previewStyles.subListClose}>Hide</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={previewStyles.subListScroll} showsVerticalScrollIndicator={false}>
+                      {previewDoc.subDocs.map((sub, si) => {
+                        const isActive = previewSubIdx === si;
+                        return (
+                          <TouchableOpacity
+                            key={sub.id}
+                            style={[previewStyles.subItem, isActive && previewStyles.subItemActive]}
+                            onPress={() => {
+                              haptics.selection();
+                              setPreviewSubIdx(si);
+                              setShowSubList(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <FileText size={13} color={isActive ? Colors.terra500 : Colors.warm400} strokeWidth={1.8} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={[previewStyles.subItemTitle, isActive && previewStyles.subItemTitleActive]} numberOfLines={1}>
+                                {sub.title}
+                              </Text>
+                              <Text style={previewStyles.subItemMeta}>{sub.type} · {sub.monthYear}</Text>
+                            </View>
+                            {isActive && <CheckCircle2 size={14} color={Colors.terra500} strokeWidth={2} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    )}
+    </>
   );
 }
 
@@ -913,6 +1079,103 @@ function PulsingDot({ fulfilled }: { fulfilled?: boolean }) {
 // ═══════════════════════════════════════════════════════════════
 // STYLES
 // ═══════════════════════════════════════════════════════════════
+const SH = Dimensions.get('window').height;
+
+// ── Preview bottom sheet styles ──
+const previewStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: SH * 0.82,
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: Colors.warm200, alignSelf: 'center',
+    marginTop: 10, marginBottom: 8,
+  },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: Spacing.xxl, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.warm100,
+  },
+  headerTitle: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 15, color: Colors.textPrimary,
+  },
+  headerSub: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textTertiary, marginTop: 2,
+  },
+  downloadIcon: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  closeIcon: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: Colors.warm50, borderWidth: 1, borderColor: Colors.warm100,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pdfArea: {
+    flex: 1, backgroundColor: Colors.cream,
+    borderTopWidth: 1, borderTopColor: Colors.warm100,
+  },
+  pdfWebView: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
+  // Floating "See N more" button
+  seeMoreBtn: {
+    position: 'absolute', bottom: 80, alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.navy800, paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: 100,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 10,
+    elevation: 6,
+  },
+  seeMoreText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.white,
+  },
+  // Sub-document list overlay
+  subList: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: Colors.white, borderTopLeftRadius: 16, borderTopRightRadius: 16,
+    borderTopWidth: 1, borderColor: Colors.warm200,
+    maxHeight: SH * 0.4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08, shadowRadius: 8,
+  },
+  subListHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.xxl, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.warm100,
+  },
+  subListTitle: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.textPrimary,
+  },
+  subListClose: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.terra500,
+  },
+  subListScroll: { paddingHorizontal: Spacing.xxl },
+  subItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.warm100,
+  },
+  subItemActive: { backgroundColor: Colors.terra50, marginHorizontal: -Spacing.xxl, paddingHorizontal: Spacing.xxl },
+  subItemTitle: {
+    fontFamily: 'DMSans-Medium', fontSize: 13, color: Colors.textPrimary,
+  },
+  subItemTitleActive: { color: Colors.terra600 },
+  subItemMeta: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textTertiary, marginTop: 1,
+  },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
 
@@ -1404,10 +1667,22 @@ const styles = StyleSheet.create({
   },
   index2Row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 12,
+  },
+  index2IconWrap: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  index2CountBadge: {
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+  },
+  index2CountText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 9, color: Colors.terra600,
   },
   index2RowBorder: {
     borderTopWidth: 1,
@@ -1443,24 +1718,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textTertiary,
     lineHeight: 15,
-  },
-  index2DownloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingVertical: 11,
-    backgroundColor: Colors.terra500,
-    borderRadius: 10,
-  },
-  index2DownloadBtnDisabled: {
-    backgroundColor: Colors.warm200,
-  },
-  index2DownloadText: {
-    fontFamily: 'DMSans-SemiBold',
-    fontSize: 13,
-    color: Colors.white,
   },
 
   // ── Status badge ──
