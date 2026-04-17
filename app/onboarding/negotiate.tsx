@@ -504,7 +504,7 @@ function NegotiatePicker({ ranking, pickedId, onPick, onConfirm, insetBottom }: 
       return `You visited ${picked.name} — ready to negotiate?`;
     }
     if (preselectReason === 'only-one' && sorted.length === 1) {
-      return 'Your only shortlisted property — let\'s negotiate on it';
+      return 'Your only shortlisted property — let\'s build your case';
     }
     return `Ready to negotiate on ${picked.name}?`;
   }, [picked, chipsById, preselectReason, sorted.length]);
@@ -594,7 +594,7 @@ function NegotiatePicker({ ranking, pickedId, onPick, onConfirm, insetBottom }: 
           disabled={!pickedId}
           activeOpacity={0.85}
         >
-          <Text style={styles.confirmBtnText}>Start Negotiating</Text>
+          <Text style={styles.confirmBtnText}>View Negotiation Pointers</Text>
           <ChevronRight size={16} color={Colors.white} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
