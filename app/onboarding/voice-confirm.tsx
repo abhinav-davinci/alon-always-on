@@ -59,7 +59,7 @@ export default function VoiceConfirmScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
         <View style={{ width: 36 }} />
       </View>

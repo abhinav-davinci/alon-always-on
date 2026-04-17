@@ -48,7 +48,7 @@ export default function CompareScreen() {
       {/* --- Header --- */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-          <ChevronLeft size={22} color={Colors.textPrimary} strokeWidth={1.8} />
+          <ChevronLeft size={22} color={Colors.terra500} strokeWidth={1.8} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Property Comparison</Text>
         {hasEnough && !isLoading ? (

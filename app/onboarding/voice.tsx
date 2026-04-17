@@ -210,7 +210,7 @@ export default function VoiceScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <ChevronLeft size={20} color={Colors.gray400} strokeWidth={2} />
+            <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>Voice brief</Text>
           <View style={{ width: 36 }} />
@@ -314,7 +314,7 @@ export default function VoiceScreen() {
           setRecordSeconds(0);
           setPhase('explainer');
         }}>
-          <ChevronLeft size={20} color={Colors.gray400} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
 
         {/* Inline orb + timer + status */}

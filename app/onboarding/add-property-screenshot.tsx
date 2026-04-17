@@ -342,7 +342,7 @@ export default function AddPropertyScreenshotScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {phase === 'upload' ? 'Screenshot' : phase === 'extracting' ? 'Extracting...' : phase === 'review' ? 'Review details' : 'Done'}

@@ -178,7 +178,7 @@ export default function AddPropertyManualScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add property</Text>
         <View style={{ width: 36 }} />

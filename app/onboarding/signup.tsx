@@ -144,7 +144,7 @@ export default function SignupScreen() {
           }}
           activeOpacity={0.7}
         >
-          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
 
         {/* Step indicator */}

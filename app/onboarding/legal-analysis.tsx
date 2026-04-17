@@ -270,7 +270,7 @@ export default function LegalAnalysisScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={Colors.textSecondary} strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Scale size={16} color={Colors.terra500} strokeWidth={2} />
