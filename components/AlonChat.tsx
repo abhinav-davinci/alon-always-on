@@ -1210,6 +1210,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             poolCount === 0 ? 'Start Shortlisting' :
             selected ? `Continue — ${selected.name}` :
             'Pick a Property to Negotiate';
+          const NegIcon = poolCount === 0 ? Heart : Handshake;
 
           return (
             <Animated.View entering={FadeIn.duration(250)}>
@@ -1225,7 +1226,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
-                  <Handshake size={14} color={Colors.white} strokeWidth={2} />
+                  <NegIcon size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>
@@ -1248,6 +1249,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             !selected ? 'Lock Property in Negotiate' :
             state.legalAnalysisDone ? 'View Analysis' :
             'Analyze Agreement';
+          const LegalIcon = poolCount === 0 ? Heart : !selected ? Handshake : Scale;
 
           return (
             <Animated.View entering={FadeIn.duration(250)}>
@@ -1265,7 +1267,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
-                  <Scale size={14} color={Colors.white} strokeWidth={2} />
+                  <LegalIcon size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>
