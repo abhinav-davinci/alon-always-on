@@ -52,7 +52,9 @@ import { useOnboardingStore } from '../../store/onboarding';
 import { SHORTLIST_PROPERTIES, Property, UserProperty } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
 import { getRecommended } from '../../utils/compareScore';
-import { WebView } from 'react-native-webview';
+
+const index2SampleImg = require('../../assets/index2/index2-sample.png');
+const index2Img = require('../../assets/index2/index2.png');
 
 // ── Demo data for negotiate workspace (mirrors property-detail) ──
 const PROPERTY_DETAILS: Record<string, {
@@ -970,21 +972,19 @@ function NegotiateWorkspace({ property, onChangeProperty, insetBottom }: Workspa
                   </TouchableOpacity>
                 </View>
 
-                {/* Document preview — rendered as styled HTML via WebView */}
-                <View style={previewStyles.pdfArea}>
-                  <WebView
-                    key={previewDoc.id + '-' + previewSubIdx}
-                    source={{ html: buildIndex2Html(
-                      previewDoc.subDocs && previewDoc.subDocs.length > 0
-                        ? previewDoc.subDocs[previewSubIdx]?.title || previewDoc.label
-                        : previewDoc.label,
-                      property.area.split(',')[0].trim()
-                    ) }}
-                    style={previewStyles.pdfWebView}
-                    scalesPageToFit
-                    bounces
+                {/* Document preview — image placeholder (production will use S3 PDF URLs via WebView) */}
+                <ScrollView
+                  style={previewStyles.pdfArea}
+                  contentContainerStyle={previewStyles.pdfContent}
+                  showsVerticalScrollIndicator
+                  bounces
+                >
+                  <Image
+                    source={previewDoc.id.includes('latest') ? index2SampleImg : index2Img}
+                    style={previewStyles.pdfImage}
+                    resizeMode="contain"
                   />
-                </View>
+                </ScrollView>
 
                 {/* Floating "See N more" — only for docs with sub-documents */}
                 {previewDoc.subDocs && previewDoc.subDocs.length > 1 && !showSubList && (
@@ -1124,9 +1124,17 @@ const previewStyles = StyleSheet.create({
     flex: 1, backgroundColor: Colors.cream,
     borderTopWidth: 1, borderTopColor: Colors.warm100,
   },
-  pdfWebView: {
-    flex: 1,
-    backgroundColor: Colors.cream,
+  pdfContent: {
+    padding: 12,
+  },
+  pdfImage: {
+    width: '100%',
+    height: undefined,
+    aspectRatio: 0.707,
+    backgroundColor: Colors.white,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.warm200,
   },
   // Floating "See N more" button
   seeMoreBtn: {
