@@ -25,9 +25,7 @@ import {
   AlertTriangle,
   Bell,
   BellOff,
-  Upload,
   FileText,
-  Circle,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -146,28 +144,6 @@ const MILESTONES: Milestone[] = [
   },
 ];
 
-interface ClosureDoc {
-  id: string;
-  label: string;
-  milestoneId: string;
-  milestoneLabel: string;
-  required: boolean;
-  defaultStatus: 'uploaded' | 'pending';
-}
-
-const DOCS: ClosureDoc[] = [
-  { id: 'booking-receipt', label: 'Booking Receipt', milestoneId: 'token', milestoneLabel: 'Token', required: true, defaultStatus: 'uploaded' },
-  { id: 'allotment-letter', label: 'Allotment Letter', milestoneId: 'token', milestoneLabel: 'Token', required: true, defaultStatus: 'uploaded' },
-  { id: 'signed-ats', label: 'Signed Sale Agreement', milestoneId: 'ats', milestoneLabel: 'Agreement', required: true, defaultStatus: 'uploaded' },
-  { id: 'stamp-challan', label: 'Stamp Duty Challan', milestoneId: 'stamp', milestoneLabel: 'Agreement', required: true, defaultStatus: 'pending' },
-  { id: 'sanction-letter', label: 'Bank Sanction Letter', milestoneId: 'sanction', milestoneLabel: 'Loan', required: true, defaultStatus: 'pending' },
-  { id: 'disbursement-memo', label: 'Disbursement Memo', milestoneId: 'disbursement', milestoneLabel: 'Loan', required: true, defaultStatus: 'pending' },
-  { id: 'balance-receipt', label: 'Balance Payment Receipt', milestoneId: 'balance', milestoneLabel: 'Loan', required: true, defaultStatus: 'pending' },
-  { id: 'index-2', label: 'Index II', milestoneId: 'registration', milestoneLabel: 'Registration', required: true, defaultStatus: 'pending' },
-  { id: 'deed-transfer', label: 'Deed of Transfer', milestoneId: 'registration', milestoneLabel: 'Registration', required: true, defaultStatus: 'pending' },
-  { id: 'poa', label: 'Power of Attorney', milestoneId: 'registration', milestoneLabel: 'Registration', required: false, defaultStatus: 'pending' },
-];
-
 // Reference "today" for the demo
 const TODAY = new Date('2026-04-18T00:00:00');
 
@@ -226,11 +202,6 @@ export default function DealClosureScreen() {
     registration: false,
     subregistrar: false,
   });
-  const [docStatus, setDocStatus] = useState<Record<string, 'uploaded' | 'pending'>>(
-    () => DOCS.reduce((acc, d) => ({ ...acc, [d.id]: d.defaultStatus }), {})
-  );
-  const [showAllDocs, setShowAllDocs] = useState(false);
-
   const property = useMemo(() => {
     if (!negotiatePropertyId) return null;
     const liked = SHORTLIST_PROPERTIES.find((p) => p.id === negotiatePropertyId);
@@ -274,16 +245,9 @@ export default function DealClosureScreen() {
   const totalCount = MILESTONES.length;
   const progressPct = Math.round((doneCount / totalCount) * 100);
 
-  const uploadedCount = DOCS.filter((d) => docStatus[d.id] === 'uploaded').length;
-
   const toggleReminder = (id: string) => {
     haptics.light();
     setReminders((r) => ({ ...r, [id]: !r[id] }));
-  };
-
-  const markDocUploaded = (id: string) => {
-    haptics.success();
-    setDocStatus((s) => ({ ...s, [id]: 'uploaded' }));
   };
 
   // Phase state for status strip
@@ -411,9 +375,14 @@ export default function DealClosureScreen() {
              ════════════════════════════════════════════════════════════ */}
         <Animated.View entering={FadeInDown.delay(160).duration(300)}>
           <Text style={styles.sectionLabel}>TIMELINE</Text>
-          <Text style={styles.sectionHint}>
-            Every date from your agreement. Tap 🔔 to get alerts 3 days, 1 day, and morning-of the deadline.
-          </Text>
+          <View style={styles.sectionHintRow}>
+            <View style={styles.sectionHintIcon}>
+              <Bell size={11} color={Colors.terra500} strokeWidth={2.2} fill={Colors.terra500} />
+            </View>
+            <Text style={styles.sectionHintInline}>
+              Every date from your agreement. Tap the bell on any row to get alerts 3 days, 1 day, and morning-of the deadline.
+            </Text>
+          </View>
           <View style={styles.timelineWrap}>
             {MILESTONES.map((m, i) => (
               <MilestoneRow
@@ -427,83 +396,12 @@ export default function DealClosureScreen() {
           </View>
         </Animated.View>
 
-        {/* ════════════════════════════════════════════════════════════
-             DOCUMENTATION CHECKLIST
-             ════════════════════════════════════════════════════════════ */}
-        <Animated.View entering={FadeInDown.delay(240).duration(300)}>
-          <Text style={styles.sectionLabel}>DOCUMENTATION</Text>
-          <Text style={styles.sectionHint}>
-            {uploadedCount} of {DOCS.length} documents collected
-          </Text>
-
-          <View style={styles.docsWrap}>
-            {(['Token', 'Agreement', 'Loan', 'Registration'] as const).map((group) => {
-              const groupDocs = DOCS.filter((d) => d.milestoneLabel === group);
-              if (groupDocs.length === 0) return null;
-              const groupUploaded = groupDocs.filter((d) => docStatus[d.id] === 'uploaded').length;
-              const allDone = groupUploaded === groupDocs.length;
-              return (
-                <View key={group} style={styles.docGroup}>
-                  <View style={styles.docGroupHeader}>
-                    <Text style={styles.docGroupTitle}>{group}</Text>
-                    <View style={[styles.docGroupPill, allDone && styles.docGroupPillDone]}>
-                      <Text style={[styles.docGroupPillText, allDone && styles.docGroupPillTextDone]}>
-                        {groupUploaded}/{groupDocs.length}
-                      </Text>
-                    </View>
-                  </View>
-                  {groupDocs.map((doc) => {
-                    const uploaded = docStatus[doc.id] === 'uploaded';
-                    return (
-                      <View key={doc.id} style={styles.docRow}>
-                        <View style={styles.docLeft}>
-                          {uploaded ? (
-                            <CheckCircle2 size={16} color={Colors.green500} strokeWidth={2.5} />
-                          ) : (
-                            <Circle size={16} color={Colors.warm300} strokeWidth={2} />
-                          )}
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.docLabel, uploaded && styles.docLabelDone]}>
-                              {doc.label}
-                            </Text>
-                            {!doc.required && (
-                              <Text style={styles.docOptional}>Optional</Text>
-                            )}
-                          </View>
-                        </View>
-                        {uploaded ? (
-                          <TouchableOpacity
-                            style={styles.docViewBtn}
-                            onPress={() => haptics.light()}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.docViewText}>View</Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity
-                            style={styles.docUploadBtn}
-                            onPress={() => markDocUploaded(doc.id)}
-                            activeOpacity={0.85}
-                          >
-                            <Upload size={11} color={Colors.terra500} strokeWidth={2} />
-                            <Text style={styles.docUploadText}>Upload</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })}
-          </View>
-        </Animated.View>
-
         {/* Disclaimer */}
         <View style={styles.disclaimer}>
           <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
-            Dates and document requirements are extracted from your agreement. Always cross-check
-            with your builder and a registered advocate before acting on them.
+            Dates are extracted from your agreement. Always cross-check with your builder and
+            a registered advocate before acting on them.
           </Text>
         </View>
       </ScrollView>
@@ -633,7 +531,7 @@ function MilestoneRow({
 const PREP_STEPS = [
   { id: 'dates', label: 'Extracting key dates from agreement', icon: FilePen },
   { id: 'reminders', label: 'Setting up smart reminders', icon: Bell },
-  { id: 'docs', label: 'Organizing your document checklist', icon: ClipboardCheck },
+  { id: 'milestones', label: 'Mapping your closure milestones', icon: ClipboardCheck },
 ];
 
 function PreparingScreen({
@@ -1060,6 +958,19 @@ const styles = StyleSheet.create({
     fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary,
     marginHorizontal: Spacing.xxl, marginBottom: 12, lineHeight: 17,
   },
+  sectionHintRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    marginHorizontal: Spacing.xxl, marginBottom: 12,
+  },
+  sectionHintInline: {
+    flex: 1,
+    fontSize: 12, fontFamily: 'DMSans-Regular', color: Colors.textSecondary,
+    lineHeight: 17,
+  },
+  sectionHintIcon: {
+    // Seat the bell on the first line's x-height.
+    marginTop: 3,
+  },
 
   // ── Timeline ──
   timelineWrap: {
@@ -1135,66 +1046,6 @@ const styles = StyleSheet.create({
   },
   bellBtnOn: {
     backgroundColor: Colors.terra50,
-  },
-
-  // ── Documentation ──
-  docsWrap: {
-    marginHorizontal: Spacing.xxl, gap: 10,
-  },
-  docGroup: {
-    padding: 12, borderRadius: 12,
-    backgroundColor: Colors.warm50, borderWidth: 1, borderColor: Colors.warm100,
-  },
-  docGroupHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginBottom: 8, paddingBottom: 8,
-    borderBottomWidth: 1, borderBottomColor: Colors.warm200,
-  },
-  docGroupTitle: {
-    flex: 1, fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.textPrimary,
-  },
-  docGroupPill: {
-    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
-    backgroundColor: Colors.warm100,
-  },
-  docGroupPillDone: {
-    backgroundColor: '#DCFCE7',
-  },
-  docGroupPillText: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.textSecondary,
-  },
-  docGroupPillTextDone: {
-    color: '#15803D',
-  },
-  docRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 7,
-  },
-  docLeft: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-  },
-  docLabel: {
-    fontFamily: 'DMSans-Medium', fontSize: 13, color: Colors.textPrimary,
-  },
-  docLabelDone: {
-    color: Colors.textSecondary,
-  },
-  docOptional: {
-    fontFamily: 'DMSans-Regular', fontSize: 10, color: Colors.textTertiary,
-    marginTop: 1,
-  },
-  docUploadBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 6, paddingVertical: 4,
-  },
-  docUploadText: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra500,
-  },
-  docViewBtn: {
-    paddingHorizontal: 6, paddingVertical: 4,
-  },
-  docViewText: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.textTertiary,
   },
 
   // Disclaimer
