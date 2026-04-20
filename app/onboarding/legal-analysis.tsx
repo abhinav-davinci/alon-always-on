@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft,
+  ChevronRight,
   Scale,
   Upload,
   FileText,
@@ -27,6 +28,7 @@ import {
   CreditCard,
   Home,
   ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -585,6 +587,31 @@ export default function LegalAnalysisScreen() {
             your builder agreement, consult a registered advocate.
           </Text>
         </View>
+
+        {/* Continue → Deal Closure */}
+        {legalAnalysisDone && (
+          <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.closureCtaWrap}>
+            <View style={styles.closureCtaHeader}>
+              <ClipboardCheck size={14} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.closureCtaHeaderText}>Ready for the next step?</Text>
+            </View>
+            <Text style={styles.closureCtaBody}>
+              We'll extract key dates — token, stamp duty, registration — from your agreement and
+              set up reminders for every deadline.
+            </Text>
+            <TouchableOpacity
+              style={styles.closureCtaBtn}
+              onPress={() => {
+                haptics.medium();
+                router.push('/onboarding/deal-closure');
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.closureCtaBtnText}>Continue to Deal Closure</Text>
+              <ChevronRight size={16} color={Colors.white} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </ScrollView>
     </View>
   );
@@ -1272,5 +1299,31 @@ const styles = StyleSheet.create({
   disclaimerText: {
     flex: 1, fontSize: 10, fontFamily: 'DMSans-Regular',
     color: Colors.textTertiary, lineHeight: 14,
+  },
+
+  // ── Continue → Deal Closure ──
+  closureCtaWrap: {
+    marginHorizontal: Spacing.xxl, marginTop: 16,
+    padding: 16, borderRadius: 14,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra200,
+  },
+  closureCtaHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6,
+  },
+  closureCtaHeaderText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra600,
+    letterSpacing: 0.3,
+  },
+  closureCtaBody: {
+    fontFamily: 'DMSans-Regular', fontSize: 12,
+    color: Colors.textSecondary, lineHeight: 17, marginBottom: 12,
+  },
+  closureCtaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 12, borderRadius: 12,
+    backgroundColor: Colors.terra500,
+  },
+  closureCtaBtnText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
   },
 });
