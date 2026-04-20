@@ -394,7 +394,10 @@ const styles = StyleSheet.create({
   // Scanning
   scanningWrap: { alignItems: 'center', paddingTop: 60 },
   scanHero: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xxl },
-  signalRing: { position: 'absolute', width: 80, height: 80, borderRadius: 40, borderWidth: 1.5, borderColor: Colors.activationGlow },
+  // Squircle rings (radius ≈ 32% of side) echo the AlonAvatar body shape,
+  // matching the splash screen's built-in rings. Never borderRadius: 40 —
+  // that's a perfect circle and breaks the brand's shape language.
+  signalRing: { position: 'absolute', width: 80, height: 80, borderRadius: 26, borderWidth: 1.5, borderColor: Colors.activationGlow },
   scanEye: { zIndex: 1 },
   scanTitle: { fontFamily: 'DMSerifDisplay', fontSize: 22, color: Colors.textPrimary, marginBottom: 4 },
   scanSubtitle: { fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginBottom: Spacing.xxl },

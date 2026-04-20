@@ -445,21 +445,25 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.activationGlow,
   },
+  // Rings use squircle geometry (radius ≈ 32% of side) to echo the
+  // AlonAvatar body shape — same language as the splash screen's
+  // built-in rings. Never `borderRadius: 40` here: that's a perfect
+  // circle and breaks shape consistency with the rest of the brand.
   signalRing1: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 26,
   },
   signalRing2: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 26,
     borderWidth: 1,
   },
   signalRing3: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 26,
     borderWidth: 0.5,
   },
 
