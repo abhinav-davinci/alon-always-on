@@ -125,7 +125,10 @@ export default function GoalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.navy700,
+    // Canvas: DARK (Canvas.goal) — must be navy800 per DS. navy700/600/500
+    // are reserved for hover/pressed states and must not be used as a
+    // screen background.
+    backgroundColor: Colors.navy800,
     paddingHorizontal: Spacing.xxl,
   },
   topBar: {

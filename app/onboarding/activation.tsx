@@ -276,7 +276,7 @@ export default function ActivationScreen() {
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={20} color="rgba(255,255,255,0.6)" strokeWidth={2} />
+          <ChevronLeft size={20} color={Colors.textOnDarkSecondary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -376,7 +376,7 @@ export default function ActivationScreen() {
                 >
                   <Icon
                     size={13}
-                    color={isActive ? Colors.terra300 : 'rgba(255,255,255,0.35)'}
+                    color={isActive ? Colors.terra300 : Colors.textOnDarkTertiary}
                     strokeWidth={1.8}
                   />
                   <Text style={[styles.notifyChipText, isActive && styles.notifyChipTextActive]}>
@@ -403,6 +403,10 @@ export default function ActivationScreen() {
   );
 }
 
+// Canvas: DARK (Canvas.activation) — navy800, same as splash/goal/intent.
+// ALON is actively scanning/verifying; the user is watching ALON perform.
+// All surfaces use the *OnDark tokens so the elevation ladder stays
+// consistent with the rest of the dark canvases.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -417,9 +421,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surfaceOnDark2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: Colors.borderOnDarkStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -467,14 +471,14 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'DMSerifDisplay',
     fontSize: 26,
-    color: '#FFFFFF',
+    color: Colors.textOnDarkPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 13,
     fontFamily: 'DMSans-Regular',
-    color: 'rgba(255,255,255,0.5)',
+    color: Colors.textOnDarkSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -490,22 +494,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surfaceOnDark2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: Colors.borderOnDarkStrong,
   },
   pillText: {
     fontSize: 12,
     fontFamily: 'DMSans-Medium',
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textOnDarkSecondary,
   },
 
   // Status card
   statusCard: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: Colors.surfaceOnDark1,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: Colors.borderOnDark,
     padding: 16,
     marginBottom: Spacing.xl,
   },
@@ -522,22 +526,22 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 20,
     fontFamily: 'DMSans-Bold',
-    color: '#FFFFFF',
+    color: Colors.textOnDarkPrimary,
   },
   counterLabel: {
     fontSize: 10,
     fontFamily: 'DMSans-Regular',
-    color: 'rgba(255,255,255,0.35)',
+    color: Colors.textOnDarkTertiary,
     marginTop: 2,
   },
   counterDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.borderOnDark,
   },
   cardDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.borderOnDark,
     marginVertical: 12,
   },
 
@@ -552,15 +556,15 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surfaceOnDark2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: Colors.borderOnDarkStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepDotDone: {
-    backgroundColor: '#22C55E',
-    borderColor: '#22C55E',
+    backgroundColor: Colors.green500,
+    borderColor: Colors.green500,
   },
   stepDotActive: {
     backgroundColor: Colors.terra500,
@@ -570,13 +574,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   stepDotPending: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.textOnDarkQuaternary,
   },
   stepContent: {
     flex: 1,
@@ -584,13 +588,13 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 13,
     fontFamily: 'DMSans-Regular',
-    color: 'rgba(255,255,255,0.3)',
+    color: Colors.textOnDarkQuaternary,
   },
   stepLabelDone: {
-    color: 'rgba(255,255,255,0.6)',
+    color: Colors.textOnDarkSecondary,
   },
   stepLabelActive: {
-    color: '#FFFFFF',
+    color: Colors.textOnDarkPrimary,
     fontFamily: 'DMSans-Medium',
   },
 
@@ -598,7 +602,7 @@ const styles = StyleSheet.create({
   scanTrack: {
     width: 40,
     height: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surfaceOnDark2,
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -615,11 +619,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: Colors.borderOnDark,
   },
   progressTrack: {
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.surfaceOnDark2,
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 8,
@@ -632,7 +636,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 11,
     fontFamily: 'DMSans-Regular',
-    color: 'rgba(255,255,255,0.35)',
+    color: Colors.textOnDarkTertiary,
     textAlign: 'center',
   },
 
@@ -643,7 +647,7 @@ const styles = StyleSheet.create({
   notifyTitle: {
     fontSize: 11,
     fontFamily: 'DMSans-Medium',
-    color: 'rgba(255,255,255,0.35)',
+    color: Colors.textOnDarkTertiary,
     marginRight: 8,
   },
   notifyRow: {
@@ -660,17 +664,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: Colors.borderOnDarkStrong,
+    backgroundColor: Colors.surfaceOnDark1,
   },
   notifyChipActive: {
     borderColor: Colors.terra400,
-    backgroundColor: 'rgba(217,95,43,0.2)',
+    backgroundColor: 'rgba(217,95,43,0.2)', // terra500 @ 20% — active glow
   },
   notifyChipText: {
     fontSize: 12,
     fontFamily: 'DMSans-Medium',
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textOnDarkTertiary,
   },
   notifyChipTextActive: {
     color: Colors.terra300,
@@ -687,11 +691,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#22C55E',
+    backgroundColor: Colors.green500,
   },
   alwaysOnText: {
     fontSize: 12,
     fontFamily: 'DMSans-Medium',
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textOnDarkTertiary,
   },
 });

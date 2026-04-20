@@ -158,7 +158,9 @@ export default function IntentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.navy700,
+    // Canvas: DARK (Canvas.intent) — must be navy800 to match splash & goal.
+    // navy700/600/500 are reserved for hover/pressed states, never screen bg.
+    backgroundColor: Colors.navy800,
     paddingHorizontal: Spacing.xxl,
   },
   topBar: {
