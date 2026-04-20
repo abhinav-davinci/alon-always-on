@@ -26,6 +26,8 @@ import {
   Bell,
   BellOff,
   FileText,
+  ArrowRight,
+  FileUp,
 } from 'lucide-react-native';
 import Animated, {
   FadeIn,
@@ -211,19 +213,17 @@ export default function DealClosureScreen() {
     return null;
   }, [negotiatePropertyId, userProperties]);
 
-  // Guards — primary flow requires legal done
-  React.useEffect(() => {
-    if (!negotiatePropertyId) {
-      router.replace('/onboarding/negotiate');
-      return;
-    }
-    if (!legalAnalysisDone) {
-      router.replace('/onboarding/legal-analysis');
-    }
-  }, [negotiatePropertyId, legalAnalysisDone]);
-
-  if (!property || !legalAnalysisDone) {
-    return <View style={[styles.container, { paddingTop: insets.top }]} />;
+  // Only hard dependency: a parsed agreement. Everything else (property lock,
+  // shortlist pool) lives upstream in Legal's own flow — don't cascade-redirect.
+  if (!legalAnalysisDone || !property) {
+    return (
+      <DealClosureEmpty
+        propertyName={property?.name ?? null}
+        insetsTop={insets.top}
+        onBack={() => router.back()}
+        onUpload={() => router.push('/onboarding/legal-analysis')}
+      />
+    );
   }
 
   // ── Preparing / intermediate loader ──
@@ -520,6 +520,83 @@ function MilestoneRow({
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EMPTY STATE — shown when no parsed agreement is available yet
+// Deal Closure's only hard dependency is a parsed Builder-Buyer
+// Agreement. Without it, we don't bounce the user back through the
+// shortlist/negotiate chain — we just ask them to upload it in Legal.
+// ═══════════════════════════════════════════════════════════════
+
+function DealClosureEmpty({
+  propertyName, insetsTop, onBack, onUpload,
+}: {
+  propertyName: string | null;
+  insetsTop: number;
+  onBack: () => void;
+  onUpload: () => void;
+}) {
+  return (
+    <View style={[styles.container, { paddingTop: insetsTop }]}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
+          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <ClipboardCheck size={16} color={Colors.terra500} strokeWidth={2} />
+          <Text style={styles.headerTitle}>Deal Closure</Text>
+        </View>
+        <View style={{ width: 36 }} />
+      </View>
+
+      <Animated.View entering={FadeIn.duration(260)} style={styles.emptyBody}>
+        <View style={styles.emptyIllus}>
+          <View style={styles.emptyDocBack} />
+          <View style={styles.emptyDocFront}>
+            <FileText size={32} color={Colors.terra500} strokeWidth={1.6} />
+          </View>
+          <View style={styles.emptyUploadChip}>
+            <FileUp size={12} color={Colors.white} strokeWidth={2.4} />
+          </View>
+        </View>
+
+        <Text style={styles.emptyHeadline}>Your deal hub is waiting</Text>
+        <Text style={styles.emptySubhead}>
+          {propertyName
+            ? `Upload the agreement for ${propertyName} in Legal — I'll extract every key date and line up your timeline.`
+            : `Upload your Builder-Buyer Agreement in Legal — I'll extract every key date and line up your timeline.`}
+        </Text>
+
+        <View style={styles.emptyChecklistWrap}>
+          {[
+            'Token, stamp duty & registration dates',
+            'Loan sanction & disbursement milestones',
+            'Smart reminders 3 days, 1 day, morning-of',
+          ].map((item) => (
+            <View key={item} style={styles.emptyChecklistRow}>
+              <View style={styles.emptyChecklistDot} />
+              <Text style={styles.emptyChecklistText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={styles.emptyPrimaryBtn}
+          onPress={onUpload}
+          activeOpacity={0.88}
+        >
+          <FileUp size={15} color={Colors.white} strokeWidth={2.2} />
+          <Text style={styles.emptyPrimaryText}>Upload Agreement</Text>
+          <ArrowRight size={15} color={Colors.white} strokeWidth={2.2} />
+        </TouchableOpacity>
+
+        <Text style={styles.emptyFootnote}>
+          Dates are parsed automatically — no manual entry.
+        </Text>
+      </Animated.View>
     </View>
   );
 }
@@ -1058,6 +1135,98 @@ const styles = StyleSheet.create({
   disclaimerText: {
     flex: 1, fontFamily: 'DMSans-Regular', fontSize: 10,
     color: Colors.textSecondary, lineHeight: 14, fontStyle: 'italic',
+  },
+
+  // ── Empty state (agreement not uploaded yet) ──
+  emptyBody: {
+    flex: 1, alignItems: 'center',
+    paddingHorizontal: Spacing.xxl, paddingTop: 64,
+  },
+  // Layered document illustration: a back card peeks behind the front one,
+  // with a small terra upload-chip clipped to the corner. Reads as
+  // "document waiting for upload" without a stock illustration.
+  emptyIllus: {
+    width: 120, height: 120, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 28,
+  },
+  emptyDocBack: {
+    position: 'absolute',
+    top: 14, left: 28,
+    width: 72, height: 90, borderRadius: 10,
+    backgroundColor: Colors.warm100,
+    transform: [{ rotate: '-6deg' }],
+  },
+  emptyDocFront: {
+    width: 84, height: 100, borderRadius: 12,
+    backgroundColor: Colors.white,
+    borderWidth: 1, borderColor: Colors.warm200,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0A0A0A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06, shadowRadius: 14,
+    elevation: 3,
+  },
+  emptyUploadChip: {
+    position: 'absolute',
+    right: 16, bottom: 10,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: Colors.terra500,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.terra500,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 10,
+    elevation: 6,
+  },
+  emptyHeadline: {
+    fontFamily: 'DMSerifDisplay', fontSize: 26, color: Colors.textPrimary,
+    textAlign: 'center', marginBottom: 8,
+  },
+  emptySubhead: {
+    fontFamily: 'DMSans-Regular', fontSize: 13.5, color: Colors.textSecondary,
+    textAlign: 'center', lineHeight: 20,
+    paddingHorizontal: 8,
+    marginBottom: 24,
+  },
+  emptyChecklistWrap: {
+    alignSelf: 'stretch',
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.warm50,
+    borderWidth: 1, borderColor: Colors.warm100,
+    marginBottom: 28,
+  },
+  emptyChecklistRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  emptyChecklistDot: {
+    width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.terra500,
+  },
+  emptyChecklistText: {
+    flex: 1,
+    fontFamily: 'DMSans-Medium', fontSize: 12.5,
+    color: Colors.textSecondary,
+  },
+  emptyPrimaryBtn: {
+    alignSelf: 'stretch',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.terra500,
+    shadowColor: Colors.terra500,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28, shadowRadius: 14,
+    elevation: 6,
+  },
+  emptyPrimaryText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 15, color: Colors.white,
+  },
+  emptyFootnote: {
+    marginTop: 14,
+    fontFamily: 'DMSans-Regular', fontSize: 11.5,
+    color: Colors.textTertiary,
+    textAlign: 'center',
   },
 
   // ── Preparing screen ──

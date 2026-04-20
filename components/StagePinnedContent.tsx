@@ -26,7 +26,6 @@ interface StagePinnedContentProps {
 const STAGE_INTROS: Record<string, { icon: typeof Search; text: string }> = {
   Compare: { icon: GitCompare, text: 'ALON will compare your shortlisted properties with real transaction data when you\'re ready.' },
   Finance: { icon: Landmark, text: 'ALON will find the best loan rates from 10+ banks based on your eligibility.' },
-  'Deal Closure': { icon: ClipboardCheck, text: 'ALON will track your deal timeline, send reminders for deadlines, and organize all documentation.' },
   Possession: { icon: Key, text: 'ALON will guide you through the full possession checklist — documents to key handover.' },
 };
 
@@ -281,6 +280,46 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
       <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
         <View style={styles.introCard}>
           <Scale size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  // ── Deal Closure: only gate is the parsed agreement — don't cascade ──
+  if (stage === 'Deal Closure') {
+    let text = '';
+    let ctaLabel = '';
+    let ctaRoute: any = '';
+
+    if (!legalAnalysisDone) {
+      text =
+        'Deal Closure needs your Builder–Buyer Agreement parsed in Legal. Upload it there — I extract every key date, set reminders, and unlock your deal hub.';
+      ctaLabel = 'Upload in Legal →';
+      ctaRoute = '/onboarding/legal-analysis';
+    } else {
+      const likedPool = SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id));
+      const selectedName =
+        likedPool.find((p) => p.id === negotiatePropertyId)?.name ||
+        userProperties.find((p) => p.id === negotiatePropertyId)?.name ||
+        'your property';
+      text = `Your ${legalDocName || 'agreement'} is parsed. Timeline and reminders are ready for ${selectedName}.`;
+      ctaLabel = 'Track Deal Timeline →';
+      ctaRoute = '/onboarding/deal-closure';
+    }
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <ClipboardCheck size={16} color={Colors.terra400} strokeWidth={1.8} />
           <Text style={styles.introText}>{text}</Text>
         </View>
         <TouchableOpacity

@@ -37,7 +37,7 @@ import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore } from '../store/onboarding';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
-import { Landmark, IndianRupee, Handshake, Scale } from 'lucide-react-native';
+import { Landmark, IndianRupee, Handshake, Scale, ClipboardCheck } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
@@ -424,6 +424,43 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 
       setMessages(prev => [...prev, {
         id: `legal-welcome-${Date.now()}`,
+        type: 'alon',
+        text,
+        timestamp: Date.now(),
+      }]);
+    }
+  }, [stage]);
+
+  // ── Deal Closure: guiding message when entering Deal Closure stage ──
+  // Only real gate is `legalAnalysisDone`. Don't cascade through
+  // shortlist/negotiate state — if the agreement's missing, say so clearly
+  // and point to Legal. Deal Closure's empty state handles the same branch.
+  const dealClosurePrompted = useRef(false);
+  useEffect(() => {
+    // Reset on stage exit so re-entry re-evaluates (e.g. after upload).
+    if (stage !== 'Deal Closure') {
+      dealClosurePrompted.current = false;
+      return;
+    }
+    if (!dealClosurePrompted.current) {
+      dealClosurePrompted.current = true;
+      const state = useOnboardingStore.getState();
+
+      let text: string;
+      if (!state.legalAnalysisDone) {
+        text =
+          "Deal Closure needs your Builder–Buyer Agreement uploaded in the Legal stage first — it's what I parse to extract token, stamp duty, loan, and registration dates. Tap the Legal stage and upload it, then come back here and your full timeline will be ready.";
+      } else {
+        const likedPool = SHORTLIST_PROPERTIES.filter(p => state.likedPropertyIds.includes(p.id));
+        const selected =
+          likedPool.find(p => p.id === state.negotiatePropertyId) ||
+          state.userProperties.find(p => p.id === state.negotiatePropertyId);
+        const name = selected?.name ?? 'your property';
+        text = `Your agreement for ${name} is parsed. I'll line up every key date — token, stamp duty, loan, registration — and send smart reminders 3 days, 1 day, and morning-of each deadline. Tap "Track Deal Timeline" below.`;
+      }
+
+      setMessages(prev => [...prev, {
+        id: `deal-closure-welcome-${Date.now()}`,
         type: 'alon',
         text,
         timestamp: Date.now(),
@@ -1268,6 +1305,35 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
                   <LegalIcon size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── Deal Closure stage: only gate is the parsed agreement ──
+        // Don't cascade through shortlist/negotiate state — that chain
+        // lives upstream in Legal. Unlock path is always: upload in Legal.
+        if (stage === 'Deal Closure') {
+          const label = !state.legalAnalysisDone ? 'Upload Agreement' : 'Track Deal Timeline';
+          const DcIcon = !state.legalAnalysisDone ? Scale : ClipboardCheck;
+
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  if (!state.legalAnalysisDone) {
+                    router.push('/onboarding/legal-analysis');
+                  } else {
+                    router.push('/onboarding/deal-closure');
+                  }
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <DcIcon size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>
