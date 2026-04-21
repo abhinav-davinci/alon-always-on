@@ -190,6 +190,20 @@ const DEMO_BENCHMARKS: BenchmarkItem[] = [
   },
 ];
 
+// Mock parser output for the prototype. In production the parsed
+// property metadata comes from the upload pipeline — we just want
+// plausible Pune-market values so the UI downstream (AT A GLANCE,
+// affordability, benchmarks) has realistic context. Cycled per-extraction
+// so users running the flow multiple times don't see identical
+// "Previously analyzed" rows.
+const MOCK_EXTRACTED_PROPERTIES = [
+  { name: 'Kumar Pebble Bay',    location: 'Kalyani Nagar, Pune', price: '₹1.68 Cr', propertyType: 'Apartment' },
+  { name: 'Lodha Belmondo',      location: 'Pirangut, Pune',      price: '₹95 L',    propertyType: 'Villa' },
+  { name: 'Mahindra Antheia',    location: 'Pimpri, Pune',        price: '₹1.42 Cr', propertyType: 'Apartment' },
+  { name: 'Kolte-Patil iTowers', location: 'Hinjewadi, Pune',     price: '₹1.15 Cr', propertyType: 'Apartment' },
+  { name: 'Rohan Abhilasha',     location: 'Wagholi, Pune',       price: '₹85 L',    propertyType: 'Apartment' },
+];
+
 // ═══════════════════════════════════════════════════════════════
 // SCREEN
 // ═══════════════════════════════════════════════════════════════
@@ -219,6 +233,21 @@ export default function LegalAnalysisScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedSeverity, setExpandedSeverity] = useState<'high' | 'medium' | 'low' | null>('high');
 
+  // On mount / when active changes: clean up orphan pending-external.
+  // If the active property is an external placeholder with an empty name
+  // AND no analysis record, the user left mid-flow without uploading.
+  // Reset active so they don't see a broken "New property" state on
+  // re-entry — the default picker (below) then kicks in for them.
+  React.useEffect(() => {
+    if (!activeLegalPropertyId) return;
+    const ext = externalProperties[activeLegalPropertyId];
+    const hasAnalysis = Boolean(legalAnalyses[activeLegalPropertyId]);
+    if (ext && !ext.name && !hasAnalysis) {
+      setActiveLegalProperty(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // once on mount only; later user actions are deliberate
+
   // First-visit defaulting: prefer Negotiate lock → shortlist → userProperties → null.
   // We only set the default once (when the selection is empty). If the user
   // later picks something else via the selector, we keep their choice.
@@ -243,44 +272,81 @@ export default function LegalAnalysisScreen() {
   // announces the auto-extract flow; after upload, the AI fills in details.
   const isExternalPending = property?.source === 'external' && !property.name;
 
+  // Zero-pool: truly fresh start — user has no shortlist, no user-added,
+  // and no named external properties, and hasn't picked anything yet.
+  // We skip orphan placeholders (empty-name externals left behind from
+  // a previous session). In this case, show a dedicated action card
+  // instead of the selector + disabled upload flow.
+  const realExternalCount = useMemo(
+    () => Object.values(externalProperties).filter((p) => p.name.length > 0).length,
+    [externalProperties],
+  );
+  const isZeroPool =
+    !activeLegalPropertyId &&
+    likedPropertyIds.length === 0 &&
+    userProperties.length === 0 &&
+    realExternalCount === 0;
+
   // Per-property analysis record — null if this property hasn't been analyzed yet.
   const analysisRecord = activeLegalPropertyId ? legalAnalyses[activeLegalPropertyId] : null;
   const analysisDone = Boolean(analysisRecord);
   const docName = analysisRecord?.docName ?? null;
 
+  // Core analysis runner. Takes the target property id explicitly so
+  // callers that just created a new external record can pass the fresh
+  // id without waiting for a re-render (setActive is sync, but closures
+  // over `activeLegalPropertyId` aren't).
+  const runAnalysis = useCallback(
+    (propertyId: string, fileName: string = 'Builder-Buyer Agreement') => {
+      haptics.medium();
+      setIsProcessing(true);
+      setTimeout(() => {
+        setIsProcessing(false);
+        // External-pending (empty-name external record): swap in mock
+        // parser output. Cycle through the pool by counting prior
+        // analyses so successive uploads in the same session yield
+        // different properties (no duplicate "Kumar Pebble Bay" rows).
+        const state = useOnboardingStore.getState();
+        const ext = state.externalProperties[propertyId];
+        if (ext && !ext.name) {
+          const priorCount = Object.keys(state.legalAnalyses).length;
+          const mock = MOCK_EXTRACTED_PROPERTIES[priorCount % MOCK_EXTRACTED_PROPERTIES.length];
+          updateExternalProperty(propertyId, mock);
+        }
+        setLegalAnalysisForProperty({ propertyId, docName: fileName });
+        haptics.success();
+      }, 3500);
+    },
+    [setLegalAnalysisForProperty, updateExternalProperty, haptics],
+  );
+
+  // "Choose a PDF or image" handler on the regular upload card — operates
+  // on whatever property is currently active.
+  const startAnalysis = useCallback(
+    (fileName?: string) => {
+      if (!activeLegalPropertyId) return;
+      runAnalysis(activeLegalPropertyId, fileName);
+    },
+    [activeLegalPropertyId, runAnalysis],
+  );
+
+  // Sheet → "Analyze a different property" path. Just creates the
+  // placeholder and sets active; the user then taps the upload button
+  // on the main screen to actually start the parse.
   const handleStartExternalUpload = useCallback(() => {
-    // Create an empty placeholder — the parser populates it after upload.
-    // Intentionally no user-typed fields: the agreement is the source of truth.
     const id = addExternalProperty({ name: '', location: '' });
     setActiveLegalProperty(id);
     haptics.selection();
   }, [addExternalProperty, setActiveLegalProperty, haptics]);
 
-  const startAnalysis = useCallback(
-    (fileName: string = 'Builder-Buyer Agreement') => {
-      if (!activeLegalPropertyId) return; // can't analyze without a property
-      haptics.medium();
-      setIsProcessing(true);
-      setTimeout(() => {
-        setIsProcessing(false);
-        // External-pending: the uploaded agreement is the source of truth
-        // for property metadata. In production the parser fills these in;
-        // for this prototype we mock plausible demo values so the rest of
-        // the screen (AT A GLANCE, affordability, benchmarks) has context.
-        if (isExternalPending && activeLegalPropertyId) {
-          updateExternalProperty(activeLegalPropertyId, {
-            name: 'Kumar Pebble Bay',
-            location: 'Kalyani Nagar, Pune',
-            price: '₹1.68 Cr',
-            propertyType: 'Apartment',
-          });
-        }
-        setLegalAnalysisForProperty({ propertyId: activeLegalPropertyId, docName: fileName });
-        haptics.success();
-      }, 3500);
-    },
-    [activeLegalPropertyId, isExternalPending, setLegalAnalysisForProperty, updateExternalProperty, haptics],
-  );
+  // Zero-pool "Upload an agreement" path. This is the user's first action
+  // when they have nothing, and their intent is clear — so we compress
+  // placeholder creation + analysis start into a single tap.
+  const handleZeroPoolUpload = useCallback(() => {
+    const id = addExternalProperty({ name: '', location: '' });
+    setActiveLegalProperty(id);
+    runAnalysis(id);
+  }, [addExternalProperty, setActiveLegalProperty, runAnalysis]);
 
   const reupload = useCallback(() => {
     if (!activeLegalPropertyId) return;
@@ -324,17 +390,74 @@ export default function LegalAnalysisScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Zero-pool empty state: two explicit paths. */}
+        {isZeroPool && (
+          <Animated.View entering={FadeIn.duration(280)}>
+            <View style={styles.zeroPoolCard}>
+              <View style={styles.zeroPoolIconWrap}>
+                <Scale size={28} color={Colors.terra500} strokeWidth={1.6} />
+              </View>
+              <Text style={styles.zeroPoolHeadline}>Let's analyze your agreement</Text>
+              <Text style={styles.zeroPoolBody}>
+                Legal works for any property — in your shortlist or not. Pick how you want to start.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.zeroPoolPrimary}
+                onPress={handleZeroPoolUpload}
+                activeOpacity={0.88}
+              >
+                <Upload size={15} color={Colors.white} strokeWidth={2} />
+                <Text style={styles.zeroPoolPrimaryText}>Choose a PDF or image</Text>
+              </TouchableOpacity>
+              <Text style={styles.zeroPoolPrimaryHint}>
+                I'll pull the property details straight from the agreement — no typing needed.
+              </Text>
+
+              <View style={styles.zeroPoolDivider}>
+                <View style={styles.zeroPoolDividerLine} />
+                <Text style={styles.zeroPoolDividerText}>or</Text>
+                <View style={styles.zeroPoolDividerLine} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.zeroPoolSecondary}
+                onPress={() => {
+                  haptics.light();
+                  router.push({ pathname: '/onboarding/shortlist', params: { nudge: 'legal' } });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.zeroPoolSecondaryText}>Browse properties to shortlist first</Text>
+                <ChevronRight size={14} color={Colors.terra500} strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
+
+            {/* What ALON checks — keep this context in empty state too */}
+            <View style={styles.featuresCard}>
+              <Text style={styles.featuresTitle}>What ALON checks</Text>
+              <FeatureBullet text="Plain-language TL;DR — the entire agreement in 5 bullets" />
+              <FeatureBullet text="Risk detection categorized by severity (High, Medium, Low)" />
+              <FeatureBullet text="Affordability check using your Finance data" />
+              <FeatureBullet text="Clause-by-clause benchmarking vs MahaRERA model" />
+            </View>
+          </Animated.View>
+        )}
+
         {/* ── Property selector (replaces the old locked card) ── */}
-        <LegalPropertySelector
-          activePropertyId={activeLegalPropertyId}
-          onChange={setActiveLegalProperty}
-          onStartExternalUpload={handleStartExternalUpload}
-        />
+        {!isZeroPool && (
+          <LegalPropertySelector
+            activePropertyId={activeLegalPropertyId}
+            onChange={setActiveLegalProperty}
+            onStartExternalUpload={handleStartExternalUpload}
+          />
+        )}
 
         {/* ════════════════════════════════════
              STATE: Upload (no analysis yet)
+             Hidden when in zero-pool state — that card has its own CTAs.
              ════════════════════════════════════ */}
-        {!analysisDone && !isProcessing && (
+        {!isZeroPool && !analysisDone && !isProcessing && (
           <Animated.View entering={FadeInDown.delay(100).duration(300)}>
             <Text style={styles.sectionLabel}>UPLOAD YOUR AGREEMENT</Text>
 
@@ -1029,6 +1152,60 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.warm300,
   },
   uploadBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white },
+
+  // ── Zero-pool empty state ──
+  // Shown when the user lands on Legal with no shortlist, no user-added
+  // properties, and no external analyses yet. Two explicit paths: upload
+  // directly (most people's intent when they're here), or go shortlist
+  // first. Legal is independent — neither path is a prerequisite.
+  zeroPoolCard: {
+    marginHorizontal: Spacing.xxl, padding: 20,
+    backgroundColor: Colors.white, borderRadius: 16,
+    borderWidth: 1.5, borderColor: Colors.warm200, alignItems: 'center',
+  },
+  zeroPoolIconWrap: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.terra50,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  zeroPoolHeadline: {
+    fontFamily: 'DMSerifDisplay', fontSize: 22, color: Colors.textPrimary,
+    textAlign: 'center', marginBottom: 8,
+  },
+  zeroPoolBody: {
+    fontFamily: 'DMSans-Regular', fontSize: 13, color: Colors.textSecondary,
+    textAlign: 'center', lineHeight: 19, marginBottom: 18,
+  },
+  zeroPoolPrimary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    alignSelf: 'stretch', paddingVertical: 12, borderRadius: 12,
+    backgroundColor: Colors.terra500,
+  },
+  zeroPoolPrimaryText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
+  },
+  zeroPoolPrimaryHint: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textTertiary,
+    textAlign: 'center', marginTop: 8, lineHeight: 15,
+  },
+  zeroPoolDivider: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch',
+    gap: 10, marginTop: 16, marginBottom: 14,
+  },
+  zeroPoolDividerLine: {
+    flex: 1, height: 1, backgroundColor: Colors.warm200,
+  },
+  zeroPoolDividerText: {
+    fontFamily: 'DMSans-Medium', fontSize: 11, color: Colors.textTertiary,
+    letterSpacing: 0.4,
+  },
+  zeroPoolSecondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignSelf: 'stretch', paddingVertical: 10, borderRadius: 10,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
+  },
+  zeroPoolSecondaryText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.terra500,
+  },
 
   featuresCard: {
     marginHorizontal: Spacing.xxl, marginTop: 16, padding: 14,

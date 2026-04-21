@@ -15,6 +15,7 @@ import {
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
 import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
+import { resolveLegalProperty } from '../utils/legalProperty';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { useHaptics } from '../hooks/useHaptics';
 import SkeletonStagePinned from './skeleton/SkeletonStagePinned';
@@ -35,7 +36,7 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
   const {
     likedPropertyIds, scheduledVisits, negotiatePropertyId, userProperties,
     cibilScore, cibilSkipped, monthlyIncome,
-    legalAnalyses, activeLegalPropertyId,
+    legalAnalyses, externalProperties, activeLegalPropertyId,
   } = useOnboardingStore();
 
   // Broad gate: has the user completed any legal analysis at all? Used
@@ -254,34 +255,33 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
-  // ── Legal: uses locked property from Negotiate stage ──
+  // ── Legal: independent step — no shortlist/negotiate prerequisites ──
   if (stage === 'Legal') {
-    const likedPool = SHORTLIST_PROPERTIES.filter((p) => likedPropertyIds.includes(p.id));
-    const selectedLiked = likedPool.find((p) => p.id === negotiatePropertyId);
-    const selectedUser = userProperties.find((p) => p.id === negotiatePropertyId);
-    const selectedName = selectedLiked?.name || selectedUser?.name || null;
-    const hasPropertyPool = likedPool.length + userProperties.length > 0;
+    // Prefer the active property's name (it's what the user's looking
+    // at in the Legal screen). Fall back to the most recently analyzed
+    // one, so the pinned card stays contextual even if the user
+    // selected a different property in the selector.
+    const activeName = activeLegalPropertyId
+      ? resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId)?.name
+      : null;
+    const recentRecord = Object.values(legalAnalyses)
+      .sort((a, b) => b.uploadedAt - a.uploadedAt)[0];
+    const recentName = recentRecord
+      ? resolveLegalProperty({ userProperties, externalProperties }, recentRecord.propertyId)?.name
+      : null;
+    const displayName = activeName || recentName || 'your property';
 
     let text = '';
     let ctaLabel = '';
-    let ctaRoute: any = '';
+    const ctaRoute = '/onboarding/legal-analysis';
 
-    if (!hasPropertyPool) {
-      text = 'Pick a property first — Legal analysis needs a specific agreement to review.';
-      ctaLabel = 'Browse Properties';
-      ctaRoute = { pathname: '/onboarding/shortlist', params: { nudge: 'negotiate' } };
-    } else if (!selectedName) {
-      text = 'Lock in your property in the Negotiate step — then I can analyze your agreement.';
-      ctaLabel = 'Go to Negotiate →';
-      ctaRoute = '/onboarding/negotiate';
-    } else if (legalAnalysisDone) {
-      text = `Your agreement for ${selectedName} is analyzed (${legalDocName || 'document'}). Review findings or re-upload.`;
+    if (legalAnalysisDone) {
+      text = `Your agreement for ${displayName} is analyzed (${legalDocName || 'document'}). Review findings or re-upload.`;
       ctaLabel = 'View Analysis →';
-      ctaRoute = '/onboarding/legal-analysis';
     } else {
-      text = `Upload your agreement for ${selectedName}. I'll flag risky clauses, check affordability, and benchmark against MahaRERA standards.`;
-      ctaLabel = 'Analyze Agreement →';
-      ctaRoute = '/onboarding/legal-analysis';
+      text =
+        "Upload your builder agreement — I'll flag risky clauses, check affordability, and benchmark every term. Works for shortlisted and external properties alike.";
+      ctaLabel = 'Upload Agreement →';
     }
 
     return (

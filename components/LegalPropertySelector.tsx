@@ -350,7 +350,7 @@ function PropertyPickerSheet({
               <View style={{ flex: 1 }}>
                 <Text style={sheet.externalCtaTitle}>Analyze a different property</Text>
                 <Text style={sheet.externalCtaSub}>
-                  Upload the agreement — I'll pull the details for you
+                  Got a property outside ALON? Upload the agreement — I'll pull the details for you.
                 </Text>
               </View>
               <ChevronRight size={16} color={Colors.terra500} strokeWidth={2} />

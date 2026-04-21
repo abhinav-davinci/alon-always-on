@@ -35,6 +35,7 @@ import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
 import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
+import { resolveLegalProperty } from '../utils/legalProperty';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
 import { Landmark, IndianRupee, Handshake, Scale, ClipboardCheck } from 'lucide-react-native';
@@ -400,26 +401,34 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
   }, [stage]);
 
   // ── Legal: guiding message when entering Legal stage ──
+  // Legal is an independent step with NO prerequisites — the user can
+  // upload an agreement for any property (shortlisted or external).
+  // Two states: analyzed vs not. Don't gate on shortlist/negotiate.
   const legalPrompted = useRef(false);
   useEffect(() => {
     if (stage === 'Legal' && !legalPrompted.current) {
       legalPrompted.current = true;
       const state = useOnboardingStore.getState();
-      const likedPool = SHORTLIST_PROPERTIES.filter(p => state.likedPropertyIds.includes(p.id));
-      const poolCount = likedPool.length + state.userProperties.length;
-      const selected =
-        likedPool.find(p => p.id === state.negotiatePropertyId) ||
-        state.userProperties.find(p => p.id === state.negotiatePropertyId);
+      const analyzed = hasAnyLegalAnalysis(state);
 
       let text: string;
-      if (poolCount === 0) {
-        text = "Before I can analyze your agreement, you need a shortlisted property. Browse your matches and tap ♡ to get started.";
-      } else if (!selected) {
-        text = "Lock in your property in the Negotiate step first — Legal analysis works on one agreement at a time. Once you commit, I can upload and parse your builder-buyer agreement to flag risky clauses, check affordability, and benchmark against MahaRERA standards.";
-      } else if (hasAnyLegalAnalysis(state)) {
-        text = `Your agreement for ${selected.name} is analyzed. Tap "View Analysis" below to review the findings, re-upload, or check affordability.`;
+      if (analyzed) {
+        // Prefer the currently-active property's name for context. Fall
+        // back to the most recently analyzed one if the user switched
+        // away from it.
+        const activeName = state.activeLegalPropertyId
+          ? resolveLegalProperty(state, state.activeLegalPropertyId)?.name
+          : null;
+        const recentRecord = Object.values(state.legalAnalyses)
+          .sort((a, b) => b.uploadedAt - a.uploadedAt)[0];
+        const recentName = recentRecord
+          ? resolveLegalProperty(state, recentRecord.propertyId)?.name
+          : null;
+        const name = activeName || recentName || 'your property';
+        text = `Your agreement for ${name} is analyzed. Tap "View Analysis" below to review the findings, re-upload, or check affordability.`;
       } else {
-        text = `Ready to analyze your agreement for ${selected.name}. I'll parse it for risky clauses (categorized Low/Medium/High), check if it fits your budget, and benchmark every term against MahaRERA and Pune market norms. Tap "Analyze Agreement" below.`;
+        text =
+          "Ready to analyze your builder agreement? Upload it here — I'll flag risky clauses, check affordability, and benchmark every term against MahaRERA. If the property isn't in your shortlist yet, no problem — I'll pull the details straight from the agreement.";
       }
 
       setMessages(prev => [...prev, {
@@ -1273,39 +1282,22 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 
         // ── Legal stage: routes to legal-analysis screen ──
         if (stage === 'Legal') {
-          const userProps = state.userProperties;
-          const negotiateId = state.negotiatePropertyId;
-          const likedPool = SHORTLIST_PROPERTIES.filter(p => liked.includes(p.id));
-          const poolCount = likedPool.length + userProps.length;
-          const selected =
-            likedPool.find(p => p.id === negotiateId) ||
-            userProps.find(p => p.id === negotiateId);
-
+          // Legal is independent — no shortlist / negotiate prerequisites.
+          // CTA is a binary: have any analysis → View; otherwise → Upload.
           const analyzed = hasAnyLegalAnalysis(state);
-          const label =
-            poolCount === 0 ? 'Start Shortlisting' :
-            !selected ? 'Lock Property in Negotiate' :
-            analyzed ? 'View Analysis' :
-            'Analyze Agreement';
-          const LegalIcon = poolCount === 0 ? Heart : !selected ? Handshake : Scale;
+          const label = analyzed ? 'View Analysis' : 'Upload Agreement';
 
           return (
             <Animated.View entering={FadeIn.duration(250)}>
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  if (poolCount === 0) {
-                    router.push({ pathname: '/onboarding/shortlist', params: { nudge: 'negotiate' } });
-                  } else if (!selected) {
-                    router.push('/onboarding/negotiate');
-                  } else {
-                    router.push('/onboarding/legal-analysis');
-                  }
+                  router.push('/onboarding/legal-analysis');
                 }}
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
-                  <LegalIcon size={14} color={Colors.white} strokeWidth={2} />
+                  <Scale size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>
