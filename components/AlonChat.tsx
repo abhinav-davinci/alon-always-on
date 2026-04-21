@@ -34,7 +34,7 @@ import CibilSliderCard from './CibilSliderCard';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
 import { SHORTLIST_PROPERTIES, Property } from '../constants/properties';
-import { useOnboardingStore } from '../store/onboarding';
+import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
 import { Landmark, IndianRupee, Handshake, Scale, ClipboardCheck } from 'lucide-react-native';
@@ -416,7 +416,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         text = "Before I can analyze your agreement, you need a shortlisted property. Browse your matches and tap ♡ to get started.";
       } else if (!selected) {
         text = "Lock in your property in the Negotiate step first — Legal analysis works on one agreement at a time. Once you commit, I can upload and parse your builder-buyer agreement to flag risky clauses, check affordability, and benchmark against MahaRERA standards.";
-      } else if (state.legalAnalysisDone) {
+      } else if (hasAnyLegalAnalysis(state)) {
         text = `Your agreement for ${selected.name} is analyzed. Tap "View Analysis" below to review the findings, re-upload, or check affordability.`;
       } else {
         text = `Ready to analyze your agreement for ${selected.name}. I'll parse it for risky clauses (categorized Low/Medium/High), check if it fits your budget, and benchmark every term against MahaRERA and Pune market norms. Tap "Analyze Agreement" below.`;
@@ -447,7 +447,7 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       const state = useOnboardingStore.getState();
 
       let text: string;
-      if (!state.legalAnalysisDone) {
+      if (!hasAnyLegalAnalysis(state)) {
         text =
           "Deal Closure needs your Builder–Buyer Agreement uploaded in the Legal stage first — it's what I parse to extract token, stamp duty, loan, and registration dates. Tap the Legal stage and upload it, then come back here and your full timeline will be ready.";
       } else {
@@ -1281,10 +1281,11 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
             likedPool.find(p => p.id === negotiateId) ||
             userProps.find(p => p.id === negotiateId);
 
+          const analyzed = hasAnyLegalAnalysis(state);
           const label =
             poolCount === 0 ? 'Start Shortlisting' :
             !selected ? 'Lock Property in Negotiate' :
-            state.legalAnalysisDone ? 'View Analysis' :
+            analyzed ? 'View Analysis' :
             'Analyze Agreement';
           const LegalIcon = poolCount === 0 ? Heart : !selected ? Handshake : Scale;
 
@@ -1316,15 +1317,16 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
         // Don't cascade through shortlist/negotiate state — that chain
         // lives upstream in Legal. Unlock path is always: upload in Legal.
         if (stage === 'Deal Closure') {
-          const label = !state.legalAnalysisDone ? 'Upload Agreement' : 'Track Deal Timeline';
-          const DcIcon = !state.legalAnalysisDone ? Scale : ClipboardCheck;
+          const dcAnalyzed = hasAnyLegalAnalysis(state);
+          const label = dcAnalyzed ? 'Track Deal Timeline' : 'Upload Agreement';
+          const DcIcon = dcAnalyzed ? ClipboardCheck : Scale;
 
           return (
             <Animated.View entering={FadeIn.duration(250)}>
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  if (!state.legalAnalysisDone) {
+                  if (!dcAnalyzed) {
                     router.push('/onboarding/legal-analysis');
                   } else {
                     router.push('/onboarding/deal-closure');

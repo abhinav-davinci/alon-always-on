@@ -14,7 +14,7 @@ import {
 } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
-import { useOnboardingStore } from '../store/onboarding';
+import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { useHaptics } from '../hooks/useHaptics';
 import SkeletonStagePinned from './skeleton/SkeletonStagePinned';
@@ -35,8 +35,16 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
   const {
     likedPropertyIds, scheduledVisits, negotiatePropertyId, userProperties,
     cibilScore, cibilSkipped, monthlyIncome,
-    legalAnalysisDone, legalDocName,
+    legalAnalyses, activeLegalPropertyId,
   } = useOnboardingStore();
+
+  // Broad gate: has the user completed any legal analysis at all? Used
+  // for stage-level CTAs that don't need to know which property.
+  const legalAnalysisDone = hasAnyLegalAnalysis({ legalAnalyses });
+  // Prefer the currently-active property's doc name if we have one.
+  const legalDocName = activeLegalPropertyId
+    ? legalAnalyses[activeLegalPropertyId]?.docName ?? null
+    : null;
 
   // Skeleton on initial mount only — stage toggles use the bottom bounce instead
   const [isLoading, setIsLoading] = useState(true);

@@ -45,8 +45,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
-import { SHORTLIST_PROPERTIES } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
+import { resolveLegalProperty } from '../../utils/legalProperty';
 
 // ═══════════════════════════════════════════════════════════════
 // DEMO DATA — dates extracted from the uploaded BBA
@@ -182,11 +182,19 @@ export default function DealClosureScreen() {
   const haptics = useHaptics();
 
   const {
-    negotiatePropertyId,
     userProperties,
-    legalAnalysisDone,
-    legalDocName,
+    externalProperties,
+    legalAnalyses,
+    activeLegalPropertyId,
   } = useOnboardingStore();
+
+  // Deal Closure rides the same selected property as Legal. If the user
+  // analyzed a different agreement (external, or a non-Negotiate shortlist
+  // property), Deal Closure shows that property's timeline — not whatever
+  // happens to be in Negotiate.
+  const analysisRecord = activeLegalPropertyId ? legalAnalyses[activeLegalPropertyId] : null;
+  const analysisDone = Boolean(analysisRecord);
+  const legalDocName = analysisRecord?.docName ?? null;
 
   // Intermediate "preparing" loader — runs once on mount
   const [isPreparing, setIsPreparing] = useState(true);
@@ -204,18 +212,14 @@ export default function DealClosureScreen() {
     registration: false,
     subregistrar: false,
   });
-  const property = useMemo(() => {
-    if (!negotiatePropertyId) return null;
-    const liked = SHORTLIST_PROPERTIES.find((p) => p.id === negotiatePropertyId);
-    if (liked) return { id: liked.id, name: liked.name, area: liked.area, price: liked.price, image: liked.image };
-    const user = userProperties.find((p) => p.id === negotiatePropertyId);
-    if (user) return { id: user.id, name: user.name, area: user.area, price: user.price, image: user.images?.[0] };
-    return null;
-  }, [negotiatePropertyId, userProperties]);
+  const property = useMemo(
+    () => resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId),
+    [activeLegalPropertyId, userProperties, externalProperties],
+  );
 
-  // Only hard dependency: a parsed agreement. Everything else (property lock,
-  // shortlist pool) lives upstream in Legal's own flow — don't cascade-redirect.
-  if (!legalAnalysisDone || !property) {
+  // Only hard dependency: a parsed agreement for the selected property.
+  // Property lock/shortlist cascading lives upstream in Legal's flow.
+  if (!analysisDone || !property) {
     return (
       <DealClosureEmpty
         propertyName={property?.name ?? null}
@@ -296,7 +300,7 @@ export default function DealClosureScreen() {
               <Text style={styles.lockedLabel}>CLOSING DEAL FOR</Text>
               <Text style={styles.lockedName} numberOfLines={1}>{property.name}</Text>
               <Text style={styles.lockedMeta} numberOfLines={1}>
-                {property.area} · {property.price}
+                {property.location}{property.price ? ` · ${property.price}` : ''}
               </Text>
             </View>
           </View>

@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../constants/theme';
 import { useHaptics } from '../hooks/useHaptics';
-import { useOnboardingStore } from '../store/onboarding';
+import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { STAGES } from '../constants/stages';
 import StageStrip from './StageStrip';
@@ -29,8 +29,14 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
     scheduledVisits, likedPropertyIds, activeStage, setActiveStage,
     cibilScore, cibilSkipped, monthlyIncome, existingEMIs,
     negotiatePropertyId, userProperties,
-    legalAnalysisDone, legalDocName,
+    legalAnalyses, activeLegalPropertyId,
   } = useOnboardingStore();
+
+  // "Any agreement analyzed?" — used for the Legal stage status pill.
+  const legalAnalysisDone = hasAnyLegalAnalysis({ legalAnalyses });
+  const legalDocName = activeLegalPropertyId
+    ? legalAnalyses[activeLegalPropertyId]?.docName ?? null
+    : null;
   const [expanded, setExpanded] = useState(false);
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
@@ -103,7 +109,7 @@ export default function JourneyAccordion({ onStageChange }: JourneyAccordionProp
       }
       return stage;
     });
-  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText, negotiatePropertyId, userProperties, legalAnalysisDone, legalDocName]);
+  }, [scheduledVisits, likedPropertyIds, likedNames, hasFinanceActivity, financeStatusText, negotiatePropertyId, userProperties, legalAnalyses, activeLegalPropertyId]);
 
 
   // Pulsing dot for detail subtitle

@@ -2,6 +2,31 @@ import { create } from 'zustand';
 import { GoalType, PersonaType, PERSONA_DEFAULTS } from '../constants/personas';
 import { UserProperty } from '../constants/properties';
 
+/**
+ * A completed (or in-progress) legal analysis for a specific property.
+ * Keyed in the store by `propertyId` so a user can analyze agreements for
+ * multiple properties independently.
+ */
+export interface LegalAnalysisRecord {
+  propertyId: string;
+  docName: string;
+  uploadedAt: number;
+}
+
+/**
+ * An "external" property — one the user brought to Legal Analysis from
+ * outside ALON (not in their shortlist, not in Negotiate). Carries the
+ * minimum metadata Legal + Deal Closure need to display and reason about
+ * the property.
+ */
+export interface ExternalProperty {
+  id: string;             // `ext-${timestamp}` — generated locally
+  name: string;           // required — project name
+  location: string;       // required — "Area, City"
+  price?: string;         // optional display string, e.g. "₹1.35 Cr"
+  propertyType?: string;  // optional — "Apartment" | "Villa" | "Plot" | "Office"
+}
+
 export interface OnboardingState {
   goal: GoalType | null;
   persona: PersonaType | null;
@@ -38,8 +63,14 @@ export interface OnboardingState {
     propertyId: string;
     timestamp: number;
   }>;
-  legalAnalysisDone: boolean;
-  legalDocName: string | null;
+
+  // Legal Analysis — per-property, not global. A record exists iff an
+  // analysis has been completed for that property. `activeLegalPropertyId`
+  // tracks which property the Legal / Deal Closure screens are currently
+  // working on.
+  legalAnalyses: Record<string, LegalAnalysisRecord>;
+  externalProperties: Record<string, ExternalProperty>;
+  activeLegalPropertyId: string | null;
 
   setCibilScore: (score: number | null) => void;
   setCibilSkipped: (val: boolean) => void;
@@ -73,7 +104,20 @@ export interface OnboardingState {
   setActiveStage: (stage: string) => void;
   setNegotiatePropertyId: (id: string | null) => void;
   addNegotiateDataRequest: (req: { type: 'index2' | 'custom'; text: string; propertyId: string }) => void;
-  setLegalAnalysis: (payload: { done: boolean; docName?: string | null }) => void;
+
+  // Legal Analysis actions
+  setActiveLegalProperty: (id: string | null) => void;
+  setLegalAnalysisForProperty: (rec: { propertyId: string; docName: string }) => void;
+  clearLegalAnalysisForProperty: (propertyId: string) => void;
+  addExternalProperty: (ext: Omit<ExternalProperty, 'id'>) => string;
+  /**
+   * Patch an existing external property — used when the AI has parsed the
+   * uploaded agreement and extracted better property details than the
+   * placeholder we created when the user first chose "Analyze a different
+   * property."
+   */
+  updateExternalProperty: (id: string, patch: Partial<Omit<ExternalProperty, 'id'>>) => void;
+
   reset: () => void;
 }
 
@@ -113,8 +157,9 @@ const initialState = {
     propertyId: string;
     timestamp: number;
   }>,
-  legalAnalysisDone: false,
-  legalDocName: null as string | null,
+  legalAnalyses: {} as Record<string, LegalAnalysisRecord>,
+  externalProperties: {} as Record<string, ExternalProperty>,
+  activeLegalPropertyId: null as string | null,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -215,10 +260,70 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         },
       ],
     })),
-  setLegalAnalysis: (payload) =>
+
+  setActiveLegalProperty: (id) => set({ activeLegalPropertyId: id }),
+
+  setLegalAnalysisForProperty: ({ propertyId, docName }) =>
     set((state) => ({
-      legalAnalysisDone: payload.done,
-      legalDocName: payload.docName !== undefined ? payload.docName : state.legalDocName,
+      legalAnalyses: {
+        ...state.legalAnalyses,
+        [propertyId]: { propertyId, docName, uploadedAt: Date.now() },
+      },
     })),
+
+  clearLegalAnalysisForProperty: (propertyId) =>
+    set((state) => {
+      if (!state.legalAnalyses[propertyId]) return state;
+      const next = { ...state.legalAnalyses };
+      delete next[propertyId];
+      return { legalAnalyses: next };
+    }),
+
+  addExternalProperty: (ext) => {
+    const id = `ext-${Date.now()}`;
+    set((state) => ({
+      externalProperties: {
+        ...state.externalProperties,
+        [id]: { id, ...ext },
+      },
+    }));
+    return id;
+  },
+
+  updateExternalProperty: (id, patch) =>
+    set((state) => {
+      const existing = state.externalProperties[id];
+      if (!existing) return state;
+      return {
+        externalProperties: {
+          ...state.externalProperties,
+          [id]: { ...existing, ...patch },
+        },
+      };
+    }),
+
   reset: () => set(initialState),
 }));
+
+// ───────────────────────────────────────────────────────────────────
+// Pure selector helpers — consume `useOnboardingStore.getState()` or
+// the selected slice from a component. Prefer these over re-deriving
+// the same logic inline, so gating rules stay consistent across chat,
+// stage strip, pinned content, and the Legal/Deal-Closure screens.
+// ───────────────────────────────────────────────────────────────────
+
+/** Has the given property been analyzed? */
+export function isPropertyAnalyzed(
+  state: Pick<OnboardingState, 'legalAnalyses'>,
+  propertyId: string | null,
+): boolean {
+  if (!propertyId) return false;
+  return Boolean(state.legalAnalyses[propertyId]);
+}
+
+/** Has ANY property been analyzed? Used for broad stage-level gates. */
+export function hasAnyLegalAnalysis(
+  state: Pick<OnboardingState, 'legalAnalyses'>,
+): boolean {
+  return Object.keys(state.legalAnalyses).length > 0;
+}

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -44,10 +43,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
-import { SHORTLIST_PROPERTIES } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
 import { calculateEligibility, getInterestRate, formatINR, formatINRShort } from '../../utils/financeCalc';
 import { parsePriceToNumber } from '../../utils/compareScore';
+import LegalPropertySelector from '../../components/LegalPropertySelector';
+import { defaultLegalPropertyId, resolveLegalProperty } from '../../utils/legalProperty';
 
 // ═══════════════════════════════════════════════════════════════
 // DEMO DATA (Phase 1: pre-baked analysis for MahaRERA model)
@@ -201,61 +201,100 @@ export default function LegalAnalysisScreen() {
 
   const {
     negotiatePropertyId,
+    likedPropertyIds,
     userProperties,
+    externalProperties,
     cibilScore,
     monthlyIncome,
     existingEMIs,
-    legalAnalysisDone,
-    legalDocName,
-    setLegalAnalysis,
+    legalAnalyses,
+    activeLegalPropertyId,
+    setActiveLegalProperty,
+    setLegalAnalysisForProperty,
+    clearLegalAnalysisForProperty,
+    addExternalProperty,
+    updateExternalProperty,
   } = useOnboardingStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedSeverity, setExpandedSeverity] = useState<'high' | 'medium' | 'low' | null>('high');
 
-  // Locked property — comes from Negotiate stage, persists through Legal
-  const property = useMemo(() => {
-    if (!negotiatePropertyId) return null;
-    const liked = SHORTLIST_PROPERTIES.find((p) => p.id === negotiatePropertyId);
-    if (liked) {
-      return { id: liked.id, name: liked.name, area: liked.area, price: liked.price, image: liked.image };
-    }
-    const user = userProperties.find((p) => p.id === negotiatePropertyId);
-    if (user) {
-      return { id: user.id, name: user.name, area: user.area, price: user.price, image: user.images?.[0] };
-    }
-    return null;
-  }, [negotiatePropertyId, userProperties]);
-
-  // Guard: no property committed → redirect to Negotiate
+  // First-visit defaulting: prefer Negotiate lock → shortlist → userProperties → null.
+  // We only set the default once (when the selection is empty). If the user
+  // later picks something else via the selector, we keep their choice.
   React.useEffect(() => {
-    if (!negotiatePropertyId) {
-      router.replace('/onboarding/negotiate');
-    }
-  }, [negotiatePropertyId]);
+    if (activeLegalPropertyId) return;
+    const fallback = defaultLegalPropertyId({
+      negotiatePropertyId,
+      likedPropertyIds,
+      userProperties,
+    });
+    if (fallback) setActiveLegalProperty(fallback);
+  }, [activeLegalPropertyId, negotiatePropertyId, likedPropertyIds, userProperties, setActiveLegalProperty]);
 
-  const startAnalysis = useCallback((fileName: string = 'Builder-Buyer Agreement') => {
-    haptics.medium();
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setLegalAnalysis({ done: true, docName: fileName });
-      haptics.success();
-    }, 3500);
-  }, []);
+  const property = useMemo(
+    () => resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId),
+    [activeLegalPropertyId, userProperties, externalProperties],
+  );
+
+  // Pending-external: user picked "Analyze a different property" and we
+  // created a placeholder record, but the agreement hasn't been uploaded
+  // yet so name/location are still empty. In this mode, the upload card
+  // announces the auto-extract flow; after upload, the AI fills in details.
+  const isExternalPending = property?.source === 'external' && !property.name;
+
+  // Per-property analysis record — null if this property hasn't been analyzed yet.
+  const analysisRecord = activeLegalPropertyId ? legalAnalyses[activeLegalPropertyId] : null;
+  const analysisDone = Boolean(analysisRecord);
+  const docName = analysisRecord?.docName ?? null;
+
+  const handleStartExternalUpload = useCallback(() => {
+    // Create an empty placeholder — the parser populates it after upload.
+    // Intentionally no user-typed fields: the agreement is the source of truth.
+    const id = addExternalProperty({ name: '', location: '' });
+    setActiveLegalProperty(id);
+    haptics.selection();
+  }, [addExternalProperty, setActiveLegalProperty, haptics]);
+
+  const startAnalysis = useCallback(
+    (fileName: string = 'Builder-Buyer Agreement') => {
+      if (!activeLegalPropertyId) return; // can't analyze without a property
+      haptics.medium();
+      setIsProcessing(true);
+      setTimeout(() => {
+        setIsProcessing(false);
+        // External-pending: the uploaded agreement is the source of truth
+        // for property metadata. In production the parser fills these in;
+        // for this prototype we mock plausible demo values so the rest of
+        // the screen (AT A GLANCE, affordability, benchmarks) has context.
+        if (isExternalPending && activeLegalPropertyId) {
+          updateExternalProperty(activeLegalPropertyId, {
+            name: 'Kumar Pebble Bay',
+            location: 'Kalyani Nagar, Pune',
+            price: '₹1.68 Cr',
+            propertyType: 'Apartment',
+          });
+        }
+        setLegalAnalysisForProperty({ propertyId: activeLegalPropertyId, docName: fileName });
+        haptics.success();
+      }, 3500);
+    },
+    [activeLegalPropertyId, isExternalPending, setLegalAnalysisForProperty, updateExternalProperty, haptics],
+  );
 
   const reupload = useCallback(() => {
+    if (!activeLegalPropertyId) return;
     haptics.light();
-    setLegalAnalysis({ done: false, docName: null });
-  }, []);
-
-  if (!property) return <View style={[styles.container, { paddingTop: insets.top }]} />;
+    clearLegalAnalysisForProperty(activeLegalPropertyId);
+  }, [activeLegalPropertyId, clearLegalAnalysisForProperty, haptics]);
 
   // ═══ RISK COUNTS ═══
   const highCount = DEMO_RISKS.filter((r) => r.severity === 'high').length;
 
   // ═══ AFFORDABILITY ═══
-  const propertyPrice = parsePriceToNumber(property.price);
+  // Only meaningful once a property is selected; empty-state path falls back to 0s
+  // and the affordability block doesn't render unless analysis is complete anyway.
+  const propertyPrice = property ? parsePriceToNumber(property.price ?? '') : 0;
   const additionalCosts = propertyPrice * 0.095; // ~9.5% (stamp+reg+GST+misc)
   const totalCost = propertyPrice + additionalCosts;
   const hasFinanceData = cibilScore !== null || monthlyIncome > 0;
@@ -285,36 +324,17 @@ export default function LegalAnalysisScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Locked property ── */}
-        <Animated.View entering={FadeIn.duration(300)} style={styles.lockedProperty}>
-          <View style={styles.lockedPropertyTop}>
-            {property.image ? (
-              <Image source={{ uri: property.image }} style={styles.lockedImage} />
-            ) : (
-              <View style={[styles.lockedImage, styles.lockedImagePlaceholder]}>
-                <Text style={styles.lockedImageInitial}>{property.name.charAt(0)}</Text>
-              </View>
-            )}
-            <View style={styles.lockedInfo}>
-              <Text style={styles.lockedLabel}>ANALYZING FOR</Text>
-              <Text style={styles.lockedName} numberOfLines={1}>{property.name}</Text>
-              <Text style={styles.lockedMeta} numberOfLines={1}>
-                {property.area} · {property.price}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.lockedHintInline}>
-            <Info size={10} color={Colors.warm400} strokeWidth={2} />
-            <Text style={styles.lockedHintText}>
-              To change the property, go back to the Negotiate step.
-            </Text>
-          </View>
-        </Animated.View>
+        {/* ── Property selector (replaces the old locked card) ── */}
+        <LegalPropertySelector
+          activePropertyId={activeLegalPropertyId}
+          onChange={setActiveLegalProperty}
+          onStartExternalUpload={handleStartExternalUpload}
+        />
 
         {/* ════════════════════════════════════
              STATE: Upload (no analysis yet)
              ════════════════════════════════════ */}
-        {!legalAnalysisDone && !isProcessing && (
+        {!analysisDone && !isProcessing && (
           <Animated.View entering={FadeInDown.delay(100).duration(300)}>
             <Text style={styles.sectionLabel}>UPLOAD YOUR AGREEMENT</Text>
 
@@ -324,17 +344,21 @@ export default function LegalAnalysisScreen() {
               </View>
               <Text style={styles.uploadHeadline}>Upload your builder agreement</Text>
               <Text style={styles.uploadBody}>
-                ALON will parse it, flag risky clauses, check affordability, and benchmark every
-                term against MahaRERA standards and Pune market norms.
+                {isExternalPending
+                  ? "I'll pull the project name, location, and price straight from the agreement — no typing needed. Then I'll flag risky clauses, check affordability, and benchmark every term against MahaRERA and Pune market norms."
+                  : 'ALON will parse it, flag risky clauses, check affordability, and benchmark every term against MahaRERA standards and Pune market norms.'}
               </Text>
 
               <TouchableOpacity
-                style={styles.uploadBtn}
+                style={[styles.uploadBtn, !activeLegalPropertyId && styles.uploadBtnDisabled]}
                 onPress={() => startAnalysis()}
                 activeOpacity={0.85}
+                disabled={!activeLegalPropertyId}
               >
                 <Upload size={16} color={Colors.white} strokeWidth={2} />
-                <Text style={styles.uploadBtnText}>Choose a PDF or image</Text>
+                <Text style={styles.uploadBtnText}>
+                  {activeLegalPropertyId ? 'Choose a PDF or image' : 'Select a property first'}
+                </Text>
               </TouchableOpacity>
 
             </View>
@@ -358,7 +382,7 @@ export default function LegalAnalysisScreen() {
         {/* ════════════════════════════════════
              STATE: Analysis complete
              ════════════════════════════════════ */}
-        {legalAnalysisDone && !isProcessing && (
+        {analysisDone && !isProcessing && property && (
           <>
             {/* Document row + re-upload */}
             <View style={styles.docRow}>
@@ -366,7 +390,7 @@ export default function LegalAnalysisScreen() {
                 <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.docName} numberOfLines={1}>{legalDocName || 'Agreement.pdf'}</Text>
+                <Text style={styles.docName} numberOfLines={1}>{docName || 'Agreement.pdf'}</Text>
                 <Text style={styles.docSub}>Analyzed · 3 sections reviewed</Text>
               </View>
               <TouchableOpacity style={styles.reuploadBtn} onPress={reupload} activeOpacity={0.7}>
@@ -382,7 +406,7 @@ export default function LegalAnalysisScreen() {
                 <GlanceRow
                   icon={<Wallet size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Agreement value"
-                  value={`${property.price} · ${property.name}`}
+                  value={`${property.price ?? 'Price not set'} · ${property.name}`}
                 />
                 <GlanceRow
                   icon={<Calendar size={14} color={Colors.terra500} strokeWidth={2} />}
@@ -589,7 +613,7 @@ export default function LegalAnalysisScreen() {
         </View>
 
         {/* Continue → Deal Closure */}
-        {legalAnalysisDone && (
+        {analysisDone && (
           <Animated.View entering={FadeInDown.delay(100).duration(300)} style={styles.closureCtaWrap}>
             <View style={styles.closureCtaHeader}>
               <ClipboardCheck size={14} color={Colors.terra500} strokeWidth={2} />
@@ -972,35 +996,6 @@ const styles = StyleSheet.create({
 
   content: { paddingTop: Spacing.lg },
 
-  // Locked property
-  lockedProperty: {
-    marginHorizontal: Spacing.xxl, padding: 12,
-    backgroundColor: Colors.cream, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.warm200,
-  },
-  lockedPropertyTop: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-  },
-  lockedImage: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.warm100 },
-  lockedImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  lockedImageInitial: { fontSize: 22, fontFamily: 'DMSerifDisplay', color: Colors.terra500 },
-  lockedInfo: { flex: 1 },
-  lockedLabel: {
-    fontSize: 9, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
-    letterSpacing: 0.6, marginBottom: 2,
-  },
-  lockedName: { fontSize: 15, fontFamily: 'DMSans-SemiBold', color: Colors.textPrimary },
-  lockedMeta: { fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textSecondary, marginTop: 1 },
-  lockedHintInline: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 8, paddingTop: 8,
-    borderTopWidth: 1, borderTopColor: Colors.warm200,
-  },
-  lockedHintText: {
-    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 10,
-    color: Colors.warm500, fontStyle: 'italic', lineHeight: 14,
-  },
-
   // Section label (reused)
   sectionLabel: {
     fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
@@ -1029,6 +1024,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: Colors.terra500, paddingHorizontal: 20, paddingVertical: 12,
     borderRadius: 12, alignSelf: 'stretch',
+  },
+  uploadBtnDisabled: {
+    backgroundColor: Colors.warm300,
   },
   uploadBtnText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white },
 

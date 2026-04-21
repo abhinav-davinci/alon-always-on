@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors } from '../constants/theme';
 import { STAGES } from '../constants/stages';
-import { useOnboardingStore } from '../store/onboarding';
+import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
 import { SHORTLIST_PROPERTIES } from '../constants/properties';
 import { useHaptics } from '../hooks/useHaptics';
 
@@ -27,8 +27,9 @@ export default function StageStrip({ compact = false }: StageStripProps) {
   const {
     activeStage, setActiveStage, likedPropertyIds, scheduledVisits,
     cibilScore, cibilSkipped, monthlyIncome, negotiatePropertyId,
-    legalAnalysisDone,
+    legalAnalyses,
   } = useOnboardingStore();
+  const legalAnalysisDone = hasAnyLegalAnalysis({ legalAnalyses });
   const activeIndex = STAGES.findIndex((s) => s.label === activeStage);
 
   const hasFinanceActivity = cibilScore !== null || cibilSkipped || monthlyIncome > 0;
