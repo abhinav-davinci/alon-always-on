@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -14,13 +14,14 @@ import { ShieldCheck, Route, UserCheck } from 'lucide-react-native';
 import AlonAvatar from '../components/AlonAvatar';
 import Button from '../components/Button';
 import { Colors, Typography, Spacing } from '../constants/theme';
-
-const trythatWhite = require('../assets/trythat-logo-white.png');
+import TrythatLogo from '../assets/trythat-logo-white.svg';
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const LOGO_LARGE = SW * 0.62;
+const LOGO_LARGE = SW * 0.682; // 10% bigger than the previous 0.62
 const LOGO_SMALL = 100;
-const LOGO_RATIO = 174 / 800;
+// Aspect ratio of assets/trythat-logo-white.svg (2604 × 677 viewBox).
+// Update this if the source SVG proportions change.
+const LOGO_RATIO = 677 / 2604;
 
 // ── Timings ──
 const T = {
@@ -126,12 +127,13 @@ export default function SplashScreen() {
 
       {/* ── Main layout (everything in normal flow) ── */}
       <View style={styles.heroZone}>
-        {/* TryThat logo — final resting position at top of hero */}
+        {/* TryThat logo — final resting position at top of hero.
+            SVG component via react-native-svg-transformer; stays crisp
+            across all scale transforms in the splash intro animation. */}
         <Animated.View style={[styles.ttFinalPos, ttStyle]}>
-          <Image
-            source={trythatWhite}
-            style={{ width: LOGO_LARGE, height: LOGO_LARGE * LOGO_RATIO }}
-            resizeMode="contain"
+          <TrythatLogo
+            width={LOGO_LARGE}
+            height={LOGO_LARGE * LOGO_RATIO}
           />
         </Animated.View>
 
