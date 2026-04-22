@@ -174,15 +174,20 @@ export default function PossessionScreen() {
           </Animated.View>
         )}
 
-        {/* Phase strip */}
+        {/* Phase strip — 4 equal columns with an absolute connector overlay.
+            Connectors sit at dot-center Y and span between adjacent column
+            centers (12.5% → 37.5% → 62.5% → 87.5%), so the line visibly
+            joins dot to dot with no floating mid-gaps. */}
         <Animated.View entering={FadeInDown.delay(80).duration(260)} style={styles.phaseStrip}>
-          <PhaseNode label="Pre-handover" active={phase1Active} done={false} />
-          <PhaseConnector done={phase1Active} />
-          <PhaseNode label="Handover day" active={phase2Active} done={false} />
-          <PhaseConnector done={phase2Active} />
-          <PhaseNode label="Post-handover" active={false} done={false} muted />
-          <PhaseConnector done={false} />
-          <PhaseNode label="Warranty" active={false} done={false} muted />
+          <View style={styles.phaseConnLayer} pointerEvents="none">
+            <View style={[styles.phaseConnSeg, styles.phaseConnSeg1, phase1Active && styles.phaseConnSegDone]} />
+            <View style={[styles.phaseConnSeg, styles.phaseConnSeg2, phase2Active && styles.phaseConnSegDone]} />
+            <View style={[styles.phaseConnSeg, styles.phaseConnSeg3]} />
+          </View>
+          <PhaseNode label="Pre-handover"  active={phase1Active} done={false} />
+          <PhaseNode label="Handover day"  active={phase2Active} done={false} />
+          <PhaseNode label="Post-handover" active={false}        done={false} muted />
+          <PhaseNode label="Warranty"      active={false}        done={false} muted />
         </Animated.View>
 
         {/* ── PRE-HANDOVER section ── */}
@@ -322,10 +327,6 @@ function PhaseNode({ label, active, done, muted }: { label: string; active: bool
   );
 }
 
-function PhaseConnector({ done }: { done: boolean }) {
-  return <View style={[styles.phaseConnector, done && styles.phaseConnectorDone]} />;
-}
-
 function PossessionEmpty({
   insetsTop, onBack, onGoLegal,
 }: {
@@ -453,12 +454,31 @@ const styles = StyleSheet.create({
   },
   ocWarnBold: { fontFamily: 'DMSans-SemiBold' },
 
-  // Phase strip
+  // Phase strip — row of 4 equal columns with an absolute connector overlay.
+  // Each column flex:1, dot + label stacked and center-aligned. The overlay
+  // sits at dot-center Y (9px = half the 18px dot height) with 3 segments
+  // spanning between adjacent column centers so the lines visibly connect.
   phaseStrip: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row',
     marginHorizontal: Spacing.xxl, marginTop: Spacing.lg, marginBottom: 4,
+    position: 'relative',
   },
-  phaseNode: { alignItems: 'center', gap: 6, width: 64 },
+  phaseConnLayer: {
+    position: 'absolute', left: 0, right: 0, top: 9,
+    height: 1,
+  },
+  phaseConnSeg: {
+    position: 'absolute', top: 0, height: 1,
+    backgroundColor: Colors.warm200,
+  },
+  // Column centers live at 12.5 / 37.5 / 62.5 / 87.5 %. Each segment
+  // spans the 25% between adjacent centers.
+  phaseConnSeg1: { left: '12.5%', width: '25%' },
+  phaseConnSeg2: { left: '37.5%', width: '25%' },
+  phaseConnSeg3: { left: '62.5%', width: '25%' },
+  phaseConnSegDone: { backgroundColor: Colors.terra400 },
+
+  phaseNode: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   phaseDot: {
     width: 18, height: 18, borderRadius: 9,
     backgroundColor: Colors.warm100, borderWidth: 1.5, borderColor: Colors.warm300,
@@ -474,10 +494,6 @@ const styles = StyleSheet.create({
   },
   phaseLabelActive: { color: Colors.textPrimary, fontFamily: 'DMSans-SemiBold' },
   phaseLabelMuted: { color: Colors.warm300 },
-  phaseConnector: {
-    flex: 1, height: 1, backgroundColor: Colors.warm200, marginTop: -12,
-  },
-  phaseConnectorDone: { backgroundColor: Colors.terra400 },
 
   // Section label
   sectionLabel: {
