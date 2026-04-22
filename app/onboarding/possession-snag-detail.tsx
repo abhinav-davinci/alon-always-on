@@ -78,11 +78,11 @@ export default function PossessionSnagDetailScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Pune gotcha — what makes this category tricky */}
+        {/* Watch out — what makes this category tricky */}
         <Animated.View entering={FadeIn.duration(260)} style={styles.gotchaCard}>
           <View style={styles.gotchaHead}>
             <Info size={13} color={Colors.terra600} strokeWidth={2} />
-            <Text style={styles.gotchaLabel}>PUNE GOTCHA</Text>
+            <Text style={styles.gotchaLabel}>WATCH OUT</Text>
           </View>
           <Text style={styles.gotchaText}>{category.gotcha}</Text>
         </Animated.View>

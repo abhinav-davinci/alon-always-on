@@ -55,8 +55,8 @@ import {
 // We need a property reference only to attach records to (so notes,
 // photos, checkmarks persist). If the user has a Legal-selected or
 // shortlisted property, we inherit that. Otherwise we auto-create a
-// placeholder "Your property" (Pune) they can rename inline via the
-// property card tap.
+// placeholder "Your property" they can rename inline via the property
+// card tap.
 // ═══════════════════════════════════════════════════════════════
 
 export default function PossessionScreen() {
@@ -109,7 +109,7 @@ export default function PossessionScreen() {
       setActiveLegalProperty(reusable);
       return;
     }
-    const newId = addExternalProperty({ name: 'Your property', location: 'Pune' });
+    const newId = addExternalProperty({ name: 'Your property', location: '' });
     setActiveLegalProperty(newId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -138,7 +138,7 @@ export default function PossessionScreen() {
   const saveRename = () => {
     if (!activeLegalPropertyId) return;
     const name = draftName.trim() || 'Your property';
-    const location = draftLocation.trim() || 'Pune';
+    const location = draftLocation.trim();
     updateExternalProperty(activeLegalPropertyId, { name, location });
     haptics.success();
     setRenaming(false);
@@ -228,9 +228,17 @@ export default function PossessionScreen() {
             <View style={styles.propertyInfo}>
               <Text style={styles.propertyLabel}>MOVING INTO</Text>
               <Text style={styles.propertyName} numberOfLines={1}>{property.name}</Text>
-              <Text style={styles.propertyMeta} numberOfLines={1}>
-                {property.location}{property.price ? ` · ${property.price}` : ''}
-              </Text>
+              {(property.location || property.price) ? (
+                <Text style={styles.propertyMeta} numberOfLines={1}>
+                  {property.location}{property.location && property.price ? ' · ' : ''}{property.price ?? ''}
+                </Text>
+              ) : (
+                canRename && (
+                  <Text style={[styles.propertyMeta, { fontStyle: 'italic' }]} numberOfLines={1}>
+                    Tap the pencil to add a location
+                  </Text>
+                )
+              )}
             </View>
             {canRename && (
               <TouchableOpacity style={styles.editBtn} onPress={openRename} activeOpacity={0.7}>
@@ -282,7 +290,7 @@ export default function PossessionScreen() {
           subtitle={
             defects.total > 0
               ? `${defects.total} defect${defects.total === 1 ? '' : 's'} logged · ${categoriesChecked} of ${SNAG_CATEGORIES.length} categories checked`
-              : `Pune-specific checklist across ${SNAG_CATEGORIES.length} categories — ~45 min walkthrough`
+              : `${SNAG_CATEGORIES.length}-category property checklist — ~45 min walkthrough`
           }
           defectSummary={defects.total > 0 ? `${defects.critical}C · ${defects.major}M · ${defects.minor}m` : undefined}
           onPress={() => {
@@ -318,9 +326,9 @@ export default function PossessionScreen() {
         <View style={styles.disclaimer}>
           <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
-            Handover regulations in Maharashtra are defined by RERA, MOFA, and local PMC/PCMC
-            rules. This checklist is a guide — always cross-check with a registered advocate
-            before signing anything.
+            Handover regulations are defined by RERA, MOFA, and local municipal rules. This
+            checklist is a guide — always cross-check with a registered advocate before
+            signing anything.
           </Text>
         </View>
       </ScrollView>
@@ -391,7 +399,7 @@ function RenameSheet({
               <Text style={[renameStyles.fieldLabel, { marginTop: 12 }]}>Location</Text>
               <TextInput
                 style={renameStyles.input}
-                placeholder="e.g. Kalyani Nagar, Pune"
+                placeholder="e.g. Area, City"
                 placeholderTextColor={Colors.textTertiary}
                 value={location}
                 onChangeText={onLocation}

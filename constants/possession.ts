@@ -1,13 +1,13 @@
 import type { SnagCategory, PossessionDocKey } from '../store/onboarding';
 
 /**
- * Pune-specific snag inspection template. Each category has a short
- * icon+label summary, a set of concrete check items, and a "gotcha" —
- * a Pune-builder-specific warning that elevates the check from a
- * generic list to something a seasoned buyer would actually look for.
+ * Snag inspection template. Each category has a short icon+label
+ * summary, a set of concrete check items, and a "watch out" callout —
+ * a warning that elevates the check from a generic list to something
+ * a seasoned buyer would actually look for.
  *
  * Content is curated (not exhaustive) — the goal is a 45-min walkthrough
- * covering the defects that cost Pune buyers the most post-handover.
+ * covering the defects that cost home buyers the most post-handover.
  */
 
 export interface SnagCheckItem {
@@ -24,7 +24,7 @@ export interface SnagCategoryDef {
   icon: string;
   /** One-liner shown on the category list card. */
   summary: string;
-  /** Pune-specific common-pitfall callout. */
+  /** Common-pitfall callout shown at the top of the category detail. */
   gotcha: string;
   checks: SnagCheckItem[];
 }
@@ -36,7 +36,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'building',
     summary: 'Cracks, seepage, slab integrity',
     gotcha:
-      'Pune monsoon exposes waterproofing the hard way. Inspect corners, balcony slabs, and terrace joints — cracks you can fit a pencil tip into are not hairline.',
+      'Monsoon exposes waterproofing the hard way. Inspect corners, balcony slabs, and terrace joints — cracks wide enough to fit a pencil tip into are not hairline.',
     checks: [
       { id: 'wall-cracks',     label: 'Wall cracks',               hint: 'Hairline is normal. Anything wider than 1mm needs builder attention.' },
       { id: 'ceiling-integrity', label: 'Ceiling drops or bulges', hint: 'Inspect centre of each room from multiple angles.' },
@@ -51,7 +51,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'layout-grid',
     summary: 'Level, grout, brand match',
     gotcha:
-      '~30% of Pune handovers have tile spec substitution. Check the batch code on a spare tile and match it to brochure — "Italian marble" often turns into local vitrified.',
+      'Tile spec substitution is one of the most common downgrades at handover. Check the batch code on a spare tile and match it to the brochure — "Italian marble" often turns into local vitrified.',
     checks: [
       { id: 'level',           label: 'Tile level',                hint: 'No dip or hump. Use a spirit level or a marble to roll across the room.' },
       { id: 'hollow-tiles',    label: 'No hollow tiles',           hint: 'Tap with a coin — hollow sound means loose grout underneath.' },
@@ -67,7 +67,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'paintbrush',
     summary: 'Gypsum, paint, finish',
     gotcha:
-      'POP / gypsum cracks love to appear in Pune\'s first monsoon. Press firmly along cornice joints — any crumbling indicates poor prep under the finish.',
+      'POP / gypsum cracks love to appear in the first monsoon. Press firmly along cornice joints — any crumbling indicates poor prep under the finish.',
     checks: [
       { id: 'gypsum-uniform',  label: 'Gypsum / POP finish uniform', hint: 'No visible joints or patches in ceiling panels.' },
       { id: 'cornice-cracks',  label: 'Cornice joints — no cracks', hint: 'Common failure point; check where ceiling meets wall.' },
@@ -98,7 +98,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'zap',
     summary: 'Switches, outlets, load',
     gotcha:
-      'Record your meter reading at handover with a timestamped photo — this is your baseline when you transfer MSEDCL connection to your name. Builder will claim higher readings otherwise.',
+      'Record your meter reading at handover with a timestamped photo — this is your baseline when you transfer the electricity connection to your name. Builder may claim higher readings otherwise.',
     checks: [
       { id: 'all-switches',    label: 'Every switch tested',       hint: 'Go room-by-room; mark any that don\'t respond.' },
       { id: 'all-outlets',     label: 'Every outlet live',         hint: 'Carry a phone charger; test each outlet for voltage.' },
@@ -114,7 +114,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'droplet',
     summary: 'Pressure, leaks, drainage',
     gotcha:
-      'CP fittings brand substitution is common — builders swap Jaquar/Hindware for lookalikes. Check brand logos on every tap and flush; write it in the snag report.',
+      'CP fittings brand substitution is common — builders swap premium brands for lookalikes. Check brand logos on every tap and flush; write it in the snag report.',
     checks: [
       { id: 'water-pressure',  label: 'Water pressure uniform',    hint: 'Open taps full-flow for 30 sec; pressure should match across bathrooms.' },
       { id: 'cp-brand',        label: 'CP fittings brand matches spec', hint: 'Jaquar / Hindware / Kohler — check logos on taps and flush.' },
@@ -146,7 +146,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'sun',
     summary: 'Railings, drainage, waterproofing',
     gotcha:
-      'Railing height must be ≥ 1m per Maharashtra building code — measure with a ruler, not an estimate. Test balcony waterproofing with a bucket before monsoon catches you.',
+      'Railing height must meet building code (typically ≥ 1m) — measure with a ruler, not an estimate. Test balcony waterproofing with a bucket before monsoon catches you.',
     checks: [
       { id: 'railing-height',  label: 'Railing height ≥ 1m',       hint: 'Measure from floor to top of railing. Below 1m is a safety violation.' },
       { id: 'waterproofing',   label: 'Balcony waterproofing',     hint: 'Pour a full bucket of water, check for leaks on floor below.' },
@@ -161,7 +161,7 @@ export const SNAG_CATEGORIES: SnagCategoryDef[] = [
     icon: 'building-2',
     summary: 'Lifts, parking, amenities',
     gotcha:
-      'Parking allotment mismatch (covered promised, open delivered) is a top Pune grievance. Re-read your agreement parking clause and walk to your allotted slot to confirm.',
+      'Parking allotment mismatch (covered promised, open delivered) is one of the most common grievances at handover. Re-read your agreement parking clause and walk to your allotted slot to confirm.',
     checks: [
       { id: 'lifts',           label: 'Lifts operational',         hint: 'Test all lifts. Capacity sticker visible inside cabin.' },
       { id: 'parking-match',   label: 'Parking allotted per agreement', hint: 'Confirm covered vs open, slot number, and distance to building entry.' },

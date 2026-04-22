@@ -52,7 +52,7 @@ export const CATEGORY_ICONS: Record<string, typeof Building> = {
 
 // ═══════════════════════════════════════════════════════════════
 // Category list screen — 9 rows, each shows category name, summary,
-// Pune-gotcha hint, and counters (checks logged / defects found).
+// watch-out hint, and counters (checks logged / defects found).
 // Tap a row → detail screen for that category.
 // ═══════════════════════════════════════════════════════════════
 

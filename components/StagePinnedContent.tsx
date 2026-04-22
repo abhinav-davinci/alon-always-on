@@ -353,8 +353,8 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
       : null;
 
     const text = activeName && activeName.length > 0
-      ? `Ready for possession of ${activeName}. Pune-specific snag checklist, 12-doc handover vault, and a handover-day micro-checklist — all lined up.`
-      : "Your Pune-specific snag checklist, handover document vault, and day-of playbook. Open it whenever — no agreement or setup needed.";
+      ? `Ready for possession of ${activeName}. Property snag checklist, 12-doc handover vault, and a handover-day micro-checklist — all lined up.`
+      : "Your property snag checklist, handover document vault, and day-of playbook. Open it whenever — no agreement or setup needed.";
     const ctaLabel = 'Open Possession →';
     const ctaRoute = '/onboarding/possession';
 
