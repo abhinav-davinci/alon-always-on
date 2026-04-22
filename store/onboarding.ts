@@ -27,6 +27,53 @@ export interface ExternalProperty {
   propertyType?: string;  // optional — "Apartment" | "Villa" | "Plot" | "Office"
 }
 
+// ─── Possession ────────────────────────────────────────────────────
+// Everything after handover: snag inspection, document vault, and the
+// handover-day micro-checklist. Keyed per-property — same pattern as
+// legalAnalyses. Phase 2 will add utility transfers, society formation,
+// and warranty tracking; the shape here is intentionally lean for now.
+
+export type SnagCategory =
+  | 'structural' | 'flooring' | 'walls' | 'doors-windows'
+  | 'electrical' | 'plumbing' | 'kitchen' | 'balconies' | 'common';
+
+export type SnagStatus = 'unchecked' | 'ok' | 'defect' | 'na';
+export type SnagSeverity = 'critical' | 'major' | 'minor';
+
+export interface SnagFinding {
+  // Composite key across (propertyId, category, checkItemId) — stored
+  // as a flat map so lookups stay O(1) and updates don't clobber
+  // sibling findings.
+  category: SnagCategory;
+  checkItemId: string;
+  status: SnagStatus;
+  severity?: SnagSeverity;
+  photoCount: number;  // prototype: count only, no actual file storage
+  notes: string;
+  updatedAt: number;
+}
+
+export type PossessionDocStatus = 'pending' | 'received' | 'na';
+
+export type PossessionDocKey =
+  | 'oc' | 'cc' | 'possessionLetter' | 'finalReceipt'
+  | 'saleDeed' | 'indexII' | 'form7A' | 'shareCertificate'
+  | 'fireNoc' | 'liftNoc' | 'drawings' | 'warrantyCards';
+
+/**
+ * A possession record. One per property. `findings` is keyed by
+ * `{category}:{checkItemId}` so we can update individual checks
+ * without rebuilding the whole tree.
+ */
+export interface PossessionRecord {
+  propertyId: string;
+  expectedHandoverDate: string | null;  // ISO date
+  actualHandoverDate: string | null;
+  findings: Record<string, SnagFinding>;
+  documents: Record<string, PossessionDocStatus>;  // key: PossessionDocKey
+  handoverChecklist: Record<string, boolean>;      // key: handover item id
+}
+
 export interface OnboardingState {
   goal: GoalType | null;
   persona: PersonaType | null;
@@ -66,11 +113,15 @@ export interface OnboardingState {
 
   // Legal Analysis — per-property, not global. A record exists iff an
   // analysis has been completed for that property. `activeLegalPropertyId`
-  // tracks which property the Legal / Deal Closure screens are currently
-  // working on.
+  // tracks which property the Legal / Deal Closure / Possession screens
+  // are currently working on.
   legalAnalyses: Record<string, LegalAnalysisRecord>;
   externalProperties: Record<string, ExternalProperty>;
   activeLegalPropertyId: string | null;
+
+  // Possession — per-property. A record exists iff the user has started
+  // any possession activity (snag check, doc received, handover item).
+  possessions: Record<string, PossessionRecord>;
 
   setCibilScore: (score: number | null) => void;
   setCibilSkipped: (val: boolean) => void;
@@ -118,6 +169,27 @@ export interface OnboardingState {
    */
   updateExternalProperty: (id: string, patch: Partial<Omit<ExternalProperty, 'id'>>) => void;
 
+  // Possession actions — each lazily creates the property's possession
+  // record if one doesn't already exist, so callers don't need to
+  // initialize it up-front.
+  setPossessionHandoverDate: (
+    propertyId: string,
+    which: 'expected' | 'actual',
+    date: string | null,
+  ) => void;
+  updateSnagFinding: (
+    propertyId: string,
+    category: SnagCategory,
+    checkItemId: string,
+    patch: Partial<Omit<SnagFinding, 'category' | 'checkItemId' | 'updatedAt'>>,
+  ) => void;
+  setPossessionDocument: (
+    propertyId: string,
+    docKey: PossessionDocKey,
+    status: PossessionDocStatus,
+  ) => void;
+  toggleHandoverCheckItem: (propertyId: string, itemId: string) => void;
+
   reset: () => void;
 }
 
@@ -160,6 +232,7 @@ const initialState = {
   legalAnalyses: {} as Record<string, LegalAnalysisRecord>,
   externalProperties: {} as Record<string, ExternalProperty>,
   activeLegalPropertyId: null as string | null,
+  possessions: {} as Record<string, PossessionRecord>,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -302,6 +375,77 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
       };
     }),
 
+  // ── Possession actions ───────────────────────────────────────────
+
+  setPossessionHandoverDate: (propertyId, which, date) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            ...(which === 'expected' ? { expectedHandoverDate: date } : { actualHandoverDate: date }),
+          },
+        },
+      };
+    }),
+
+  updateSnagFinding: (propertyId, category, checkItemId, patch) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const key = `${category}:${checkItemId}`;
+      const prev = existing.findings[key];
+      const next: SnagFinding = {
+        category,
+        checkItemId,
+        status: prev?.status ?? 'unchecked',
+        severity: prev?.severity,
+        photoCount: prev?.photoCount ?? 0,
+        notes: prev?.notes ?? '',
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            findings: { ...existing.findings, [key]: next },
+          },
+        },
+      };
+    }),
+
+  setPossessionDocument: (propertyId, docKey, status) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            documents: { ...existing.documents, [docKey]: status },
+          },
+        },
+      };
+    }),
+
+  toggleHandoverCheckItem: (propertyId, itemId) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const prev = existing.handoverChecklist[itemId] ?? false;
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            handoverChecklist: { ...existing.handoverChecklist, [itemId]: !prev },
+          },
+        },
+      };
+    }),
+
   reset: () => set(initialState),
 }));
 
@@ -326,4 +470,60 @@ export function hasAnyLegalAnalysis(
   state: Pick<OnboardingState, 'legalAnalyses'>,
 ): boolean {
   return Object.keys(state.legalAnalyses).length > 0;
+}
+
+// ─── Possession helpers ────────────────────────────────────────────
+
+/**
+ * Initial shape for a property's possession record. Pulled out so the
+ * per-action handlers can lazy-initialize without repeating the shape.
+ */
+function blankPossessionRecord(propertyId: string): PossessionRecord {
+  return {
+    propertyId,
+    expectedHandoverDate: null,
+    actualHandoverDate: null,
+    findings: {},
+    documents: {},
+    handoverChecklist: {},
+  };
+}
+
+/**
+ * Has the user started any possession activity for this property? True
+ * if they've set a handover date, logged any finding, received any doc,
+ * or ticked any handover-day item.
+ */
+export function hasPossessionStarted(
+  state: Pick<OnboardingState, 'possessions'>,
+  propertyId: string | null,
+): boolean {
+  if (!propertyId) return false;
+  const rec = state.possessions[propertyId];
+  if (!rec) return false;
+  return Boolean(
+    rec.expectedHandoverDate ||
+    rec.actualHandoverDate ||
+    Object.keys(rec.findings).length > 0 ||
+    Object.keys(rec.documents).length > 0 ||
+    Object.keys(rec.handoverChecklist).length > 0,
+  );
+}
+
+/** Counts defects across all categories for a property. */
+export function countSnagDefects(
+  state: Pick<OnboardingState, 'possessions'>,
+  propertyId: string | null,
+): { total: number; critical: number; major: number; minor: number } {
+  const zero = { total: 0, critical: 0, major: 0, minor: 0 };
+  if (!propertyId) return zero;
+  const rec = state.possessions[propertyId];
+  if (!rec) return zero;
+  const defects = Object.values(rec.findings).filter((f) => f.status === 'defect');
+  return {
+    total: defects.length,
+    critical: defects.filter((d) => d.severity === 'critical').length,
+    major: defects.filter((d) => d.severity === 'major').length,
+    minor: defects.filter((d) => d.severity === 'minor').length,
+  };
 }

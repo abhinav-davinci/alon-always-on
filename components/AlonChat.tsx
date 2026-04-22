@@ -38,7 +38,7 @@ import { useOnboardingStore, hasAnyLegalAnalysis } from '../store/onboarding';
 import { resolveLegalProperty } from '../utils/legalProperty';
 import { computeMatchScore, getRecommended, computePricePerSqft, getAppreciationYoY, parsePriceToNumber } from '../utils/compareScore';
 import { calculateEMI, calculateEligibility, getInterestRate, getLoanAmount, formatINR } from '../utils/financeCalc';
-import { Landmark, IndianRupee, Handshake, Scale, ClipboardCheck } from 'lucide-react-native';
+import { Landmark, IndianRupee, Handshake, Scale, ClipboardCheck, Key } from 'lucide-react-native';
 
 interface ChatMessage {
   id: string;
@@ -470,6 +470,45 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
 
       setMessages(prev => [...prev, {
         id: `deal-closure-welcome-${Date.now()}`,
+        type: 'alon',
+        text,
+        timestamp: Date.now(),
+      }]);
+    }
+  }, [stage]);
+
+  // ── Possession: guiding message when entering Possession stage ──
+  // Gate is softer than Legal/Deal Closure — users can preview Possession
+  // at any point (snag checklist, doc vault, handover checklist are all
+  // useful even before handover day). Copy adapts to what they have.
+  const possessionPrompted = useRef(false);
+  useEffect(() => {
+    if (stage !== 'Possession') {
+      possessionPrompted.current = false;
+      return;
+    }
+    if (!possessionPrompted.current) {
+      possessionPrompted.current = true;
+      const state = useOnboardingStore.getState();
+
+      const activeName = state.activeLegalPropertyId
+        ? resolveLegalProperty(state, state.activeLegalPropertyId)?.name
+        : null;
+      const hasAnalysis = hasAnyLegalAnalysis(state);
+
+      let text: string;
+      if (!hasAnalysis) {
+        text =
+          "Possession is where the keys meet reality. Upload your agreement in Legal first so I know which property you're taking possession of — then I'll line up your Pune-specific snag checklist, document vault, and handover-day playbook.";
+      } else if (activeName) {
+        text = `Ready for possession of ${activeName}? I've got three things queued up: a 9-category snag checklist tuned for what Pune builders typically miss, a 12-document handover vault with source and red-flag notes, and a handover-day micro-checklist so nothing slips at the keys moment.`;
+      } else {
+        text =
+          "Pick a property in Legal first and I'll prep your possession playbook — snag checklist, document vault, and handover-day orchestration.";
+      }
+
+      setMessages(prev => [...prev, {
+        id: `possession-welcome-${Date.now()}`,
         type: 'alon',
         text,
         timestamp: Date.now(),
@@ -1328,6 +1367,32 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
                   <DcIcon size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
+                </Animated.View>
+              </Pressable>
+            </Animated.View>
+          );
+        }
+
+        // ── Possession stage: two states, no shortlist gate ──
+        // If no agreement's been analyzed anywhere, route user to Legal
+        // so they pick a property (upload flow). Otherwise → /possession.
+        if (stage === 'Possession') {
+          const possessionReady = hasAnyLegalAnalysis(state);
+          const label = possessionReady ? 'Open Possession' : 'Upload Agreement';
+          const PossIcon = possessionReady ? Key : Scale;
+
+          return (
+            <Animated.View entering={FadeIn.duration(250)}>
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  router.push(possessionReady ? '/onboarding/possession' : '/onboarding/legal-analysis');
+                }}
+                style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
+              >
+                <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
+                  <PossIcon size={14} color={Colors.white} strokeWidth={2} />
                   <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
                 </Animated.View>
               </Pressable>

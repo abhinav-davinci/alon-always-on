@@ -342,6 +342,49 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
+  // ── Possession: snag checklist, docs, handover-day micro-checklist ──
+  // Gate is soft — if user has any agreement analyzed, they can go to
+  // Possession and pick their active property there. No analysis yet
+  // means they route to Legal (same unlock as Deal Closure).
+  if (stage === 'Possession') {
+    const activeName = activeLegalPropertyId
+      ? resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId)?.name
+      : null;
+
+    let text: string;
+    let ctaLabel: string;
+    let ctaRoute: any;
+
+    if (!legalAnalysisDone) {
+      text =
+        "Possession needs the agreement in Legal first — that way your snag checklist, document vault, and handover playbook all line up against the right property.";
+      ctaLabel = 'Start in Legal →';
+      ctaRoute = '/onboarding/legal-analysis';
+    } else {
+      const name = activeName ?? 'your property';
+      text = `Ready for possession of ${name}. Pune-specific snag checklist (9 categories), 12-doc handover vault, and a handover-day micro-checklist — all lined up.`;
+      ctaLabel = 'Open Possession →';
+      ctaRoute = '/onboarding/possession';
+    }
+
+    return (
+      <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>
+        <View style={styles.introCard}>
+          <Key size={16} color={Colors.terra400} strokeWidth={1.8} />
+          <Text style={styles.introText}>{text}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.pinnedCta}
+          onPress={() => { haptics.light(); router.push(ctaRoute); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pinnedCtaText}>{ctaLabel}</Text>
+          <ChevronRight size={14} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
   // ── Other stages: intro message ──
   const intro = STAGE_INTROS[stage];
   if (intro) {
