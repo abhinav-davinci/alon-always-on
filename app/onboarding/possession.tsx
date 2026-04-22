@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -127,6 +128,19 @@ export default function PossessionScreen() {
   const [draftName, setDraftName] = useState('');
   const [draftLocation, setDraftLocation] = useState('');
 
+  // Date picker state — must live above the early-return below.
+  // Rules-of-hooks: hook count must match across renders, so all
+  // useState calls are hoisted to the top of the component.
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState<Date>(() => {
+    const rec = activeLegalPropertyId ? possessions[activeLegalPropertyId] : undefined;
+    const exp = rec?.expectedHandoverDate;
+    if (exp) return new Date(exp + 'T00:00:00');
+    const d = new Date();
+    d.setDate(d.getDate() + 90); // 90 days out — typical handover window
+    return d;
+  });
+
   const openRename = () => {
     if (!canRename || !property) return;
     haptics.light();
@@ -170,20 +184,30 @@ export default function PossessionScreen() {
     : 0;
   const handoverTotal = HANDOVER_CHECKLIST.length;
 
-  // ── Expected handover date: demo-populate if missing ──
-  // For prototype, auto-set to Dec 15, 2026 (a few months out) so the
-  // date row isn't empty on first visit. Production would prompt user.
+  // ── Expected handover date (derived; useState is above the early return) ──
   const expected = record?.expectedHandoverDate;
-  const displayDate = expected
-    ? formatHandoverDate(expected)
-    : 'Tap to set';
+  const displayDate = expected ? formatHandoverDate(expected) : 'Tap to set';
 
-  const setDemoDate = () => {
+  const openDatePicker = () => {
     haptics.light();
-    // Prototype: single-tap cycles through a couple of demo dates.
-    if (!expected) {
-      setPossessionHandoverDate(activeLegalPropertyId, 'expected', '2026-12-15');
-    }
+    // Reset the wheel position to the currently-saved value so reopening
+    // the sheet doesn't show yesterday's draft.
+    setDraftDate(expected ? new Date(expected + 'T00:00:00') : draftDate);
+    setDatePickerOpen(true);
+  };
+
+  const saveDate = () => {
+    if (!activeLegalPropertyId) return;
+    setPossessionHandoverDate(activeLegalPropertyId, 'expected', toISODate(draftDate));
+    haptics.success();
+    setDatePickerOpen(false);
+  };
+
+  const clearDate = () => {
+    if (!activeLegalPropertyId) return;
+    setPossessionHandoverDate(activeLegalPropertyId, 'expected', null);
+    haptics.light();
+    setDatePickerOpen(false);
   };
 
   // ── Red banner: OC pending past handover is a blocking issue ──
@@ -246,7 +270,7 @@ export default function PossessionScreen() {
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity style={styles.dateRow} onPress={setDemoDate} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.dateRow} onPress={openDatePicker} activeOpacity={0.7}>
             <Calendar size={12} color={Colors.terra500} strokeWidth={2} />
             <Text style={styles.dateRowLabel}>Expected handover</Text>
             <Text style={styles.dateRowValue}>{displayDate}</Text>
@@ -343,6 +367,16 @@ export default function PossessionScreen() {
         onSave={saveRename}
         onClose={() => setRenaming(false)}
       />
+
+      {/* Handover-date picker sheet. */}
+      <HandoverDateSheet
+        visible={datePickerOpen}
+        value={draftDate}
+        onChange={setDraftDate}
+        onSave={saveDate}
+        onClear={expected ? clearDate : undefined}
+        onClose={() => setDatePickerOpen(false)}
+      />
     </View>
   );
 }
@@ -420,6 +454,89 @@ function RenameSheet({
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Handover-date sheet — bottom sheet wrapping the native date
+// picker. Same panel styling as RenameSheet and the Legal selector
+// so all sheets feel like one family.
+// ═══════════════════════════════════════════════════════════════
+
+function HandoverDateSheet({
+  visible, value, onChange, onSave, onClear, onClose,
+}: {
+  visible: boolean;
+  value: Date;
+  onChange: (d: Date) => void;
+  onSave: () => void;
+  onClear?: () => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  // Reasonable bounds: can't schedule handover in the deep past or
+  // more than 3 years out. Keeps the wheel/calendar usable.
+  const minDate = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    return d;
+  }, []);
+  const maxDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 3);
+    return d;
+  }, []);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={dateStyles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[dateStyles.panel, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={dateStyles.handle} />
+
+          <View style={dateStyles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={dateStyles.title}>Expected handover</Text>
+              <Text style={dateStyles.subtitle}>
+                When is the builder handing over the keys? You can change this anytime.
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={dateStyles.closeBtn} activeOpacity={0.7}>
+              <X size={18} color={Colors.textSecondary} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={dateStyles.pickerWrap}>
+            <DateTimePicker
+              value={value}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={minDate}
+              maximumDate={maxDate}
+              onChange={(_, selected) => {
+                if (selected) onChange(selected);
+              }}
+              // iOS spinner ignores textColor on modern versions, but
+              // keeping navy for the Android inline fallback.
+              textColor={Colors.textPrimary}
+              themeVariant="light"
+            />
+          </View>
+
+          <View style={dateStyles.actions}>
+            {onClear && (
+              <TouchableOpacity style={dateStyles.clearBtn} onPress={onClear} activeOpacity={0.8}>
+                <Text style={dateStyles.clearText}>Clear</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={dateStyles.saveBtn} onPress={onSave} activeOpacity={0.88}>
+              <Text style={dateStyles.saveText}>Save date</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Subcomponents
 // ═══════════════════════════════════════════════════════════════
 
@@ -487,6 +604,16 @@ function PhaseNode({ label, active, done, muted }: { label: string; active: bool
 function formatHandoverDate(iso: string) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Convert a Date to the "YYYY-MM-DD" shape the store expects. Uses
+// local-date components so the picker value doesn't drift by a day
+// at UTC boundaries.
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -701,6 +828,74 @@ const renameStyles = StyleSheet.create({
     backgroundColor: Colors.terra500, alignItems: 'center',
   },
   saveBtnText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
+  },
+});
+
+// ─── Handover date sheet styles ─────────────────────────────────────
+// Shares the sheet family pattern — navy-tint backdrop, cream/white
+// panel with 20-radius top, handle, close button, terra primary CTA.
+
+const dateStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(13,31,74,0.4)',
+    justifyContent: 'flex-end',
+  },
+  panel: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 8,
+    shadowColor: '#0D1F4A',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08, shadowRadius: 20,
+    elevation: 12,
+  },
+  handle: {
+    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
+    backgroundColor: Colors.warm200, marginBottom: 10,
+  },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xxl, gap: 12, paddingBottom: 4,
+  },
+  title: {
+    fontFamily: 'DMSerifDisplay', fontSize: 20, color: Colors.textPrimary, lineHeight: 24,
+  },
+  subtitle: {
+    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
+    marginTop: 4, lineHeight: 17,
+  },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.warm100,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 2,
+  },
+  // The native picker has its own internal padding; we just give it
+  // horizontal breathing room and a centered layout. Height lets the
+  // iOS spinner settle at its natural ~216px without clipping.
+  pickerWrap: {
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 4, paddingHorizontal: Spacing.lg,
+    minHeight: Platform.OS === 'ios' ? 220 : 0,
+  },
+  actions: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: Spacing.xxl, marginTop: 8,
+  },
+  clearBtn: {
+    paddingHorizontal: 18, paddingVertical: 13, borderRadius: 12,
+    backgroundColor: Colors.warm100, alignItems: 'center', justifyContent: 'center',
+  },
+  clearText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.textSecondary,
+  },
+  saveBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 12,
+    backgroundColor: Colors.terra500, alignItems: 'center',
+  },
+  saveText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
   },
 });
