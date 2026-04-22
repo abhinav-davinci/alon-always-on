@@ -231,27 +231,6 @@ export default function PossessionScreen() {
           }}
         />
 
-        {/* ── POST-HANDOVER (Phase 2 preview) ── */}
-        <Text style={styles.sectionLabel}>AFTER HANDOVER · COMING SOON</Text>
-        <View style={styles.previewCard}>
-          <View style={styles.previewRow}>
-            <View style={styles.previewDot} />
-            <Text style={styles.previewText}>Utility transfers — MSEDCL, PMC water, MNGL gas</Text>
-          </View>
-          <View style={styles.previewRow}>
-            <View style={styles.previewDot} />
-            <Text style={styles.previewText}>Society formation — 4-month MOFA window tracker</Text>
-          </View>
-          <View style={styles.previewRow}>
-            <View style={styles.previewDot} />
-            <Text style={styles.previewText}>TDS 26QB filing if price &gt; 50L</Text>
-          </View>
-          <View style={styles.previewRow}>
-            <View style={styles.previewDot} />
-            <Text style={styles.previewText}>Structural defect warranty — 5-year clock</Text>
-          </View>
-        </View>
-
         {/* Disclaimer */}
         <View style={styles.disclaimer}>
           <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
@@ -527,24 +506,6 @@ const styles = StyleSheet.create({
   },
   defectPillText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.red500, letterSpacing: 0.3,
-  },
-
-  // Preview card (phase 2 coming soon)
-  previewCard: {
-    marginHorizontal: Spacing.xxl, padding: 14,
-    backgroundColor: Colors.warm50, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.warm100,
-  },
-  previewRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 4,
-  },
-  previewDot: {
-    width: 5, height: 5, borderRadius: 3,
-    backgroundColor: Colors.warm300, marginTop: 7,
-  },
-  previewText: {
-    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 12,
-    color: Colors.textSecondary, lineHeight: 17,
   },
 
   // Disclaimer
