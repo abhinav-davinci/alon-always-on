@@ -342,30 +342,21 @@ export default function StagePinnedContent({ stage }: StagePinnedContentProps) {
     );
   }
 
-  // ── Possession: snag checklist, docs, handover-day micro-checklist ──
-  // Gate is soft — if user has any agreement analyzed, they can go to
-  // Possession and pick their active property there. No analysis yet
-  // means they route to Legal (same unlock as Deal Closure).
+  // ── Possession: fully standalone checklist experience ──
+  // No prerequisite — user can run the snag walkthrough, fill in the
+  // document vault, and tick off the handover playbook without any
+  // upstream legal/finance work. The screen auto-creates a placeholder
+  // property if the user has nothing to attach records to.
   if (stage === 'Possession') {
     const activeName = activeLegalPropertyId
       ? resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId)?.name
       : null;
 
-    let text: string;
-    let ctaLabel: string;
-    let ctaRoute: any;
-
-    if (!legalAnalysisDone) {
-      text =
-        "Possession needs the agreement in Legal first — that way your snag checklist, document vault, and handover playbook all line up against the right property.";
-      ctaLabel = 'Start in Legal →';
-      ctaRoute = '/onboarding/legal-analysis';
-    } else {
-      const name = activeName ?? 'your property';
-      text = `Ready for possession of ${name}. Pune-specific snag checklist (9 categories), 12-doc handover vault, and a handover-day micro-checklist — all lined up.`;
-      ctaLabel = 'Open Possession →';
-      ctaRoute = '/onboarding/possession';
-    }
+    const text = activeName && activeName.length > 0
+      ? `Ready for possession of ${activeName}. Pune-specific snag checklist, 12-doc handover vault, and a handover-day micro-checklist — all lined up.`
+      : "Your Pune-specific snag checklist, handover document vault, and day-of playbook. Open it whenever — no agreement or setup needed.";
+    const ctaLabel = 'Open Possession →';
+    const ctaRoute = '/onboarding/possession';
 
     return (
       <Animated.View style={styles.pinnedWrap} entering={FadeIn.duration(200)}>

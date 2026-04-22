@@ -491,20 +491,20 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       possessionPrompted.current = true;
       const state = useOnboardingStore.getState();
 
+      // Possession is standalone — no legal / agreement prerequisite.
+      // If the user has an active named property, we greet by name.
+      // Otherwise we describe Possession as the checklist experience
+      // it actually is: usable cold, no setup.
       const activeName = state.activeLegalPropertyId
         ? resolveLegalProperty(state, state.activeLegalPropertyId)?.name
         : null;
-      const hasAnalysis = hasAnyLegalAnalysis(state);
 
       let text: string;
-      if (!hasAnalysis) {
-        text =
-          "Possession is where the keys meet reality. Upload your agreement in Legal first so I know which property you're taking possession of — then I'll line up your Pune-specific snag checklist, document vault, and handover-day playbook.";
-      } else if (activeName) {
-        text = `Ready for possession of ${activeName}? I've got three things queued up: a 9-category snag checklist tuned for what Pune builders typically miss, a 12-document handover vault with source and red-flag notes, and a handover-day micro-checklist so nothing slips at the keys moment.`;
+      if (activeName && activeName.length > 0) {
+        text = `Ready for possession of ${activeName}? I've got a 9-category Pune-specific snag checklist, a 12-document handover vault, and an 8-item handover-day playbook — open it whenever.`;
       } else {
         text =
-          "Pick a property in Legal first and I'll prep your possession playbook — snag checklist, document vault, and handover-day orchestration.";
+          "Possession is mostly a checklist — the Pune snag inspection, your handover document vault, and the day-of playbook. Open it whenever. No agreement, no setup — I'll ask for your property name inside so I know where to save your notes, that's it.";
       }
 
       setMessages(prev => [...prev, {
@@ -1374,26 +1374,24 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
           );
         }
 
-        // ── Possession stage: two states, no shortlist gate ──
-        // If no agreement's been analyzed anywhere, route user to Legal
-        // so they pick a property (upload flow). Otherwise → /possession.
+        // ── Possession stage: fully standalone, no prerequisites ──
+        // Possession is a checklist experience that works for anyone.
+        // Always routes to /onboarding/possession — no legal gate,
+        // no "upload agreement first" detour. The screen itself
+        // auto-creates a placeholder property if needed.
         if (stage === 'Possession') {
-          const possessionReady = hasAnyLegalAnalysis(state);
-          const label = possessionReady ? 'Open Possession' : 'Upload Agreement';
-          const PossIcon = possessionReady ? Key : Scale;
-
           return (
             <Animated.View entering={FadeIn.duration(250)}>
               <Pressable
                 onPress={() => {
                   haptics.light();
-                  router.push(possessionReady ? '/onboarding/possession' : '/onboarding/legal-analysis');
+                  router.push('/onboarding/possession');
                 }}
                 style={({ pressed }) => [styles.stageCta, pressed && styles.shortlistPillPressed]}
               >
                 <Animated.View style={[styles.stageCtaInner, pillAnimStyle]}>
-                  <PossIcon size={14} color={Colors.white} strokeWidth={2} />
-                  <Text style={styles.stageCtaText} numberOfLines={1}>{label}</Text>
+                  <Key size={14} color={Colors.white} strokeWidth={2} />
+                  <Text style={styles.stageCtaText} numberOfLines={1}>Open Possession</Text>
                 </Animated.View>
               </Pressable>
             </Animated.View>

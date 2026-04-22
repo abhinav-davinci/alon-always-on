@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Modal,
+  Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,15 +25,19 @@ import {
   CheckCircle2,
   Info,
   Calendar,
+  Pencil,
+  X,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import {
   useOnboardingStore,
   countSnagDefects,
-  type PossessionRecord,
 } from '../../store/onboarding';
-import { resolveLegalProperty } from '../../utils/legalProperty';
+import {
+  resolveLegalProperty,
+  defaultLegalPropertyId,
+} from '../../utils/legalProperty';
 import { useHaptics } from '../../hooks/useHaptics';
 import {
   SNAG_CATEGORIES,
@@ -37,12 +46,17 @@ import {
 } from '../../constants/possession';
 
 // ═══════════════════════════════════════════════════════════════
-// Possession home — one screen, three action cards, phase strip.
+// Possession home — standalone checklist experience.
 //
-// Gate: a property must be active (Legal's selector drives this).
-// We don't gate on Deal Closure completion in Phase 1 — users can
-// preview Possession anytime, consistent with the "Legal is
-// independent" pattern established earlier.
+// No prerequisites. The snag walkthrough, document vault, and
+// handover-day playbook are universally useful — a user who bought
+// entirely outside ALON can come here on handover day and get value.
+//
+// We need a property reference only to attach records to (so notes,
+// photos, checkmarks persist). If the user has a Legal-selected or
+// shortlisted property, we inherit that. Otherwise we auto-create a
+// placeholder "Your property" (Pune) they can rename inline via the
+// property card tap.
 // ═══════════════════════════════════════════════════════════════
 
 export default function PossessionScreen() {
@@ -51,31 +65,93 @@ export default function PossessionScreen() {
   const haptics = useHaptics();
 
   const {
+    negotiatePropertyId,
+    likedPropertyIds,
     userProperties,
     externalProperties,
     activeLegalPropertyId,
+    legalAnalyses,
     possessions,
     setPossessionHandoverDate,
+    setActiveLegalProperty,
+    addExternalProperty,
+    updateExternalProperty,
   } = useOnboardingStore();
+
+  // Auto-select-or-create a property on mount. Preference order:
+  //   1. Whatever Legal selected (covers the "I did Legal on this" case).
+  //   2. Default fallback — Negotiate → shortlist → user-added.
+  //   3. Reuse an existing named external without a legal analysis
+  //      (that's a previous Possession-only placeholder).
+  //   4. Create a fresh "Your property" placeholder.
+  // Runs once per mount — after we pick, activeLegalPropertyId stays
+  // stable until the user changes it or navigates away.
+  useEffect(() => {
+    if (activeLegalPropertyId) {
+      const resolved = resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId);
+      if (resolved) return;
+      // stale ID → fall through
+    }
+    const fallback = defaultLegalPropertyId({
+      negotiatePropertyId,
+      likedPropertyIds,
+      userProperties,
+    });
+    if (fallback) {
+      setActiveLegalProperty(fallback);
+      return;
+    }
+    const reusable = Object.keys(externalProperties).find((id) => {
+      const ext = externalProperties[id];
+      return ext && ext.name.length > 0 && !legalAnalyses[id];
+    });
+    if (reusable) {
+      setActiveLegalProperty(reusable);
+      return;
+    }
+    const newId = addExternalProperty({ name: 'Your property', location: 'Pune' });
+    setActiveLegalProperty(newId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const property = useMemo(
     () => resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId),
     [activeLegalPropertyId, userProperties, externalProperties],
   );
 
-  // No active property → empty gate. Direct user to Legal, which has
-  // the property selector and the same activeLegalPropertyId wiring.
+  // Rename sheet state — inline, minimal. Only meaningful for external
+  // (placeholder) properties; shortlist / user-added properties aren't
+  // renamable from here (those are ALON's authoritative records).
+  const canRename = property?.source === 'external';
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftLocation, setDraftLocation] = useState('');
+
+  const openRename = () => {
+    if (!canRename || !property) return;
+    haptics.light();
+    setDraftName(property.name);
+    setDraftLocation(property.location);
+    setRenaming(true);
+  };
+
+  const saveRename = () => {
+    if (!activeLegalPropertyId) return;
+    const name = draftName.trim() || 'Your property';
+    const location = draftLocation.trim() || 'Pune';
+    updateExternalProperty(activeLegalPropertyId, { name, location });
+    haptics.success();
+    setRenaming(false);
+  };
+
+  // Possession waits a tick for the mount-effect to set active + resolve,
+  // so during that frame `property` can be null. Render nothing to avoid
+  // flash; effect is synchronous so this is invisible in practice.
   if (!property || !activeLegalPropertyId) {
-    return (
-      <PossessionEmpty
-        insetsTop={insets.top}
-        onBack={() => router.back()}
-        onGoLegal={() => router.push('/onboarding/legal-analysis')}
-      />
-    );
+    return <View style={[styles.container, { paddingTop: insets.top }]} />;
   }
 
-  const record: PossessionRecord | undefined = possessions[activeLegalPropertyId];
+  const record = possessions[activeLegalPropertyId];
 
   // ── Derived counts for the action cards ──
   const defects = countSnagDefects({ possessions }, activeLegalPropertyId);
@@ -137,7 +213,9 @@ export default function PossessionScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Property + handover date */}
+        {/* Property + handover date. Edit pencil only for placeholder
+            (external) properties — shortlist/user-added records are
+            ALON's authoritative data and aren't renamable from here. */}
         <Animated.View entering={FadeIn.duration(280)} style={styles.propertyCard}>
           <View style={styles.propertyTop}>
             {property.image ? (
@@ -154,6 +232,11 @@ export default function PossessionScreen() {
                 {property.location}{property.price ? ` · ${property.price}` : ''}
               </Text>
             </View>
+            {canRename && (
+              <TouchableOpacity style={styles.editBtn} onPress={openRename} activeOpacity={0.7}>
+                <Pencil size={14} color={Colors.terra500} strokeWidth={2} />
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity style={styles.dateRow} onPress={setDemoDate} activeOpacity={0.7}>
             <Calendar size={12} color={Colors.terra500} strokeWidth={2} />
@@ -241,7 +324,90 @@ export default function PossessionScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Rename sheet — only reachable when canRename. */}
+      <RenameSheet
+        visible={renaming}
+        name={draftName}
+        location={draftLocation}
+        onName={setDraftName}
+        onLocation={setDraftLocation}
+        onSave={saveRename}
+        onClose={() => setRenaming(false)}
+      />
     </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Rename sheet — a two-field mini-form for renaming a placeholder
+// possession property. Kept inline (no dependency on the Legal
+// selector) because the action is small and one-purpose.
+// ═══════════════════════════════════════════════════════════════
+
+function RenameSheet({
+  visible, name, location, onName, onLocation, onSave, onClose,
+}: {
+  visible: boolean;
+  name: string;
+  location: string;
+  onName: (v: string) => void;
+  onLocation: (v: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={renameStyles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[renameStyles.panel, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={renameStyles.handle} />
+            <View style={renameStyles.headerRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={renameStyles.title}>Name this property</Text>
+                <Text style={renameStyles.subtitle}>
+                  So your snag notes, documents, and checklist all save against the right place.
+                </Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={renameStyles.closeBtn} activeOpacity={0.7}>
+                <X size={18} color={Colors.textSecondary} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={renameStyles.body}>
+              <Text style={renameStyles.fieldLabel}>Project name</Text>
+              <TextInput
+                style={renameStyles.input}
+                placeholder="e.g. Kumar Pebble Bay"
+                placeholderTextColor={Colors.textTertiary}
+                value={name}
+                onChangeText={onName}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              <Text style={[renameStyles.fieldLabel, { marginTop: 12 }]}>Location</Text>
+              <TextInput
+                style={renameStyles.input}
+                placeholder="e.g. Kalyani Nagar, Pune"
+                placeholderTextColor={Colors.textTertiary}
+                value={location}
+                onChangeText={onLocation}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={onSave}
+              />
+
+              <TouchableOpacity style={renameStyles.saveBtn} onPress={onSave} activeOpacity={0.88}>
+                <Text style={renameStyles.saveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 }
 
@@ -302,60 +468,6 @@ function PhaseNode({ label, active, done, muted }: { label: string; active: bool
       ]}>
         {label}
       </Text>
-    </View>
-  );
-}
-
-function PossessionEmpty({
-  insetsTop, onBack, onGoLegal,
-}: {
-  insetsTop: number;
-  onBack: () => void;
-  onGoLegal: () => void;
-}) {
-  return (
-    <View style={[styles.container, { paddingTop: insetsTop }]}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Key size={16} color={Colors.terra500} strokeWidth={2} />
-          <Text style={styles.headerTitle}>Possession</Text>
-        </View>
-        <View style={{ width: 36 }} />
-      </View>
-
-      <Animated.View entering={FadeIn.duration(260)} style={styles.emptyBody}>
-        <View style={styles.emptyIconWrap}>
-          <Key size={32} color={Colors.terra500} strokeWidth={1.6} />
-        </View>
-        <Text style={styles.emptyHeadline}>Possession checklist waiting</Text>
-        <Text style={styles.emptySubhead}>
-          Pick a property in Legal first — I'll line up your snag inspection, document vault,
-          and handover-day checklist for that specific property.
-        </Text>
-
-        <TouchableOpacity style={styles.emptyCta} onPress={onGoLegal} activeOpacity={0.88}>
-          <Text style={styles.emptyCtaText}>Go to Legal</Text>
-          <ChevronRight size={15} color={Colors.white} strokeWidth={2.2} />
-        </TouchableOpacity>
-
-        <View style={styles.emptyPreview}>
-          <Text style={styles.emptyPreviewTitle}>What Possession covers</Text>
-          {[
-            `Pune-flavored snag inspection across ${SNAG_CATEGORIES.length} categories`,
-            `${POSSESSION_DOCUMENTS.length}-document handover vault with source + red-flag notes`,
-            `${HANDOVER_CHECKLIST.length}-item handover-day micro-checklist`,
-            'Post-handover setup: utilities, tax, society formation (Phase 2)',
-          ].map((line) => (
-            <View key={line} style={styles.emptyPreviewRow}>
-              <View style={styles.emptyPreviewDot} />
-              <Text style={styles.emptyPreviewText}>{line}</Text>
-            </View>
-          ))}
-        </View>
-      </Animated.View>
     </View>
   );
 }
@@ -518,46 +630,69 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary, lineHeight: 14,
   },
 
-  // Empty state
-  emptyBody: {
-    flex: 1, alignItems: 'center', paddingHorizontal: Spacing.xxl, paddingTop: Spacing.xxxl,
+  // Edit pencil on the property card (placeholder properties only)
+  editBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.terra200,
+    alignItems: 'center', justifyContent: 'center',
   },
-  emptyIconWrap: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.terra50,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+});
+
+// ─── Rename sheet styles ────────────────────────────────────────────
+
+const renameStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(13,31,74,0.4)',
+    justifyContent: 'flex-end',
   },
-  emptyHeadline: {
-    fontFamily: 'DMSerifDisplay', fontSize: 22, color: Colors.textPrimary,
-    textAlign: 'center', marginBottom: 8,
+  panel: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 8,
+    shadowColor: '#0D1F4A',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08, shadowRadius: 20,
+    elevation: 12,
   },
-  emptySubhead: {
-    fontFamily: 'DMSans-Regular', fontSize: 13, color: Colors.textSecondary,
-    textAlign: 'center', lineHeight: 19, marginBottom: 20, paddingHorizontal: 8,
+  handle: {
+    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
+    backgroundColor: Colors.warm200, marginBottom: 10,
   },
-  emptyCta: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: Colors.terra500, marginBottom: 20,
+  headerRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xxl, gap: 12, paddingBottom: 4,
   },
-  emptyCtaText: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white },
-  emptyPreview: {
-    alignSelf: 'stretch', padding: 14, borderRadius: 12,
-    backgroundColor: Colors.warm50, borderWidth: 1, borderColor: Colors.warm100,
+  title: {
+    fontFamily: 'DMSerifDisplay', fontSize: 20, color: Colors.textPrimary, lineHeight: 24,
   },
-  emptyPreviewTitle: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.textSecondary,
-    letterSpacing: 0.5, marginBottom: 10,
+  subtitle: {
+    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
+    marginTop: 4, lineHeight: 17,
   },
-  emptyPreviewRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 4,
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.warm100,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 2,
   },
-  emptyPreviewDot: {
-    width: 5, height: 5, borderRadius: 3,
-    backgroundColor: Colors.terra400, marginTop: 7,
+  body: {
+    paddingHorizontal: Spacing.xxl, paddingTop: 14,
   },
-  emptyPreviewText: {
-    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 12,
-    color: Colors.textSecondary, lineHeight: 17,
+  fieldLabel: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.textSecondary,
+    letterSpacing: 0.4, marginBottom: 6,
+  },
+  input: {
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.warm200, backgroundColor: Colors.warm50,
+    fontFamily: 'DMSans-Regular', fontSize: 14, color: Colors.textPrimary,
+  },
+  saveBtn: {
+    marginTop: 18, paddingVertical: 13, borderRadius: 12,
+    backgroundColor: Colors.terra500, alignItems: 'center',
+  },
+  saveBtnText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
   },
 });
