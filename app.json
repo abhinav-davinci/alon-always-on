@@ -32,6 +32,19 @@
     "plugins": [
       "expo-router",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6828e523-8cb8-433a-a1d4-b923ccac6c41"
+      }
+    },
+    "owner": "abhinav-raj",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6828e523-8cb8-433a-a1d4-b923ccac6c41"
+    }
   }
 }
