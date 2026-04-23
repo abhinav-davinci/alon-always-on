@@ -112,12 +112,9 @@ export default function PossessionScreen() {
     }
     const newId = addExternalProperty({ name: 'Your property', location: '' });
     setActiveLegalProperty(newId);
-    // Pre-fill expected handover at ~90 days out — a typical handover
-    // window. User can edit via the date sheet anytime. Removes the
-    // cold "Tap to set" state on first visit.
-    const d = new Date();
-    d.setDate(d.getDate() + 90);
-    setPossessionHandoverDate(newId, 'expected', toISODate(d));
+    // No pre-fill for expected handover — the user should set it
+    // themselves. An auto-default (e.g. today + 90 days) looks
+    // authoritative and confuses users who haven't chosen it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -192,7 +189,7 @@ export default function PossessionScreen() {
 
   // ── Expected handover date (derived; useState is above the early return) ──
   const expected = record?.expectedHandoverDate;
-  const displayDate = expected ? formatHandoverDate(expected) : 'Tap to set';
+  const displayDate = expected ? formatHandoverDate(expected) : 'Add date';
 
   const openDatePicker = () => {
     haptics.light();
