@@ -27,7 +27,6 @@ import {
   Calendar,
   Pencil,
   X,
-  Sparkles,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -216,13 +215,6 @@ export default function PossessionScreen() {
   // ── Red banner: OC pending past handover is a blocking issue ──
   const showOcWarning = !!expected && new Date() > new Date(expected) && ocStatus !== 'received';
 
-  // ── Inline unlock hint: one subtle line instead of a full card.
-  // Placeholder properties get a gentle nudge to add details; real
-  // properties never see it. Location is the clearest engagement
-  // signal (pre-filled name + date alone aren't proof of intent).
-  // Tapping routes to the rename sheet — the pitch lives there.
-  const showUnlockHint = canRename && !property.location;
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -280,25 +272,6 @@ export default function PossessionScreen() {
             <Text style={styles.dateRowValue}>{displayDate}</Text>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Inline unlock hint — one line, tappable. Full pitch lives
-            in the rename sheet (that's where users arrive with intent).
-            This just signals "there's more to unlock, here's how". */}
-        {showUnlockHint && (
-          <Animated.View entering={FadeInDown.delay(60).duration(240)}>
-            <TouchableOpacity
-              style={styles.unlockHint}
-              onPress={openRename}
-              activeOpacity={0.7}
-            >
-              <Sparkles size={12} color={Colors.terra500} strokeWidth={2} />
-              <Text style={styles.unlockHintText} numberOfLines={1}>
-                Add details — <Text style={styles.unlockHintBold}>sharper checks + date reminders</Text>
-              </Text>
-              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2} />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
 
         {/* OC missing — blocking warning */}
         {showOcWarning && (
@@ -415,10 +388,9 @@ function RenameSheet({
             <View style={renameStyles.handle} />
             <View style={renameStyles.headerRow}>
               <View style={{ flex: 1 }}>
-                <Text style={renameStyles.title}>Tell me about your property</Text>
+                <Text style={renameStyles.title}>Name this property</Text>
                 <Text style={renameStyles.subtitle}>
-                  The more I know, the sharper your handover checklist — agreement clauses
-                  become demands, key dates become reminders.
+                  So your snag notes, documents, and checklist all save against the right place.
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={renameStyles.closeBtn} activeOpacity={0.7}>
@@ -654,26 +626,6 @@ const styles = StyleSheet.create({
   },
   dateRowValue: {
     fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra500,
-  },
-
-  // Inline unlock hint — a slim tappable strip between the property
-  // card and the checklist. Terra50 tint, hairline border, single
-  // line of copy + chevron. Visually quiet for users who aren't
-  // interested; clearly interactive for those who are. Auto-hides
-  // once the property has a real location.
-  unlockHint: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: Spacing.xxl, marginTop: 10,
-    paddingVertical: 9, paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra100,
-  },
-  unlockHintText: {
-    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 11,
-    color: Colors.textSecondary,
-  },
-  unlockHintBold: {
-    fontFamily: 'DMSans-SemiBold', color: Colors.terra500,
   },
 
   // OC warning
