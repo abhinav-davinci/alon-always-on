@@ -127,8 +127,8 @@ export default function PossessionSnagScreen() {
         <View style={styles.usageCard}>
           <Info size={12} color={Colors.terra500} strokeWidth={2} />
           <Text style={styles.usageText}>
-            Walk the flat room-by-room. For each check: mark OK, defect, or not applicable. Defects
-            take a photo + severity tag. Budget ~45 min for a thorough walkthrough.
+            For each check: mark OK, defect, or not applicable. Defects take a photo +
+            severity tag. Progress saves as you go — pick up where you left off.
           </Text>
         </View>
 
