@@ -23,11 +23,11 @@ import {
   FileText,
   ClipboardCheck,
   AlertTriangle,
-  CheckCircle2,
   Info,
   Calendar,
   Pencil,
   X,
+  Sparkles,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -112,6 +112,12 @@ export default function PossessionScreen() {
     }
     const newId = addExternalProperty({ name: 'Your property', location: '' });
     setActiveLegalProperty(newId);
+    // Pre-fill expected handover at ~90 days out — a typical handover
+    // window. User can edit via the date sheet anytime. Removes the
+    // cold "Tap to set" state on first visit.
+    const d = new Date();
+    d.setDate(d.getDate() + 90);
+    setPossessionHandoverDate(newId, 'expected', toISODate(d));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -213,11 +219,12 @@ export default function PossessionScreen() {
   // ── Red banner: OC pending past handover is a blocking issue ──
   const showOcWarning = !!expected && new Date() > new Date(expected) && ocStatus !== 'received';
 
-  // ── Phase status ──
-  const preHandoverProgress =
-    (categoriesChecked > 0 ? 1 : 0) + (docsReceived > 0 ? 1 : 0);
-  const phase1Active = preHandoverProgress > 0;
-  const phase2Active = handoverDone > 0;
+  // ── Inline unlock hint: one subtle line instead of a full card.
+  // Placeholder properties get a gentle nudge to add details; real
+  // properties never see it. Location is the clearest engagement
+  // signal (pre-filled name + date alone aren't proof of intent).
+  // Tapping routes to the rename sheet — the pitch lives there.
+  const showUnlockHint = canRename && !property.location;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -277,6 +284,25 @@ export default function PossessionScreen() {
           </TouchableOpacity>
         </Animated.View>
 
+        {/* Inline unlock hint — one line, tappable. Full pitch lives
+            in the rename sheet (that's where users arrive with intent).
+            This just signals "there's more to unlock, here's how". */}
+        {showUnlockHint && (
+          <Animated.View entering={FadeInDown.delay(60).duration(240)}>
+            <TouchableOpacity
+              style={styles.unlockHint}
+              onPress={openRename}
+              activeOpacity={0.7}
+            >
+              <Sparkles size={12} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.unlockHintText} numberOfLines={1}>
+                Add details — <Text style={styles.unlockHintBold}>sharper checks + date reminders</Text>
+              </Text>
+              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* OC missing — blocking warning */}
         {showOcWarning && (
           <Animated.View entering={FadeInDown.duration(240)} style={styles.ocWarnCard}>
@@ -289,70 +315,54 @@ export default function PossessionScreen() {
           </Animated.View>
         )}
 
-        {/* Phase strip — 4 equal columns with an absolute connector overlay.
-            Connectors sit at dot-center Y and span between adjacent column
-            centers (12.5% → 37.5% → 62.5% → 87.5%), so the line visibly
-            joins dot to dot with no floating mid-gaps. */}
-        <Animated.View entering={FadeInDown.delay(80).duration(260)} style={styles.phaseStrip}>
-          <View style={styles.phaseConnLayer} pointerEvents="none">
-            <View style={[styles.phaseConnSeg, styles.phaseConnSeg1, phase1Active && styles.phaseConnSegDone]} />
-            <View style={[styles.phaseConnSeg, styles.phaseConnSeg2, phase2Active && styles.phaseConnSegDone]} />
-            <View style={[styles.phaseConnSeg, styles.phaseConnSeg3]} />
-          </View>
-          <PhaseNode label="Pre-handover"  active={phase1Active} done={false} />
-          <PhaseNode label="Handover day"  active={phase2Active} done={false} />
-          <PhaseNode label="Post-handover" active={false}        done={false} muted />
-          <PhaseNode label="Warranty"      active={false}        done={false} muted />
+        {/* ── Your handover checklist ──
+            One card. Three rows. No section labels, no phase strip.
+            The natural order (snag → docs → handover day) implies the
+            sequence; user doesn't need to learn a phase taxonomy. */}
+        <Animated.View
+          entering={FadeInDown.delay(80).duration(260)}
+          style={styles.checklistCard}
+        >
+          <Text style={styles.checklistTitle}>Your handover checklist</Text>
+
+          <ChecklistRow
+            icon={<Search size={18} color={Colors.terra500} strokeWidth={2} />}
+            title="Run a snag inspection"
+            progress={`${categoriesChecked} of ${SNAG_CATEGORIES.length} categories checked`}
+            defectCount={defects.total}
+            onPress={() => {
+              haptics.light();
+              router.push('/onboarding/possession-snag');
+            }}
+          />
+          <View style={styles.rowDivider} />
+          <ChecklistRow
+            icon={<FileText size={18} color={Colors.terra500} strokeWidth={2} />}
+            title="Collect your documents"
+            progress={`${docsReceived} of ${docsTotal} received`}
+            onPress={() => {
+              haptics.light();
+              router.push('/onboarding/possession-documents');
+            }}
+          />
+          <View style={styles.rowDivider} />
+          <ChecklistRow
+            icon={<ClipboardCheck size={18} color={Colors.terra500} strokeWidth={2} />}
+            title="Handover-day playbook"
+            progress={`${handoverDone} of ${handoverTotal} ticked`}
+            onPress={() => {
+              haptics.light();
+              router.push('/onboarding/possession-handover');
+            }}
+          />
         </Animated.View>
 
-        {/* ── PRE-HANDOVER section ── */}
-        <Text style={styles.sectionLabel}>PRE-HANDOVER</Text>
-
-        <ActionCard
-          icon={<Search size={18} color={Colors.terra500} strokeWidth={2} />}
-          title="Run a snag inspection"
-          subtitle={
-            defects.total > 0
-              ? `${defects.total} defect${defects.total === 1 ? '' : 's'} logged · ${categoriesChecked} of ${SNAG_CATEGORIES.length} categories checked`
-              : `${SNAG_CATEGORIES.length}-category property checklist — ~45 min walkthrough`
-          }
-          defectSummary={defects.total > 0 ? `${defects.critical}C · ${defects.major}M · ${defects.minor}m` : undefined}
-          onPress={() => {
-            haptics.light();
-            router.push('/onboarding/possession-snag');
-          }}
-        />
-
-        <ActionCard
-          icon={<FileText size={18} color={Colors.terra500} strokeWidth={2} />}
-          title="Document vault"
-          subtitle={`${docsReceived} of ${docsTotal} handover documents received`}
-          onPress={() => {
-            haptics.light();
-            router.push('/onboarding/possession-documents');
-          }}
-        />
-
-        {/* ── HANDOVER DAY section ── */}
-        <Text style={styles.sectionLabel}>HANDOVER DAY</Text>
-
-        <ActionCard
-          icon={<ClipboardCheck size={18} color={Colors.terra500} strokeWidth={2} />}
-          title="Handover checklist"
-          subtitle={`${handoverDone} of ${handoverTotal} items · run on possession day`}
-          onPress={() => {
-            haptics.light();
-            router.push('/onboarding/possession-handover');
-          }}
-        />
-
-        {/* Disclaimer */}
+        {/* Disclaimer — one sentence. */}
         <View style={styles.disclaimer}>
           <Info size={12} color={Colors.terra500} strokeWidth={1.5} />
           <Text style={styles.disclaimerText}>
-            Handover regulations are defined by RERA, MOFA, and local municipal rules. This
-            checklist is a guide — always cross-check with a registered advocate before
-            signing anything.
+            This checklist is a guide — always cross-check with a registered advocate
+            before signing anything.
           </Text>
         </View>
       </ScrollView>
@@ -408,9 +418,10 @@ function RenameSheet({
             <View style={renameStyles.handle} />
             <View style={renameStyles.headerRow}>
               <View style={{ flex: 1 }}>
-                <Text style={renameStyles.title}>Name this property</Text>
+                <Text style={renameStyles.title}>Tell me about your property</Text>
                 <Text style={renameStyles.subtitle}>
-                  So your snag notes, documents, and checklist all save against the right place.
+                  The more I know, the sharper your handover checklist — agreement clauses
+                  become demands, key dates become reminders.
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={renameStyles.closeBtn} activeOpacity={0.7}>
@@ -540,60 +551,41 @@ function HandoverDateSheet({
 // Subcomponents
 // ═══════════════════════════════════════════════════════════════
 
-function ActionCard({
+// One row inside the unified "Your handover checklist" card. Visually
+// lightweight — icon, title, progress line, optional defect badge
+// (count only; severity breakdown lives on the detail screen).
+function ChecklistRow({
   icon,
   title,
-  subtitle,
-  defectSummary,
+  progress,
+  defectCount,
   onPress,
 }: {
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
-  defectSummary?: string;
+  progress: string;
+  defectCount?: number;
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.actionIcon}>{icon}</View>
+    <TouchableOpacity style={styles.checklistRow} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.checklistIcon}>{icon}</View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionSubtitle}>{subtitle}</Text>
-        {defectSummary && (
-          <View style={styles.defectPill}>
-            <AlertTriangle size={10} color={Colors.red500} strokeWidth={2} />
-            <Text style={styles.defectPillText}>{defectSummary}</Text>
-          </View>
-        )}
+        <View style={styles.checklistTitleRow}>
+          <Text style={styles.checklistRowTitle}>{title}</Text>
+          {defectCount !== undefined && defectCount > 0 && (
+            <View style={styles.defectBadge}>
+              <AlertTriangle size={10} color={Colors.red500} strokeWidth={2.2} />
+              <Text style={styles.defectBadgeText}>
+                {defectCount} defect{defectCount === 1 ? '' : 's'}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.checklistProgress}>{progress}</Text>
       </View>
       <ChevronRight size={16} color={Colors.terra500} strokeWidth={2} />
     </TouchableOpacity>
-  );
-}
-
-function PhaseNode({ label, active, done, muted }: { label: string; active: boolean; done: boolean; muted?: boolean }) {
-  return (
-    <View style={styles.phaseNode}>
-      <View style={[
-        styles.phaseDot,
-        done && styles.phaseDotDone,
-        active && styles.phaseDotActive,
-        muted && styles.phaseDotMuted,
-      ]}>
-        {done ? (
-          <CheckCircle2 size={10} color={Colors.white} strokeWidth={3} />
-        ) : active ? (
-          <View style={styles.phaseDotInner} />
-        ) : null}
-      </View>
-      <Text style={[
-        styles.phaseLabel,
-        active && styles.phaseLabelActive,
-        muted && styles.phaseLabelMuted,
-      ]}>
-        {label}
-      </Text>
-    </View>
   );
 }
 
@@ -667,6 +659,26 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra500,
   },
 
+  // Inline unlock hint — a slim tappable strip between the property
+  // card and the checklist. Terra50 tint, hairline border, single
+  // line of copy + chevron. Visually quiet for users who aren't
+  // interested; clearly interactive for those who are. Auto-hides
+  // once the property has a real location.
+  unlockHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: Spacing.xxl, marginTop: 10,
+    paddingVertical: 9, paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra100,
+  },
+  unlockHintText: {
+    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  unlockHintBold: {
+    fontFamily: 'DMSans-SemiBold', color: Colors.terra500,
+  },
+
   // OC warning
   ocWarnCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
@@ -680,78 +692,47 @@ const styles = StyleSheet.create({
   },
   ocWarnBold: { fontFamily: 'DMSans-SemiBold' },
 
-  // Phase strip — row of 4 equal columns with an absolute connector overlay.
-  // Each column flex:1, dot + label stacked and center-aligned. The overlay
-  // sits at dot-center Y (9px = half the 18px dot height) with 3 segments
-  // spanning between adjacent column centers so the lines visibly connect.
-  phaseStrip: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.xxl, marginTop: Spacing.lg, marginBottom: 4,
-    position: 'relative',
-  },
-  phaseConnLayer: {
-    position: 'absolute', left: 0, right: 0, top: 9,
-    height: 1,
-  },
-  phaseConnSeg: {
-    position: 'absolute', top: 0, height: 1,
-    backgroundColor: Colors.warm200,
-  },
-  // Column centers live at 12.5 / 37.5 / 62.5 / 87.5 %. Each segment
-  // spans the 25% between adjacent centers.
-  phaseConnSeg1: { left: '12.5%', width: '25%' },
-  phaseConnSeg2: { left: '37.5%', width: '25%' },
-  phaseConnSeg3: { left: '62.5%', width: '25%' },
-  phaseConnSegDone: { backgroundColor: Colors.terra400 },
-
-  phaseNode: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  phaseDot: {
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.warm100, borderWidth: 1.5, borderColor: Colors.warm300,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  phaseDotDone: { backgroundColor: Colors.green500, borderColor: Colors.green500 },
-  phaseDotActive: { backgroundColor: Colors.terra500, borderColor: Colors.terra400 },
-  phaseDotMuted: { backgroundColor: Colors.warm100, borderColor: Colors.warm200 },
-  phaseDotInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.white },
-  phaseLabel: {
-    fontFamily: 'DMSans-Medium', fontSize: 10,
-    color: Colors.textTertiary, textAlign: 'center',
-  },
-  phaseLabelActive: { color: Colors.textPrimary, fontFamily: 'DMSans-SemiBold' },
-  phaseLabelMuted: { color: Colors.warm300 },
-
-  // Section label
-  sectionLabel: {
-    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
-    letterSpacing: 0.8, marginHorizontal: Spacing.xxl, marginTop: 22, marginBottom: 10,
-  },
-
-  // Action card
-  actionCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginHorizontal: Spacing.xxl, marginBottom: 10,
-    padding: 14, backgroundColor: Colors.white, borderRadius: 14,
+  // Unified handover checklist — one card, three tappable rows.
+  // Replaced: phase strip, PRE-HANDOVER / HANDOVER DAY section labels,
+  // and three separate action cards. Single card, less ceremony.
+  checklistCard: {
+    marginHorizontal: Spacing.xxl, marginTop: Spacing.lg,
+    paddingVertical: 6, paddingHorizontal: 14,
+    backgroundColor: Colors.white, borderRadius: 14,
     borderWidth: 1, borderColor: Colors.warm200,
   },
-  actionIcon: {
+  checklistTitle: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.textTertiary,
+    letterSpacing: 0.6, textTransform: 'uppercase',
+    marginTop: 10, marginBottom: 4, marginHorizontal: 2,
+  },
+  checklistRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 14, paddingHorizontal: 2,
+  },
+  rowDivider: {
+    height: 1, backgroundColor: Colors.warm100, marginHorizontal: 2,
+  },
+  checklistIcon: {
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.terra50, alignItems: 'center', justifyContent: 'center',
   },
-  actionTitle: {
+  checklistTitleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+  },
+  checklistRowTitle: {
     fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.textPrimary,
   },
-  actionSubtitle: {
-    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary,
-    marginTop: 2, lineHeight: 16,
+  checklistProgress: {
+    fontFamily: 'DMSans-Regular', fontSize: 11,
+    color: Colors.textSecondary, marginTop: 2, lineHeight: 16,
   },
-  defectPill: {
+  defectBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 6, paddingHorizontal: 8, paddingVertical: 3,
+    paddingHorizontal: 7, paddingVertical: 2,
     borderRadius: 6, backgroundColor: '#FEE2E2',
-    alignSelf: 'flex-start',
   },
-  defectPillText: {
+  defectBadgeText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.red500, letterSpacing: 0.3,
   },
 
