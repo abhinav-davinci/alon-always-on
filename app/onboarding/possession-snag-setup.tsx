@@ -110,9 +110,12 @@ export default function PossessionSnagSetupScreen() {
       setStep(step + 1);
       return;
     }
-    // Final step → save and navigate to room list.
+    // Final step → save and navigate to room list. Wizard save is the
+    // ownership-transfer moment: whatever the user committed here is
+    // their truth, not ALON's inference — clear the `autoConfigured`
+    // flag so the "Built from X" banner disappears.
     if (!draftConfig || !propertyId) return;
-    setSnagConfig(propertyId, draftConfig);
+    setSnagConfig(propertyId, { ...draftConfig, autoConfigured: false });
     haptics.success();
     router.replace('/onboarding/possession-snag');
   };

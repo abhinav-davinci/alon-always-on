@@ -39,9 +39,11 @@ import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
 import {
   generateRooms,
+  inferSnagConfig,
   type RoomDef,
   type PropertyConfig,
 } from '../../constants/rooms';
+import { resolveLegalProperty } from '../../utils/legalProperty';
 
 // ═══════════════════════════════════════════════════════════════════
 // Snag Inspection — Room List (v2)
@@ -76,25 +78,44 @@ const ROOM_ICONS: Record<string, typeof DoorOpen> = {
 export default function PossessionSnagScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const haptics = useHaptics();
 
-  const { activeLegalPropertyId, possessions } = useOnboardingStore();
+  const {
+    activeLegalPropertyId,
+    possessions,
+    userProperties,
+    externalProperties,
+    setSnagConfig,
+  } = useOnboardingStore();
 
-  // Pull the saved config for this property's inspection. If missing,
-  // redirect to the setup wizard — the user has to configure before
-  // they can see a personalized checklist.
+  // Pull the saved config for this property's inspection.
   const record = activeLegalPropertyId ? possessions[activeLegalPropertyId] : undefined;
   const config = record?.snagConfig;
 
+  // Gate: if no config yet, first try to INFER one from the active
+  // property (Negotiate-locked shortlist / user-added have BHK + type
+  // data we can lean on). If inference succeeds we save it with
+  // `autoConfigured: true` and render the room list immediately —
+  // no redundant wizard. If inference fails (external placeholder,
+  // Studio flats, etc.), fall through to the wizard as before.
   useEffect(() => {
-    if (!activeLegalPropertyId) return;
-    if (!config) {
-      router.replace('/onboarding/possession-snag-setup');
+    if (!activeLegalPropertyId || config) return;
+    const property = resolveLegalProperty(
+      { userProperties, externalProperties },
+      activeLegalPropertyId,
+    );
+    const inferred = property ? inferSnagConfig(property) : null;
+    if (inferred) {
+      setSnagConfig(activeLegalPropertyId, inferred);
+      return;
     }
-  }, [config, activeLegalPropertyId, router]);
+    router.replace('/onboarding/possession-snag-setup');
+  }, [
+    config, activeLegalPropertyId, router, setSnagConfig,
+    userProperties, externalProperties,
+  ]);
 
-  // Hold render until we know the config path. The useEffect above
-  // will navigate away if it's missing.
+  // Hold render until the gate resolves — either inference commits
+  // (next tick re-renders with a config) or we navigate to wizard.
   if (!config || !activeLegalPropertyId) {
     return <View style={[styles.container, { paddingTop: insets.top }]} />;
   }
@@ -118,8 +139,12 @@ function RoomList({
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
 
-  const { possessions } = useOnboardingStore();
+  const { possessions, userProperties, externalProperties } = useOnboardingStore();
   const record = possessions[propertyId];
+  const property = useMemo(
+    () => resolveLegalProperty({ userProperties, externalProperties }, propertyId),
+    [propertyId, userProperties, externalProperties],
+  );
 
   const rooms = useMemo(() => generateRooms(config), [config]);
 
@@ -195,6 +220,27 @@ function RoomList({
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Auto-config banner — shown when the config was inferred from
+            a Negotiate-locked shortlist / user-added property (i.e. the
+            user didn't go through the wizard). Gives them an obvious
+            "ALON figured this out, tap to adjust" affordance. Flips off
+            the moment they save the wizard (taking ownership). */}
+        {config.autoConfigured && property && (
+          <Animated.View entering={FadeIn.duration(260)}>
+            <TouchableOpacity
+              style={styles.autoBanner}
+              onPress={editConfig}
+              activeOpacity={0.8}
+            >
+              <Sparkles size={12} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.autoBannerText} numberOfLines={1}>
+                Built from <Text style={styles.autoBannerBold}>{property.name}</Text> ({config.bhk}) · Tap to adjust
+              </Text>
+              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* Summary card */}
         <Animated.View entering={FadeIn.duration(260)} style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
@@ -350,6 +396,24 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: 'DMSans-Bold', color: Colors.textPrimary },
 
   content: { paddingTop: Spacing.lg },
+
+  // ── Auto-config banner ────────────────────────────────────────────
+  // Slim terra-tinted strip above the summary. Sparkles ("we did this
+  // for you") + property name + BHK + chevron. Tap = edit wizard.
+  autoBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: Spacing.xxl, marginBottom: 10,
+    paddingVertical: 9, paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra100,
+  },
+  autoBannerText: {
+    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  autoBannerBold: {
+    fontFamily: 'DMSans-SemiBold', color: Colors.terra500,
+  },
 
   // ── Summary ───────────────────────────────────────────────────────
   summaryCard: {

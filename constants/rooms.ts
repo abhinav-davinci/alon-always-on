@@ -51,6 +51,12 @@ export interface PropertyConfig {
   };
   /** Optional user overrides: custom names or N/A toggles per room. */
   roomOverrides?: Record<string, { name?: string; applicable?: boolean }>;
+  /** True when this config was auto-inferred from property data
+   *  (Negotiate-locked shortlist / user-added) instead of manually
+   *  built via the wizard. Drives the "built from X" banner on the
+   *  room list. Flips to false the first time the user saves the
+   *  wizard in edit mode (taking ownership of the config). */
+  autoConfigured?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -661,4 +667,56 @@ export function defaultBalconies(count: number, bhk: BHK): BalconyAttachment[] {
 
 export function findingKey(roomId: string, subCategoryId: string, checkItemId: string): string {
   return `${roomId}:${subCategoryId}:${checkItemId}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Inference — when the user arrives on Possession with a property
+// already locked from Negotiate / Deal Closure / Shortlist, we can
+// usually figure out the BHK + type without asking. Skipping the
+// wizard for this path removes a redundant interrogation ("what's
+// your BHK?" when ALON already showed it in earlier stages).
+//
+// Falls back to `null` when the signal isn't strong enough (e.g.
+// external placeholder, Studio flats, unparseable size strings).
+// Callers treat null as "show the wizard as usual."
+// ═══════════════════════════════════════════════════════════════════
+
+export function inferSnagConfig(
+  property: { size?: string; bhk?: string; propertyType?: string },
+): PropertyConfig | null {
+  // BHK: user-added properties carry `bhk` explicitly. Shortlist carries
+  // `size` like "3 BHK · 1,450 sq.ft". Parse from either.
+  const bhkSource = property.bhk ?? property.size ?? '';
+  const bhkMatch = bhkSource.match(/(\d+)\s*BHK/i);
+  if (!bhkMatch) return null;
+  const bhkNum = parseInt(bhkMatch[1], 10);
+  if (!Number.isFinite(bhkNum) || bhkNum < 1) return null;
+  const bhk: BHK =
+    bhkNum <= 1 ? '1BHK'
+    : bhkNum === 2 ? '2BHK'
+    : bhkNum === 3 ? '3BHK'
+    : '4BHK+';
+
+  // Type: user-added properties may set `propertyType` explicitly. For
+  // shortlist it's implicit — default to apartment (covers ~95% of urban
+  // Indian shortlists). User corrects via the Edit banner if wrong.
+  const rawType = property.propertyType?.toLowerCase() ?? '';
+  const type: PropertyType =
+    rawType.includes('row') ? 'row-house'
+    : rawType.includes('pent') ? 'penthouse'
+    : 'apartment';
+
+  return {
+    type,
+    bhk,
+    extras: {
+      study: false,
+      pujaRoom: false,
+      servantRoom: false,
+      utility: false,
+      powderRoom: false,
+      balconies: defaultBalconies(1, bhk),
+    },
+    autoConfigured: true,
+  };
 }
