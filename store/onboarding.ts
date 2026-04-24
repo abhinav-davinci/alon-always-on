@@ -41,10 +41,15 @@ export type SnagStatus = 'unchecked' | 'ok' | 'defect' | 'na';
 export type SnagSeverity = 'critical' | 'major' | 'minor';
 
 export interface SnagFinding {
-  // Composite key across (propertyId, category, checkItemId) — stored
-  // as a flat map so lookups stay O(1) and updates don't clobber
-  // sibling findings.
+  // Composite key across (propertyId, roomId, subCategoryId, checkItemId)
+  // — stored as a flat map so lookups stay O(1) and updates don't clobber
+  // sibling findings. Legacy v1 records (category-first, no rooms) still
+  // carry `category`; v2 records add `roomId` + `subCategoryId`.
   category: SnagCategory;
+  /** v2: the room this finding belongs to (e.g. 'master-bedroom'). */
+  roomId?: string;
+  /** v2: sub-category group within the room (e.g. 'walls', 'plumbing'). */
+  subCategoryId?: string;
   checkItemId: string;
   status: SnagStatus;
   severity?: SnagSeverity;
@@ -72,6 +77,15 @@ export interface PossessionRecord {
   findings: Record<string, SnagFinding>;
   documents: Record<string, PossessionDocStatus>;  // key: PossessionDocKey
   handoverChecklist: Record<string, boolean>;      // key: handover item id
+  /**
+   * Snag-inspection v2 configuration. When present, the snag flow uses
+   * the room-first layout derived from this config. Stored on the
+   * possession record (not the property) because the config describes
+   * the *inspection*, and this keeps it available for any property
+   * source — shortlist, user-added, or external. Canonical type lives
+   * in `constants/rooms.ts`.
+   */
+  snagConfig?: import('../constants/rooms').PropertyConfig;
 }
 
 export interface OnboardingState {
@@ -182,6 +196,26 @@ export interface OnboardingState {
     category: SnagCategory,
     checkItemId: string,
     patch: Partial<Omit<SnagFinding, 'category' | 'checkItemId' | 'updatedAt'>>,
+  ) => void;
+  /**
+   * v2 variant — rooms-first. `roomId` + `subCategoryId` are part of
+   * the composite key, so the same check atom reused across rooms stays
+   * distinct. `category` is derived from the sub-category at the call
+   * site so we keep a single consistent legacy field for the trade-view
+   * export.
+   */
+  updateSnagFindingV2: (
+    propertyId: string,
+    roomId: string,
+    subCategoryId: string,
+    category: SnagCategory,
+    checkItemId: string,
+    patch: Partial<Omit<SnagFinding, 'category' | 'roomId' | 'subCategoryId' | 'checkItemId' | 'updatedAt'>>,
+  ) => void;
+  /** Persist the snag-inspection wizard's answers on the property. */
+  setSnagConfig: (
+    propertyId: string,
+    config: import('../constants/rooms').PropertyConfig,
   ) => void;
   setPossessionDocument: (
     propertyId: string,
@@ -413,6 +447,45 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
             ...existing,
             findings: { ...existing.findings, [key]: next },
           },
+        },
+      };
+    }),
+
+  updateSnagFindingV2: (propertyId, roomId, subCategoryId, category, checkItemId, patch) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const key = `${roomId}:${subCategoryId}:${checkItemId}`;
+      const prev = existing.findings[key];
+      const next: SnagFinding = {
+        category,
+        roomId,
+        subCategoryId,
+        checkItemId,
+        status: prev?.status ?? 'unchecked',
+        severity: prev?.severity,
+        photoCount: prev?.photoCount ?? 0,
+        notes: prev?.notes ?? '',
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            findings: { ...existing.findings, [key]: next },
+          },
+        },
+      };
+    }),
+
+  setSnagConfig: (propertyId, config) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, snagConfig: config },
         },
       };
     }),

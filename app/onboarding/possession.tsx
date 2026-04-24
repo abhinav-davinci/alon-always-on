@@ -40,10 +40,10 @@ import {
 } from '../../utils/legalProperty';
 import { useHaptics } from '../../hooks/useHaptics';
 import {
-  SNAG_CATEGORIES,
   POSSESSION_DOCUMENTS,
   HANDOVER_CHECKLIST,
 } from '../../constants/possession';
+import { generateRooms } from '../../constants/rooms';
 
 // ═══════════════════════════════════════════════════════════════
 // Possession home — standalone checklist experience.
@@ -171,9 +171,31 @@ export default function PossessionScreen() {
 
   // ── Derived counts for the action cards ──
   const defects = countSnagDefects({ possessions }, activeLegalPropertyId);
-  const categoriesChecked = record
-    ? new Set(Object.values(record.findings).map((f) => f.category)).size
-    : 0;
+
+  // Snag progress — v2 counts rooms touched (i.e. rooms where any
+  // check has a non-unchecked status). v1 fallback counts distinct
+  // categories for legacy findings that predate room tagging.
+  const snagConfig = record?.snagConfig;
+  const { snagProgressNumer, snagProgressDenom, snagProgressUnit } = (() => {
+    if (snagConfig) {
+      const rooms = generateRooms(snagConfig);
+      const touched = new Set<string>();
+      if (record) {
+        for (const [k, f] of Object.entries(record.findings)) {
+          if (f.status === 'unchecked') continue;
+          const rid = f.roomId ?? k.split(':')[0];
+          if (rid) touched.add(rid);
+        }
+      }
+      return {
+        snagProgressNumer: Array.from(touched).filter((id) => rooms.some((r) => r.id === id)).length,
+        snagProgressDenom: rooms.length,
+        snagProgressUnit: 'rooms',
+      };
+    }
+    // No config yet — prompt the user to set up.
+    return { snagProgressNumer: 0, snagProgressDenom: 0, snagProgressUnit: 'not started' };
+  })();
 
   const docsReceived = record
     ? Object.values(record.documents).filter((s) => s === 'received').length
@@ -298,7 +320,11 @@ export default function PossessionScreen() {
           <ChecklistRow
             icon={<Search size={18} color={Colors.terra500} strokeWidth={2} />}
             title="Run a snag inspection"
-            progress={`${categoriesChecked} of ${SNAG_CATEGORIES.length} categories checked`}
+            progress={
+              snagProgressDenom === 0
+                ? 'Tell me about your home to start'
+                : `${snagProgressNumer} of ${snagProgressDenom} ${snagProgressUnit} checked`
+            }
             defectCount={defects.total}
             onPress={() => {
               haptics.light();
