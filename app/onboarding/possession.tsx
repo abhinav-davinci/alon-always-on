@@ -197,6 +197,18 @@ export default function PossessionScreen() {
     return { snagProgressNumer: 0, snagProgressDenom: 0, snagProgressUnit: 'not started' };
   })();
 
+  // Last builder-share footnote — surfaces on the snag row so the user
+  // remembers the date they sent the list and can follow up.
+  const lastShareFootnote = (() => {
+    const shares = record?.snagReportShares;
+    if (!shares || shares.length === 0) return null;
+    const latest = shares[shares.length - 1];
+    const formatted = new Date(latest.sharedAt + 'T00:00:00').toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    });
+    return `Shared with builder · ${formatted}`;
+  })();
+
   const docsReceived = record
     ? Object.values(record.documents).filter((s) => s === 'received').length
     : 0;
@@ -326,6 +338,7 @@ export default function PossessionScreen() {
                 : `${snagProgressNumer} of ${snagProgressDenom} ${snagProgressUnit} checked`
             }
             defectCount={defects.total}
+            footnote={lastShareFootnote ?? undefined}
             onPress={() => {
               haptics.light();
               router.push('/onboarding/possession-snag');
@@ -549,17 +562,22 @@ function HandoverDateSheet({
 // One row inside the unified "Your handover checklist" card. Visually
 // lightweight — icon, title, progress line, optional defect badge
 // (count only; severity breakdown lives on the detail screen).
+// Optional `footnote` renders a third subtle line — used for the snag
+// row to surface "Shared with builder · Apr 24" when the user has
+// recorded a share event.
 function ChecklistRow({
   icon,
   title,
   progress,
   defectCount,
+  footnote,
   onPress,
 }: {
   icon: React.ReactNode;
   title: string;
   progress: string;
   defectCount?: number;
+  footnote?: string;
   onPress: () => void;
 }) {
   return (
@@ -578,6 +596,7 @@ function ChecklistRow({
           )}
         </View>
         <Text style={styles.checklistProgress}>{progress}</Text>
+        {footnote && <Text style={styles.checklistFootnote}>{footnote}</Text>}
       </View>
       <ChevronRight size={16} color={Colors.terra500} strokeWidth={2} />
     </TouchableOpacity>
@@ -701,6 +720,13 @@ const styles = StyleSheet.create({
   checklistProgress: {
     fontFamily: 'DMSans-Regular', fontSize: 11,
     color: Colors.textSecondary, marginTop: 2, lineHeight: 16,
+  },
+  // Third line under progress — used for the "Shared with builder ·
+  // date" footnote on the snag row. Terra tone to signal it's a
+  // milestone fact, not a generic metric.
+  checklistFootnote: {
+    fontFamily: 'DMSans-Medium', fontSize: 10, color: Colors.terra500,
+    marginTop: 3, letterSpacing: 0.1,
   },
   defectBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

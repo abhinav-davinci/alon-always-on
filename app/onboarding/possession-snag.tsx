@@ -229,24 +229,31 @@ function RoomList({
           />
         ))}
 
-        {/* Export */}
+        {/* View full report — preview-first language. Entry to the
+            shareable report (grouped by room AND by trade) where the
+            user can also timestamp the share for builder follow-ups.
+            Disabled only when nothing has been reviewed at all — an
+            empty report helps no one. */}
         <Animated.View entering={FadeInDown.delay(80).duration(260)} style={{ marginTop: 20 }}>
           <TouchableOpacity
-            style={[styles.exportBtn, totalDefects === 0 && styles.exportBtnDisabled]}
-            onPress={() => haptics.success()}
-            disabled={totalDefects === 0}
+            style={[styles.exportBtn, totalChecked === 0 && styles.exportBtnDisabled]}
+            onPress={() => {
+              if (totalChecked === 0) return;
+              haptics.light();
+              router.push('/onboarding/possession-snag-report');
+            }}
+            disabled={totalChecked === 0}
             activeOpacity={0.88}
           >
             <FileDown size={15} color={Colors.white} strokeWidth={2} />
             <Text style={styles.exportBtnText}>
-              {totalDefects === 0
-                ? 'Export snag report (PDF)'
-                : `Share ${totalDefects} defect${totalDefects === 1 ? '' : 's'} with builder`}
+              {totalChecked === 0 ? 'Start checking to build your report' : 'View full report'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.exportHint}>
-            Report groups findings by room (your walkthrough) and by trade (what the
-            builder's electrician / plumber / mason each need to fix).
+            {totalDefects === 0
+              ? 'Preview your clean report before sharing with the builder.'
+              : `Preview ${totalDefects} defect${totalDefects === 1 ? '' : 's'} grouped by room and by trade, then share with the builder.`}
           </Text>
         </Animated.View>
       </ScrollView>

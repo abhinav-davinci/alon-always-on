@@ -70,6 +70,23 @@ export type PossessionDocKey =
  * `{category}:{checkItemId}` so we can update individual checks
  * without rebuilding the whole tree.
  */
+/**
+ * A single share event — the user exported the snag report and marked
+ * the date (for builder follow-up tracking). We store an array of these
+ * so the paper trail survives multiple rounds of "emailed builder →
+ * builder silent → emailed again" that's typical in Indian handover
+ * disputes.
+ */
+export interface SnagReportShare {
+  /** ISO date of the share (YYYY-MM-DD). */
+  sharedAt: string;
+  /** Snapshot of defect count at share time — so follow-ups can see
+   *  what was on the table that day even if the user logs more later. */
+  defectCount: number;
+  /** Optional: short note the user can attach (e.g. "after site visit"). */
+  note?: string;
+}
+
 export interface PossessionRecord {
   propertyId: string;
   expectedHandoverDate: string | null;  // ISO date
@@ -86,6 +103,10 @@ export interface PossessionRecord {
    * in `constants/rooms.ts`.
    */
   snagConfig?: import('../constants/rooms').PropertyConfig;
+  /** v2: Builder-share history — each entry is a timestamped "I shared
+   *  the report on date X" record. Appended whenever the user ticks
+   *  "Record today as shared" on the report preview. */
+  snagReportShares?: SnagReportShare[];
 }
 
 export interface OnboardingState {
@@ -217,6 +238,8 @@ export interface OnboardingState {
     propertyId: string,
     config: import('../constants/rooms').PropertyConfig,
   ) => void;
+  /** Append a builder-share event to the property's possession record. */
+  addSnagReportShare: (propertyId: string, share: SnagReportShare) => void;
   setPossessionDocument: (
     propertyId: string,
     docKey: PossessionDocKey,
@@ -486,6 +509,18 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         possessions: {
           ...state.possessions,
           [propertyId]: { ...existing, snagConfig: config },
+        },
+      };
+    }),
+
+  addSnagReportShare: (propertyId, share) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const prior = existing.snagReportShares ?? [];
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, snagReportShares: [...prior, share] },
         },
       };
     }),
