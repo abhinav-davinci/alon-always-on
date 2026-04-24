@@ -19,6 +19,7 @@ import {
   MinusCircle,
   Camera,
   DoorOpen,
+  DoorClosed,
   Sofa,
   ChefHat,
   Wrench,
@@ -26,10 +27,12 @@ import {
   BookOpen,
   User,
   Droplet,
+  Droplets,
   BedDouble,
   Bed,
   ShowerHead,
   Sun,
+  Building2,
 } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -60,6 +63,7 @@ import {
 
 const ROOM_ICONS: Record<string, typeof DoorOpen> = {
   'door-open': DoorOpen,
+  'door-closed': DoorClosed,
   'sofa': Sofa,
   'chef-hat': ChefHat,
   'wrench': Wrench,
@@ -67,10 +71,12 @@ const ROOM_ICONS: Record<string, typeof DoorOpen> = {
   'book-open': BookOpen,
   'user': User,
   'droplet': Droplet,
+  'droplets': Droplets,
   'bed-double': BedDouble,
   'bed': Bed,
   'shower-head': ShowerHead,
   'sun': Sun,
+  'building-2': Building2,
 };
 
 export default function PossessionSnagDetailScreen() {

@@ -185,6 +185,61 @@ const ENTRANCE_DOOR: CheckAtom[] = [
   { id: 'weather-seal', label: 'Weather seal is intact', hint: 'Rubber strip around the frame — should sit firmly.' },
 ];
 
+// ── Common Areas (Apartment + Penthouse) ──
+// Building-level walkthrough the user does after the unit. Parking-
+// allotment mismatch is one of the most common handover grievances, so
+// we make the buyer physically verify their slot before accepting keys.
+
+const COMMON_OPERATIONS: CheckAtom[] = [
+  { id: 'lifts', label: 'Lifts operate smoothly', hint: 'Test every lift. Capacity sticker visible inside the cabin.' },
+  { id: 'staircase-lit', label: 'Staircase is well-lit', hint: 'Emergency lights working — test by switching off the floor light.' },
+  { id: 'fire-safety', label: 'Fire safety equipment present', hint: 'Extinguishers on each floor; check expiry and pressure.' },
+  { id: 'fire-noc', label: 'Fire NOC (buildings > 15m)', hint: 'Mandatory. Ask the builder for a copy for your file.' },
+];
+
+const COMMON_YOUR_SHARE: CheckAtom[] = [
+  { id: 'parking-match', label: 'Parking allotment matches agreement', hint: 'Confirm covered vs open, slot number, and walking distance to your lift.' },
+  { id: 'amenities-ready', label: 'Amenities are functional', hint: 'Pool, gym, clubhouse — walk them, not just the brochure.' },
+  { id: 'oc-displayed', label: 'OC is publicly displayed', hint: 'Usually in the lobby. Missing = serious red flag.' },
+  { id: 'garbage-system', label: 'Garbage chute / collection works', hint: 'Per society rules; confirm your floor has access.' },
+];
+
+// ── Compound & Gate (Row House) ──
+// The FIRST thing you pass walking to a row house. Independent units
+// own their perimeter and gate outright — unlike apartment buyers who
+// share these common amenities.
+
+const COMPOUND_ENTRY: CheckAtom[] = [
+  { id: 'main-gate', label: 'Main gate opens smoothly', hint: 'No forcing, no scraping the ground. Test full swing or slide.' },
+  { id: 'gate-lock', label: 'Gate lock / bolts work', hint: 'Primary lock + any secondary bolts.' },
+  { id: 'intercom-gate', label: 'Gate intercom is installed', hint: 'Test a call from gate to inside the house.' },
+  { id: 'letterbox', label: 'Letterbox installed and secure', hint: 'Accessible from outside, closes without gaps.' },
+];
+
+const COMPOUND_PERIMETER: CheckAtom[] = [
+  { id: 'compound-wall', label: 'Compound wall is intact', hint: 'No cracks, plaster complete, no exposed brick.' },
+  { id: 'perimeter-lighting', label: 'Perimeter lights work', hint: 'Test every switch; confirm every bulb is functional.' },
+  { id: 'boundary-marking', label: 'Boundary clearly marked', hint: 'Matches agreement; no encroachment from neighbours.' },
+];
+
+// ── Overhead Water Tank (Row House) ──
+// Row houses typically have a private overhead tank on the roof.
+// Apartment water supply is building-wide and not the unit owner's
+// concern, so this room is row-house-only.
+
+const TANK_BODY: CheckAtom[] = [
+  { id: 'tank-condition', label: 'Tank is clean, no cracks', hint: 'Peek inside if accessible. Look for algae, cracks, or debris.' },
+  { id: 'tank-capacity', label: 'Capacity matches spec', hint: 'Litres marked on the tank or builder\'s spec sheet.' },
+  { id: 'inlet-outlet', label: 'Inlet & outlet valves work', hint: 'Test shut-off in both directions. No drips at connections.' },
+  { id: 'overflow-pipe', label: 'Overflow pipe is routed correctly', hint: 'Drains away from the roof, not pooling near the slab.' },
+  { id: 'tank-cover', label: 'Tank cover fits, no gaps', hint: 'Debris and bird-proof — a missing cover means contaminated water.' },
+];
+
+const TANK_ACCESS: CheckAtom[] = [
+  { id: 'ladder-safe', label: 'Ladder is firm, no corrosion', hint: 'Strong enough to climb; every rung solid.' },
+  { id: 'roof-access-door', label: 'Roof access door works', hint: 'Lock + hinges smooth; weather seal intact.' },
+];
+
 // ═══════════════════════════════════════════════════════════════════
 // Sub-category definition. A room is a list of sub-categories, and
 // each sub-category is a named group of check atoms. This double-
@@ -242,6 +297,30 @@ const SUB_UTILITY: SubCategoryDef = {
 };
 const SUB_ENTRANCE_DOOR: SubCategoryDef = {
   id: 'main-door', label: 'Main Door', category: 'doors-windows', checks: ENTRANCE_DOOR,
+};
+
+// Common-area sub-cats — mapped to 'common' trade for the builder export.
+const SUB_COMMON_OPERATIONS: SubCategoryDef = {
+  id: 'building-ops', label: 'Building Operations', category: 'common', checks: COMMON_OPERATIONS,
+};
+const SUB_COMMON_YOUR_SHARE: SubCategoryDef = {
+  id: 'your-share', label: 'Your Share', category: 'common', checks: COMMON_YOUR_SHARE,
+};
+
+// Compound sub-cats.
+const SUB_COMPOUND_ENTRY: SubCategoryDef = {
+  id: 'entry', label: 'Gate & Entry', category: 'common', checks: COMPOUND_ENTRY,
+};
+const SUB_COMPOUND_PERIMETER: SubCategoryDef = {
+  id: 'perimeter', label: 'Perimeter', category: 'common', checks: COMPOUND_PERIMETER,
+};
+
+// Tank sub-cats — 'plumbing' trade for builder follow-ups.
+const SUB_TANK_BODY: SubCategoryDef = {
+  id: 'tank-body', label: 'Tank Body', category: 'plumbing', checks: TANK_BODY,
+};
+const SUB_TANK_ACCESS: SubCategoryDef = {
+  id: 'tank-access', label: 'Access', category: 'common', checks: TANK_ACCESS,
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -347,15 +426,22 @@ function powderRoomDef(): RoomDef {
   };
 }
 
-function bedroomRoom(id: string, label: string): RoomDef {
+function bedroomRoom(id: string, label: string, type: PropertyType): RoomDef {
+  const isMaster = id === 'master-bedroom';
+  // Penthouse master bedrooms sit directly under the private terrace.
+  // Ceiling seepage from terrace waterproofing failure shows up here
+  // *first* — flag it explicitly so users don't accept a freshly-painted
+  // ceiling without inspecting for signs of damp.
+  const watchOut = isMaster && type === 'penthouse'
+    ? 'Your master bedroom sits directly under the terrace. If terrace waterproofing fails, the ceiling here gets wet first — run your hand across the whole ceiling and look for stains, bubbled paint, or patches freshly repainted to hide damp. This is the #1 penthouse-specific defect.'
+    : isMaster
+    ? 'Master bedrooms usually have the most promised features (wardrobe, AC, TV point, bedside switches). Check each one against the brochure — don\'t accept missing ones as "coming later."'
+    : 'Secondary bedrooms are where spec gets trimmed silently. Count switches, sockets, and data points against the brochure.';
   return {
     id,
     label,
-    icon: id === 'master-bedroom' ? 'bed-double' : 'bed',
-    watchOut:
-      label.toLowerCase().includes('master')
-        ? 'Master bedrooms usually have the most promised features (wardrobe, AC, TV point, bedside switches). Check each one against the brochure — don\'t accept missing ones as "coming later."'
-        : 'Secondary bedrooms are where spec gets trimmed silently. Count switches, sockets, and data points against the brochure.',
+    icon: isMaster ? 'bed-double' : 'bed',
+    watchOut,
     subCategories: [SUB_WALLS_CEILING, SUB_FLOOR, SUB_DOORS_WINDOWS, SUB_ELECTRICAL_BEDROOM],
   };
 }
@@ -394,6 +480,50 @@ function terraceRoom(): RoomDef {
   };
 }
 
+// ── Common Areas (Apartment + Penthouse) ──
+// Walked *after* the unit. Parking-match is the single biggest source
+// of post-handover grievance, so we front-load that emphasis in the
+// watch-out.
+function commonAreasRoom(): RoomDef {
+  return {
+    id: 'common-areas',
+    label: 'Common Areas',
+    icon: 'building-2',
+    watchOut:
+      'Parking-slot mismatch (covered promised, open delivered) is one of the most common handover disputes. Physically walk to your allotted slot before accepting keys — not just the paperwork. Check lift capacity stickers and fire-safety compliance on every floor you can access.',
+    subCategories: [SUB_COMMON_OPERATIONS, SUB_COMMON_YOUR_SHARE],
+  };
+}
+
+// ── Compound & Gate (Row House only) ──
+// The FIRST room on a row-house walking path — physically the first
+// thing you pass when arriving at the property.
+function compoundGateRoom(): RoomDef {
+  return {
+    id: 'compound-gate',
+    label: 'Compound & Gate',
+    icon: 'door-closed',
+    watchOut:
+      'In apartments the builder owns the gate, compound, and outdoor lights. In a row house, you do — this is the first thing you should inspect. A sloppy gate or unfinished compound wall is a sign the builder rushed the exterior. Demand corrections before accepting keys.',
+    subCategories: [SUB_COMPOUND_ENTRY, SUB_COMPOUND_PERIMETER],
+  };
+}
+
+// ── Overhead Water Tank (Row House only) ──
+// Unique to independent units — apartment water supply is managed by
+// the society. Access is typically via the terrace; we place this
+// room just before the terrace in the walking path.
+function overheadTankRoom(): RoomDef {
+  return {
+    id: 'overhead-tank',
+    label: 'Overhead Water Tank',
+    icon: 'droplets',
+    watchOut:
+      'A missing tank cover or broken overflow pipe is how birds and debris contaminate your water supply. Climb up (or ask the builder\'s plumber to) and verify the tank before it\'s full and in use — fixing a leak in an empty tank is 10× easier than with water inside.',
+    subCategories: [SUB_TANK_BODY, SUB_TANK_ACCESS],
+  };
+}
+
 function balconyLabel(attachment: BalconyAttachment): string {
   switch (attachment) {
     case 'living': return 'Living Balcony';
@@ -415,32 +545,36 @@ export function generateRooms(config: PropertyConfig): RoomDef[] {
   const { bhk, type, extras } = config;
   const balconiesByAttachment = new Set(extras.balconies);
 
-  // 1. Entrance
+  // 0. Compound & Gate — row-house only; physically the first thing you
+  //    pass arriving at the property.
+  if (type === 'row-house') rooms.push(compoundGateRoom());
+
+  // 1. Entrance & Foyer
   rooms.push(entranceRoom());
 
-  // 2. Living & Dining
+  // 2. Living & Dining (+ attached balcony)
   rooms.push(livingDiningRoom());
   if (balconiesByAttachment.has('living')) rooms.push(balconyRoom('living'));
 
-  // 3. Kitchen + utility
+  // 3. Kitchen (+ attached balcony, + utility)
   rooms.push(kitchenRoom());
   if (balconiesByAttachment.has('kitchen')) rooms.push(balconyRoom('kitchen'));
   if (extras.utility) rooms.push(utilityRoom());
 
-  // 4. Special-purpose rooms
+  // 4. Special-purpose rooms (ritual, study)
   if (extras.pujaRoom) rooms.push(pujaRoom());
   if (extras.study) rooms.push(studyRoom());
 
   // 5. Master bedroom + attached bathroom + master balcony
-  rooms.push(bedroomRoom('master-bedroom', 'Master Bedroom'));
+  rooms.push(bedroomRoom('master-bedroom', 'Master Bedroom', type));
   rooms.push(bathroomRoom('master-bathroom', 'Master Bathroom'));
   if (balconiesByAttachment.has('master')) rooms.push(balconyRoom('master'));
 
-  // 6. Additional bedrooms (per BHK)
+  // 6. Additional bedrooms (per BHK) + their attached balconies
   const bedroomCount = bhkBedroomCount(bhk);
   for (let i = 2; i <= bedroomCount; i++) {
     const bedId = `bedroom-${i}`;
-    rooms.push(bedroomRoom(bedId, `Bedroom ${i}`));
+    rooms.push(bedroomRoom(bedId, `Bedroom ${i}`, type));
     const attachment = (`bedroom-${i}` as BalconyAttachment);
     if (balconiesByAttachment.has(attachment)) rooms.push(balconyRoom(attachment));
   }
@@ -462,11 +596,20 @@ export function generateRooms(config: PropertyConfig): RoomDef[] {
   // 8. Powder room (extra half-bath)
   if (extras.powderRoom) rooms.push(powderRoomDef());
 
-  // 9. Servant room (last stop — typically tucked near the utility)
+  // 9. Servant room (typically tucked near the utility)
   if (extras.servantRoom) rooms.push(servantRoom());
 
-  // 10. Terrace — penthouse and row-house only
+  // 10. Overhead water tank — row-house only. Access is typically via
+  //     the roof / terrace, so it sits right before the terrace room.
+  if (type === 'row-house') rooms.push(overheadTankRoom());
+
+  // 11. Terrace — penthouse and row-house only.
   if (type === 'penthouse' || type === 'row-house') rooms.push(terraceRoom());
+
+  // 12. Common Areas — apartment + penthouse (it's still in a multi-
+  //     storey building). Row houses don't have shared lifts / lobbies,
+  //     so this room doesn't apply to them.
+  if (type === 'apartment' || type === 'penthouse') rooms.push(commonAreasRoom());
 
   // Apply per-room overrides (name / N/A). applicable=false rooms stay
   // in the list so the user can see what they disabled; the UI filters
