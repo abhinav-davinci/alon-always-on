@@ -153,8 +153,14 @@ function RoomList({
       'row-house': 'Row House',
       'penthouse': 'Penthouse',
     } as const)[config.type];
-    return `${config.bhk} ${typeLabel} · ${rooms.length} rooms · ${totalChecks} checks`;
-  }, [config, rooms.length, totalChecks]);
+    // Drop the area count from the primary summary line. BHK numbers
+    // refer to bedrooms, so sitting an area count ("11 rooms") next to
+    // "2BHK" creates a cognitive collision ("wait, 2BHK means 2?").
+    // The numbered cards right below implicitly convey the walkthrough
+    // length, so the count here is redundant. Keeping BHK + type
+    // (config anchor) and check count (scope signal) only.
+    return `${config.bhk} ${typeLabel} · ${totalChecks} checks`;
+  }, [config, totalChecks]);
 
   const openRoom = (roomId: string) => {
     haptics.light();

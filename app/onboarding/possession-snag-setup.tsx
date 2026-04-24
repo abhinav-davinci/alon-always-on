@@ -439,7 +439,7 @@ function ExtraToggle({
         <Text style={[styles.extraSublabel, active && styles.extraSublabelActive]}>{sublabel}</Text>
       </View>
       <View style={[styles.checkbox, active && styles.checkboxActive]}>
-        {active && <Check size={12} color={Colors.white} strokeWidth={3} />}
+        {active && <Check size={12} color={Colors.terra500} strokeWidth={3} />}
       </View>
     </TouchableOpacity>
   );
@@ -460,7 +460,7 @@ function StepPreview({ config }: { config: PropertyConfig }) {
         Here's your walkthrough.
       </Animated.Text>
       <Animated.Text entering={FadeInDown.delay(60).duration(280)} style={styles.stepSubtitle}>
-        {rooms.length} rooms · {totalChecks} checks. You'll walk through them in this order.
+        {totalChecks} checks across {rooms.length} areas. You'll walk them in this order.
       </Animated.Text>
 
       <View style={styles.previewCard}>

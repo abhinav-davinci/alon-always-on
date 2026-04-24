@@ -190,7 +190,9 @@ export default function PossessionScreen() {
       return {
         snagProgressNumer: Array.from(touched).filter((id) => rooms.some((r) => r.id === id)).length,
         snagProgressDenom: rooms.length,
-        snagProgressUnit: 'rooms',
+        // "areas" not "rooms" — BHK terminology refers to bedroom count,
+        // so "X of 11 rooms" next to a 2BHK property reads as a mismatch.
+        snagProgressUnit: 'areas',
       };
     }
     // No config yet — prompt the user to set up.
