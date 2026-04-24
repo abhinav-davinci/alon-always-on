@@ -25,6 +25,7 @@ export interface ExternalProperty {
   location: string;       // required — "Area, City"
   price?: string;         // optional display string, e.g. "₹1.35 Cr"
   propertyType?: string;  // optional — "Apartment" | "Villa" | "Plot" | "Office"
+  builderName?: string;   // optional — e.g. "Godrej Properties", "Kumar Properties"
 }
 
 // ─── Possession ────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ import {
   HANDOVER_CHECKLIST,
 } from '../../constants/possession';
 import { generateRooms } from '../../constants/rooms';
+import { RenamePropertySheet } from '../../components/RenamePropertySheet';
 
 // ═══════════════════════════════════════════════════════════════
 // Possession home — standalone checklist experience.
@@ -129,6 +130,7 @@ export default function PossessionScreen() {
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftLocation, setDraftLocation] = useState('');
+  const [draftBuilder, setDraftBuilder] = useState('');
 
   // Date picker state — must live above the early-return below.
   // Rules-of-hooks: hook count must match across renders, so all
@@ -148,6 +150,7 @@ export default function PossessionScreen() {
     haptics.light();
     setDraftName(property.name);
     setDraftLocation(property.location);
+    setDraftBuilder(property.builderName ?? '');
     setRenaming(true);
   };
 
@@ -155,7 +158,8 @@ export default function PossessionScreen() {
     if (!activeLegalPropertyId) return;
     const name = draftName.trim() || 'Your property';
     const location = draftLocation.trim();
-    updateExternalProperty(activeLegalPropertyId, { name, location });
+    const builderName = draftBuilder.trim() || undefined;
+    updateExternalProperty(activeLegalPropertyId, { name, location, builderName });
     haptics.success();
     setRenaming(false);
   };
@@ -379,12 +383,14 @@ export default function PossessionScreen() {
       </ScrollView>
 
       {/* Rename sheet — only reachable when canRename. */}
-      <RenameSheet
+      <RenamePropertySheet
         visible={renaming}
         name={draftName}
         location={draftLocation}
+        builder={draftBuilder}
         onName={setDraftName}
         onLocation={setDraftLocation}
+        onBuilder={setDraftBuilder}
         onSave={saveRename}
         onClose={() => setRenaming(false)}
       />
@@ -403,81 +409,9 @@ export default function PossessionScreen() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Rename sheet — a two-field mini-form for renaming a placeholder
-// possession property. Kept inline (no dependency on the Legal
-// selector) because the action is small and one-purpose.
-// ═══════════════════════════════════════════════════════════════
-
-function RenameSheet({
-  visible, name, location, onName, onLocation, onSave, onClose,
-}: {
-  visible: boolean;
-  name: string;
-  location: string;
-  onName: (v: string) => void;
-  onLocation: (v: string) => void;
-  onSave: () => void;
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={renameStyles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[renameStyles.panel, { paddingBottom: insets.bottom + 16 }]}>
-            <View style={renameStyles.handle} />
-            <View style={renameStyles.headerRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={renameStyles.title}>Name this property</Text>
-                <Text style={renameStyles.subtitle}>
-                  So your snag notes, documents, and checklist all save against the right place.
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} style={renameStyles.closeBtn} activeOpacity={0.7}>
-                <X size={18} color={Colors.textSecondary} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={renameStyles.body}>
-              <Text style={renameStyles.fieldLabel}>Project name</Text>
-              <TextInput
-                style={renameStyles.input}
-                placeholder="e.g. Kumar Pebble Bay"
-                placeholderTextColor={Colors.textTertiary}
-                value={name}
-                onChangeText={onName}
-                autoCapitalize="words"
-                returnKeyType="next"
-              />
-
-              <Text style={[renameStyles.fieldLabel, { marginTop: 12 }]}>Location</Text>
-              <TextInput
-                style={renameStyles.input}
-                placeholder="e.g. Area, City"
-                placeholderTextColor={Colors.textTertiary}
-                value={location}
-                onChangeText={onLocation}
-                autoCapitalize="words"
-                returnKeyType="done"
-                onSubmitEditing={onSave}
-              />
-
-              <TouchableOpacity style={renameStyles.saveBtn} onPress={onSave} activeOpacity={0.88}>
-                <Text style={renameStyles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
 // Handover-date sheet — bottom sheet wrapping the native date
-// picker. Same panel styling as RenameSheet and the Legal selector
-// so all sheets feel like one family.
+// picker. Same panel styling as RenamePropertySheet and the Legal
+// selector so all sheets feel like one family.
 // ═══════════════════════════════════════════════════════════════
 
 function HandoverDateSheet({
@@ -754,65 +688,6 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.terra200,
     alignItems: 'center', justifyContent: 'center',
-  },
-});
-
-// ─── Rename sheet styles ────────────────────────────────────────────
-
-const renameStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(13,31,74,0.4)',
-    justifyContent: 'flex-end',
-  },
-  panel: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingTop: 8,
-    shadowColor: '#0D1F4A',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08, shadowRadius: 20,
-    elevation: 12,
-  },
-  handle: {
-    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
-    backgroundColor: Colors.warm200, marginBottom: 10,
-  },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: Spacing.xxl, gap: 12, paddingBottom: 4,
-  },
-  title: {
-    fontFamily: 'DMSerifDisplay', fontSize: 20, color: Colors.textPrimary, lineHeight: 24,
-  },
-  subtitle: {
-    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
-    marginTop: 4, lineHeight: 17,
-  },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.warm100,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 2,
-  },
-  body: {
-    paddingHorizontal: Spacing.xxl, paddingTop: 14,
-  },
-  fieldLabel: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.textSecondary,
-    letterSpacing: 0.4, marginBottom: 6,
-  },
-  input: {
-    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.warm200, backgroundColor: Colors.warm50,
-    fontFamily: 'DMSans-Regular', fontSize: 14, color: Colors.textPrimary,
-  },
-  saveBtn: {
-    marginTop: 18, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: Colors.terra500, alignItems: 'center',
-  },
-  saveBtnText: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
   },
 });
 

@@ -12,12 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft,
+  ChevronRight,
   Share2,
   FileText,
   Check,
   AlertTriangle,
   Calendar,
   Info,
+  Sparkles,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -34,6 +36,7 @@ import {
   type RoomDef,
 } from '../../constants/rooms';
 import { resolveLegalProperty } from '../../utils/legalProperty';
+import { RenamePropertySheet } from '../../components/RenamePropertySheet';
 
 // ═══════════════════════════════════════════════════════════════════
 // Snag Report — the "paper trail" preview.
@@ -62,6 +65,7 @@ export default function PossessionSnagReportScreen() {
     userProperties,
     externalProperties,
     addSnagReportShare,
+    updateExternalProperty,
   } = useOnboardingStore();
 
   const record = activeLegalPropertyId ? possessions[activeLegalPropertyId] : undefined;
@@ -76,6 +80,36 @@ export default function PossessionSnagReportScreen() {
   // built around. They can untick explicitly if just previewing.
   const [recordDate, setRecordDate] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+
+  // Inline "complete your property details" flow — lets the user add
+  // name / location / builder without navigating away from the report
+  // preview. Only meaningful for external properties (shortlist / user
+  // records are authoritative and not editable here).
+  const canEditProperty = property?.source === 'external';
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftLocation, setDraftLocation] = useState('');
+  const [draftBuilder, setDraftBuilder] = useState('');
+
+  const openDetailsSheet = () => {
+    if (!property) return;
+    haptics.light();
+    // Pre-fill with current values (placeholder name collapses to blank
+    // so the user isn't staring at "Your property" in the input).
+    setDraftName(property.name === 'Your property' ? '' : property.name);
+    setDraftLocation(property.location);
+    setDraftBuilder(property.builderName ?? '');
+    setDetailsSheetOpen(true);
+  };
+  const saveDetails = () => {
+    if (!activeLegalPropertyId) return;
+    const name = draftName.trim() || 'Your property';
+    const location = draftLocation.trim();
+    const builderName = draftBuilder.trim() || undefined;
+    updateExternalProperty(activeLegalPropertyId, { name, location, builderName });
+    haptics.success();
+    setDetailsSheetOpen(false);
+  };
 
   const rooms = useMemo(() => (config ? generateRooms(config) : []), [config]);
 
@@ -186,11 +220,44 @@ export default function PossessionSnagReportScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 160 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Inline nudge — any property detail still at its placeholder
+            or empty? Prompt the user to complete them so the shared
+            report reads as an official document. Non-blocking; user
+            can scroll past. */}
+        {canEditProperty && needsDetails(property) && (
+          <Animated.View
+            entering={FadeInDown.duration(260)}
+            style={styles.nudgeCard}
+          >
+            <View style={styles.nudgeIcon}>
+              <Sparkles size={14} color={Colors.terra500} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nudgeTitle}>Make this report official</Text>
+              <Text style={styles.nudgeBody}>
+                Add your project name, location, and builder — it'll appear on
+                the report you share with the builder.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.nudgeBtn}
+              onPress={openDetailsSheet}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.nudgeBtnText}>Complete</Text>
+              <ChevronRight size={14} color={Colors.white} strokeWidth={2.2} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* ── Paper-like report body ───────────────────────────────── */}
         <Animated.View entering={FadeIn.duration(280)} style={styles.paper}>
           {/* Report header */}
           <Text style={styles.paperEyebrow}>SNAG REPORT</Text>
           <Text style={styles.paperTitle}>{property.name}</Text>
+          {property.builderName && (
+            <Text style={styles.paperByline}>by {property.builderName}</Text>
+          )}
           {(property.location || property.price) && (
             <Text style={styles.paperMeta}>
               {property.location}
@@ -326,6 +393,20 @@ export default function PossessionSnagReportScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Details sheet — reachable from the nudge card. Mirrors the
+          one on Possession home so the pattern is consistent. */}
+      <RenamePropertySheet
+        visible={detailsSheetOpen}
+        name={draftName}
+        location={draftLocation}
+        builder={draftBuilder}
+        onName={setDraftName}
+        onLocation={setDraftLocation}
+        onBuilder={setDraftBuilder}
+        onSave={saveDetails}
+        onClose={() => setDetailsSheetOpen(false)}
+      />
     </View>
   );
 }
@@ -472,6 +553,21 @@ const SEVERITY_COLORS: Record<SnagSeverity, string> = {
   minor: '#8B7355',
 };
 
+/** True when any user-facing property detail is at its placeholder or
+ *  empty. Used to decide whether to show the "Make this report official"
+ *  nudge card at the top of the preview. */
+function needsDetails(
+  p: { name: string; location: string; builderName?: string },
+): boolean {
+  return (
+    p.name === 'Your property'
+    || p.name.trim() === ''
+    || p.location.trim() === ''
+    || !p.builderName
+    || p.builderName.trim() === ''
+  );
+}
+
 function humanize(id: string): string {
   return id
     .split('-')
@@ -505,7 +601,7 @@ function buildReportText({
   severityCounts,
   generatedAt,
 }: {
-  property: { name: string; location: string; price?: string };
+  property: { name: string; location: string; price?: string; builderName?: string };
   config: PropertyConfig;
   rooms: RoomDef[];
   byRoom: Map<string, SnagFinding[]>;
@@ -516,6 +612,7 @@ function buildReportText({
 }): string {
   const lines: string[] = [];
   lines.push(`SNAG REPORT — ${property.name}`);
+  if (property.builderName) lines.push(`by ${property.builderName}`);
   if (property.location) lines.push(property.location);
   lines.push(`Generated ${generatedAt}`);
   lines.push('');
@@ -592,6 +689,36 @@ const styles = StyleSheet.create({
 
   content: { paddingTop: Spacing.lg, paddingHorizontal: Spacing.xxl },
 
+  // ── Nudge card — "Make this report official" ───────────────────────
+  // Appears above the paper when property details are still at their
+  // placeholder values (name = "Your property" / empty location /
+  // missing builder). Dismissed implicitly by completing the details.
+  nudgeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 12, marginBottom: 12, borderRadius: 12,
+    backgroundColor: Colors.cream, borderWidth: 1, borderColor: Colors.warm200,
+  },
+  nudgeIcon: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: Colors.terra50,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  nudgeTitle: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.textPrimary,
+  },
+  nudgeBody: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary,
+    marginTop: 2, lineHeight: 15,
+  },
+  nudgeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+    backgroundColor: Colors.terra500,
+  },
+  nudgeBtnText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.white,
+  },
+
   // ── Paper (the "PDF preview") ──────────────────────────────────────
   paper: {
     backgroundColor: Colors.white,
@@ -610,6 +737,12 @@ const styles = StyleSheet.create({
   paperTitle: {
     fontFamily: 'DMSerifDisplay', fontSize: 22, color: Colors.textPrimary,
     lineHeight: 26, marginTop: 6,
+  },
+  // "by {Builder}" line under the property name — classic document
+  // attribution. Italic + muted so it reads as a byline, not a title.
+  paperByline: {
+    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
+    marginTop: 2, fontStyle: 'italic',
   },
   paperMeta: {
     fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
