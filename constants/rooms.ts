@@ -39,6 +39,12 @@ export type BalconyAttachment =
 export interface PropertyConfig {
   type: PropertyType;
   bhk: BHK;
+  /** Total bathrooms in the flat — master attached + commons. The
+   *  wizard seeds this from the BHK's typical count (1/2/3/4) but
+   *  lets the user adjust because real Indian layouts vary (some
+   *  3BHKs have 2 bathrooms, some 4BHKs have 5). When undefined we
+   *  fall back to the BHK default in {generateRooms}. */
+  bathroomCount?: number;
   extras: {
     study: boolean;
     pujaRoom: boolean;
@@ -585,14 +591,16 @@ export function generateRooms(config: PropertyConfig): RoomDef[] {
     if (balconiesByAttachment.has(attachment)) rooms.push(balconyRoom(attachment));
   }
 
-  // 7. Common bathroom(s). Auto-generate sensibly per BHK, user can
-  //    remove via roomOverrides.applicable=false if the builder's layout
-  //    is different. Typical Indian-builder layouts:
-  //      1BHK → master-bathroom only (1 total)
-  //      2BHK → master + 1 common (2 total)
-  //      3BHK → master + 2 common (3 total)
-  //      4BHK → master + 3 common (4 total)
-  const commonCount = Math.max(0, bedroomCount - 1);
+  // 7. Common bathroom(s). The total bathroom count is user-controlled
+  //    via the wizard (config.bathroomCount); when missing we fall back
+  //    to the BHK default. Master-bathroom is always 1; remaining are
+  //    generated as common bathrooms.
+  //      1BHK default → 1 total (master only)
+  //      2BHK default → 2 total (master + 1 common)
+  //      3BHK default → 3 total (master + 2 common)
+  //      4BHK default → 4 total (master + 3 common)
+  const totalBathrooms = config.bathroomCount ?? defaultBathroomCount(bhk);
+  const commonCount = Math.max(0, totalBathrooms - 1);
   for (let i = 1; i <= commonCount; i++) {
     const id = commonCount === 1 ? 'common-bathroom' : `common-bathroom-${i}`;
     const label = commonCount === 1 ? 'Common Bathroom' : `Common Bathroom ${i}`;
@@ -628,6 +636,17 @@ export function generateRooms(config: PropertyConfig): RoomDef[] {
 }
 
 function bhkBedroomCount(bhk: BHK): number {
+  switch (bhk) {
+    case '1BHK': return 1;
+    case '2BHK': return 2;
+    case '3BHK': return 3;
+    case '4BHK+': return 4;
+  }
+}
+
+/** Typical bathroom count per BHK in Indian builder layouts. The
+ *  wizard seeds the bathroom stepper from this; user can override. */
+export function defaultBathroomCount(bhk: BHK): number {
   switch (bhk) {
     case '1BHK': return 1;
     case '2BHK': return 2;
@@ -709,6 +728,7 @@ export function inferSnagConfig(
   return {
     type,
     bhk,
+    bathroomCount: defaultBathroomCount(bhk),
     extras: {
       study: false,
       pujaRoom: false,

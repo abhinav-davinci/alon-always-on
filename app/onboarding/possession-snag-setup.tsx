@@ -32,6 +32,7 @@ import { useHaptics } from '../../hooks/useHaptics';
 import {
   generateRooms,
   defaultBalconies,
+  defaultBathroomCount,
   totalChecksForConfig,
   type PropertyConfig,
   type PropertyType,
@@ -72,6 +73,18 @@ export default function PossessionSnagSetupScreen() {
   const [step, setStep] = useState(0);
   const [type, setType] = useState<PropertyType | null>(existing?.type ?? null);
   const [bhk, setBhk] = useState<BHK | null>(existing?.bhk ?? null);
+  // Bathroom count: hydrate from saved config; otherwise lazily seed
+  // from the BHK default the first time a BHK is picked (handled in
+  // handleSetBhk below).
+  const [bathroomCount, setBathroomCount] = useState<number>(
+    existing?.bathroomCount ?? (existing?.bhk ? defaultBathroomCount(existing.bhk) : 2),
+  );
+  // Track whether the user has manually adjusted bathrooms — once they
+  // do, switching BHK won't override their choice. If they haven't,
+  // changing BHK re-seeds bathrooms to the new BHK's typical count.
+  const [bathroomsTouched, setBathroomsTouched] = useState<boolean>(
+    existing?.bathroomCount !== undefined,
+  );
   const [balconyCount, setBalconyCount] = useState<number>(
     existing ? existing.extras.balconies.length : 1,
   );
@@ -83,6 +96,17 @@ export default function PossessionSnagSetupScreen() {
     powderRoom: existing?.extras.powderRoom ?? false,
   });
 
+  // BHK setter that re-seeds bathrooms when the user hasn't manually
+  // touched the stepper — feels predictive without overwriting choice.
+  const handleSetBhk = (next: BHK) => {
+    setBhk(next);
+    if (!bathroomsTouched) setBathroomCount(defaultBathroomCount(next));
+  };
+  const handleSetBathroomCount = (n: number) => {
+    setBathroomCount(n);
+    setBathroomsTouched(true);
+  };
+
   // Build the draft config for preview + save. `balconies` is derived
   // from `balconyCount` + current `bhk` to keep the wizard minimal —
   // user can re-attach balconies semantically later (v2 feature).
@@ -91,12 +115,13 @@ export default function PossessionSnagSetupScreen() {
     return {
       type,
       bhk,
+      bathroomCount,
       extras: {
         ...extras,
         balconies: defaultBalconies(balconyCount, bhk),
       },
     };
-  }, [type, bhk, extras, balconyCount]);
+  }, [type, bhk, bathroomCount, extras, balconyCount]);
 
   const canAdvance = (() => {
     if (step === 0) return type !== null;
@@ -156,7 +181,12 @@ export default function PossessionSnagSetupScreen() {
           <StepType value={type} onChange={setType} />
         )}
         {step === 1 && (
-          <StepBHK value={bhk} onChange={setBhk} />
+          <StepBHK
+            value={bhk}
+            onChange={handleSetBhk}
+            bathroomCount={bathroomCount}
+            onBathroomCount={handleSetBathroomCount}
+          />
         )}
         {step === 2 && (
           <StepExtras
@@ -279,15 +309,24 @@ function TypeCard({
 function StepBHK({
   value,
   onChange,
+  bathroomCount,
+  onBathroomCount,
 }: {
   value: BHK | null;
   onChange: (v: BHK) => void;
+  bathroomCount: number;
+  onBathroomCount: (n: number) => void;
 }) {
+  // BHK literally means Bedroom-Hall-Kitchen. The subtitle now spells
+  // out hall + kitchen so the copy is honest to the acronym; bathroom
+  // count moves to a dedicated stepper below the cards (since real
+  // Indian layouts vary — some 3BHKs have 2 bathrooms, some 4BHKs
+  // have 5). User picks BHK, default seeds the stepper, can adjust.
   const opts: { value: BHK; desc: string }[] = [
-    { value: '1BHK', desc: '1 bedroom · 1 bathroom' },
-    { value: '2BHK', desc: '2 bedrooms · 2 bathrooms' },
-    { value: '3BHK', desc: '3 bedrooms · 3 bathrooms' },
-    { value: '4BHK+', desc: '4+ bedrooms · 4+ bathrooms' },
+    { value: '1BHK', desc: '1 bedroom · hall · kitchen' },
+    { value: '2BHK', desc: '2 bedrooms · hall · kitchen' },
+    { value: '3BHK', desc: '3 bedrooms · hall · kitchen' },
+    { value: '4BHK+', desc: '4+ bedrooms · hall · kitchen' },
   ];
   return (
     <View>
@@ -321,6 +360,42 @@ function StepBHK({
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Bathroom stepper — appears once a BHK is picked. Defaults to
+          the BHK's typical bathroom count; user adjusts up or down to
+          match their actual layout. */}
+      {value && (
+        <Animated.View entering={FadeInDown.duration(220)} style={[styles.stepper, { marginTop: 16 }]}>
+          <View style={styles.stepperIcon}>
+            <Droplet size={16} color={Colors.terra500} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.stepperLabel}>Bathrooms</Text>
+            <Text style={styles.stepperSubtle}>
+              {bathroomCount} bathroom{bathroomCount === 1 ? '' : 's'}
+              {' · '}
+              <Text style={{ fontStyle: 'italic' }}>typical for {value}</Text>
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.stepBtn, bathroomCount <= 1 && styles.stepBtnDisabled]}
+            onPress={() => bathroomCount > 1 && onBathroomCount(bathroomCount - 1)}
+            disabled={bathroomCount <= 1}
+            activeOpacity={0.7}
+          >
+            <Minus size={14} color={bathroomCount <= 1 ? Colors.warm300 : Colors.terra500} strokeWidth={2.2} />
+          </TouchableOpacity>
+          <Text style={styles.stepperValue}>{bathroomCount}</Text>
+          <TouchableOpacity
+            style={[styles.stepBtn, bathroomCount >= 6 && styles.stepBtnDisabled]}
+            onPress={() => bathroomCount < 6 && onBathroomCount(bathroomCount + 1)}
+            disabled={bathroomCount >= 6}
+            activeOpacity={0.7}
+          >
+            <Plus size={14} color={bathroomCount >= 6 ? Colors.warm300 : Colors.terra500} strokeWidth={2.2} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
     </View>
   );
 }
