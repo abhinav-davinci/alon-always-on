@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
 
   // ── Sections ──────────────────────────────────────────────────────
   sectionHeader: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.terra500,
+    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.terra600,
     letterSpacing: 0.9, marginBottom: 12,
   },
   section: { marginBottom: 18 },
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6,
   },
   historyTitle: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.terra500, letterSpacing: 0.9,
+    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.terra600, letterSpacing: 0.9,
   },
   historyRow: {
     fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textPrimary, marginTop: 4,

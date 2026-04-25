@@ -601,8 +601,8 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.textTertiary,
-    letterSpacing: 0.8, marginTop: 20, marginBottom: 10,
+    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.terra600,
+    letterSpacing: 0.9, marginTop: 20, marginBottom: 10,
   },
 
   // ── Type cards (Step 1) ───────────────────────────────────────────

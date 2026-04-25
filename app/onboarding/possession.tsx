@@ -632,8 +632,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.warm200,
   },
   checklistTitle: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.textTertiary,
-    letterSpacing: 0.6, textTransform: 'uppercase',
+    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra600,
+    letterSpacing: 0.9, textTransform: 'uppercase',
     marginTop: 10, marginBottom: 4, marginHorizontal: 2,
   },
   checklistRow: {

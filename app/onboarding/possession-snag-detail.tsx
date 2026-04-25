@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
 
   subCatBlock: { marginTop: 20 },
   subCatLabel: {
-    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
-    letterSpacing: 0.8, marginHorizontal: Spacing.xxl, marginBottom: 8,
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.terra600,
+    letterSpacing: 0.9, marginHorizontal: Spacing.xxl, marginBottom: 8,
   },
   subCatCard: {
     marginHorizontal: Spacing.xxl,

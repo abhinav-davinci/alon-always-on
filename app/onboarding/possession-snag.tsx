@@ -448,8 +448,8 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
-    letterSpacing: 0.8, marginHorizontal: Spacing.xxl, marginTop: 20, marginBottom: 10,
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.terra600,
+    letterSpacing: 0.9, marginHorizontal: Spacing.xxl, marginTop: 20, marginBottom: 10,
   },
 
   // ── Room cards ────────────────────────────────────────────────────
