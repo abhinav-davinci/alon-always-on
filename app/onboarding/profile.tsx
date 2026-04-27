@@ -123,17 +123,15 @@ export default function ProfileScreen() {
   const [sheetField, setSheetFieldRaw] = useState<string | null>(null);
   const [tempLocations, setTempLocations] = useState<string[]>(store.locations);
   const [tempBudget, setTempBudget] = useState(store.budget);
-  const [tempNeedsLoan, setTempNeedsLoan] = useState(store.needsLoan);
 
   // Sync temp state from store when opening a sheet
   const setSheetField = useCallback((field: string | null) => {
     if (field) {
       setTempLocations(store.locations);
       setTempBudget(store.budget);
-      setTempNeedsLoan(store.needsLoan);
     }
     setSheetFieldRaw(field);
-  }, [store.locations, store.budget, store.needsLoan]);
+  }, [store.locations, store.budget]);
 
   // Status pill animation
   const dotScale = useSharedValue(1);
@@ -291,12 +289,11 @@ export default function ProfileScreen() {
   // Budget: open bottom sheet
   const handleBudgetDone = useCallback(() => {
     store.setBudget(tempBudget);
-    store.setNeedsLoan(tempNeedsLoan);
     setSheetField(null);
     if (currentStep !== 'prediction') {
       handleUserAnswer('budget', `${formatBudget(tempBudget.min)} – ${formatBudget(tempBudget.max)}`);
     }
-  }, [tempBudget, tempNeedsLoan, store, handleUserAnswer, currentStep]);
+  }, [tempBudget, store, handleUserAnswer, currentStep]);
 
   // Purpose
   const handlePurposeSelect = useCallback((purpose: string) => {
@@ -778,9 +775,6 @@ export default function ProfileScreen() {
               max={tempBudget.max}
               onChangeMin={(min) => setTempBudget(prev => ({ ...prev, min }))}
               onChangeMax={(max) => setTempBudget(prev => ({ ...prev, max }))}
-              showLoanToggle
-              needsLoan={tempNeedsLoan}
-              onToggleLoan={setTempNeedsLoan}
             />
             <View style={{ marginTop: 20 }}>
               <Button title="Done" onPress={handleBudgetDone} variant="primary" />

@@ -128,7 +128,6 @@ export interface OnboardingState {
   userPhone: string;
   isVerified: boolean;
   briefText: string;
-  needsLoan: boolean;
   numberOfPeople: string;
   chargeableArea: string;
   notifyVia: string[];
@@ -180,7 +179,6 @@ export interface OnboardingState {
   setUserPhone: (phone: string) => void;
   setIsVerified: (verified: boolean) => void;
   setBriefText: (text: string) => void;
-  setNeedsLoan: (val: boolean) => void;
   setNumberOfPeople: (val: string) => void;
   setChargeableArea: (val: string) => void;
   toggleNotifyVia: (channel: string) => void;
@@ -273,7 +271,6 @@ const initialState = {
   userPhone: '',
   isVerified: false,
   briefText: '',
-  needsLoan: false,
   numberOfPeople: '5–10',
   chargeableArea: '500–1000 sqft',
   notifyVia: ['push'] as string[],
@@ -329,7 +326,6 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setUserPhone: (userPhone) => set({ userPhone }),
   setIsVerified: (isVerified) => set({ isVerified }),
   setBriefText: (briefText) => set({ briefText }),
-  setNeedsLoan: (needsLoan) => set({ needsLoan }),
   setNumberOfPeople: (numberOfPeople) => set({ numberOfPeople }),
   setChargeableArea: (chargeableArea) => set({ chargeableArea }),
   toggleNotifyVia: (channel) =>

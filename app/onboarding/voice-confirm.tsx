@@ -33,7 +33,6 @@ export default function VoiceConfirmScreen() {
   const [locations, setLocations] = useState(['Baner', 'Balewadi']);
   const [size, setSize] = useState(['3 BHK']);
   const [budget, setBudget] = useState({ min: 12000000, max: 15000000 });
-  const [needsLoan, setNeedsLoan] = useState(false);
   const [purpose, setPurpose] = useState('Family');
   const [timeline, setTimeline] = useState('Ready to move');
 
@@ -49,7 +48,6 @@ export default function VoiceConfirmScreen() {
     store.setLocations(locations);
     store.setPropertySize(size);
     store.setBudget(budget);
-    store.setNeedsLoan(needsLoan);
     store.setPurpose(purpose);
     store.setTimeline(timeline);
     // Route through signup (name + mobile) before activation, matching
@@ -167,9 +165,6 @@ export default function VoiceConfirmScreen() {
           max={budget.max}
           onChangeMin={(min) => setBudget(prev => ({ ...prev, min }))}
           onChangeMax={(max) => setBudget(prev => ({ ...prev, max }))}
-          showLoanToggle
-          needsLoan={needsLoan}
-          onToggleLoan={setNeedsLoan}
         />
         <View style={{ marginTop: 20 }}>
           <Button title="Done" onPress={() => setSheetField(null)} variant="primary" />

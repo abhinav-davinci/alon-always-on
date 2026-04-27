@@ -31,14 +31,12 @@ export default function TweakScreen() {
     budget,
     purpose,
     timeline,
-    needsLoan,
     setLocations,
     setPropertyType,
     setPropertySize,
     setBudget,
     setPurpose,
     setTimeline,
-    setNeedsLoan,
   } = useOnboardingStore();
 
   const insets = useSafeAreaInsets();
@@ -107,9 +105,6 @@ export default function TweakScreen() {
           <BudgetSlider
             min={budget.min}
             max={budget.max}
-            showLoanToggle
-            needsLoan={needsLoan}
-            onToggleLoan={setNeedsLoan}
             onChangeMin={(min) => setBudget({ ...budget, min })}
             onChangeMax={(max) => setBudget({ ...budget, max })}
           />

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   PanResponder,
-  TouchableOpacity,
   LayoutChangeEvent,
 } from 'react-native';
 import { Colors, Typography, Spacing, Radius } from '../constants/theme';
@@ -15,9 +14,6 @@ interface BudgetSliderProps {
   max: number;
   onChangeMin: (value: number) => void;
   onChangeMax: (value: number) => void;
-  showLoanToggle?: boolean;
-  needsLoan?: boolean;
-  onToggleLoan?: (val: boolean) => void;
 }
 
 const ABSOLUTE_MIN = 2000000; // 20L
@@ -55,9 +51,6 @@ export default function BudgetSlider({
   max,
   onChangeMin,
   onChangeMax,
-  showLoanToggle = false,
-  needsLoan = false,
-  onToggleLoan,
 }: BudgetSliderProps) {
   const [sliderWidth, setSliderWidth] = useState(280);
   const [activeThumb, setActiveThumb] = useState<'min' | 'max' | null>(null);
@@ -163,25 +156,6 @@ export default function BudgetSlider({
 
       {/* Context hint */}
       <Text style={styles.hint}>{hint}</Text>
-
-      {/* Loan toggle */}
-      {showLoanToggle && (
-        <TouchableOpacity
-          style={styles.loanRow}
-          onPress={() => onToggleLoan?.(!needsLoan)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.toggle, needsLoan && styles.toggleOn]}>
-            <View
-              style={[styles.toggleKnob, needsLoan && styles.toggleKnobOn]}
-            />
-          </View>
-          <Text style={styles.loanText}>
-            <Text style={styles.loanTextBold}>I'll need a home loan</Text>
-            {' '}— ALON factors eligibility into shortlisting
-          </Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -269,45 +243,5 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontStyle: 'italic',
     marginTop: Spacing.sm,
-  },
-  loanRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.gray50,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: Spacing.lg,
-  },
-  toggle: {
-    width: 36,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.gray200,
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleOn: {
-    backgroundColor: Colors.terra500,
-  },
-  toggleKnob: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.white,
-  },
-  toggleKnobOn: {
-    alignSelf: 'flex-end',
-  },
-  loanText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: 'DMSans-Regular',
-    color: Colors.textSecondary,
-    lineHeight: 17,
-  },
-  loanTextBold: {
-    fontFamily: 'DMSans-Medium',
-    color: Colors.textPrimary,
   },
 });
