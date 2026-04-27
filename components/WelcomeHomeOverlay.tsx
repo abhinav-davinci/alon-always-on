@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Share,
   Dimensions,
 } from 'react-native';
+import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -37,6 +37,10 @@ import { useHaptics } from '../hooks/useHaptics';
  */
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+// Halo size — generous so the gradient extends beyond ALON's body
+// (120px) and dissolves smoothly into the navy bg.
+const HALO_SIZE = 280;
 
 // Confetti — side-cannon model. Particles launch from the bottom-left
 // and bottom-right corners, arc upward toward the centre, peak, then
@@ -70,39 +74,50 @@ interface CannonParticle {
 
 // Cannon origins sit just off-screen at the bottom corners so the
 // particles "emerge" from outside the view, not from visible dots.
-const CANNON_LEFT = { x: -20, y: SCREEN_H * 0.85 };
-const CANNON_RIGHT = { x: SCREEN_W + 20, y: SCREEN_H * 0.85 };
+const CANNON_LEFT = { x: -10, y: SCREEN_H * 0.95 };
+const CANNON_RIGHT = { x: SCREEN_W + 10, y: SCREEN_H * 0.95 };
 
-function makeParticle(side: 'left' | 'right', wave: 0 | 1, i: number): CannonParticle {
+// Wave timing — three pulses give the celebration a narrative arc:
+// big initial blast, sustain, fade.
+const WAVE_DELAYS = [0, 900, 1900] as const;
+
+function makeParticle(side: 'left' | 'right', wave: 0 | 1 | 2): CannonParticle {
   const origin = side === 'left' ? CANNON_LEFT : CANNON_RIGHT;
-  // Each particle aims for a peak somewhere in the upper-mid screen,
-  // crossing toward the center horizontally. Random spread per particle
-  // so the cloud disperses naturally.
-  const peakX = SCREEN_W * (0.30 + Math.random() * 0.40);
-  const peakY = SCREEN_H * (0.10 + Math.random() * 0.35);
-  const endY = SCREEN_H + 60;
-  const endX = peakX + (Math.random() - 0.5) * 320;
-  const baseDelay = wave === 0 ? 0 : 1400;
+  // Real cannons fire LATERALLY, not vertically. Each particle gets
+  // its own trajectory length (some short, some across the whole
+  // screen) and arc height, so the cloud has visible directional
+  // motion all the way across — not a center pile-up.
+  const trajectoryWidth = SCREEN_W * (0.55 + Math.random() * 0.85); // 55%–140%
+  const direction = side === 'left' ? 1 : -1;
+  const peakX = origin.x + direction * trajectoryWidth * (0.45 + Math.random() * 0.15);
+  const peakY = SCREEN_H * (0.08 + Math.random() * 0.40); // upper 8–48%
+  const endX = origin.x + direction * trajectoryWidth;
+  const endY = SCREEN_H + 80;
+  const baseDelay = WAVE_DELAYS[wave];
+  // Tighter blast windows so each wave reads as a discrete pop.
+  const jitter = wave === 0 ? 180 : 240;
   return {
     side,
-    delay: baseDelay + Math.random() * 280,
+    delay: baseDelay + Math.random() * jitter,
     startX: origin.x, startY: origin.y,
     peakX, peakY,
     endX, endY,
     color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
     shape: Math.random() > 0.7 ? 'streamer' : 'dot',
-    size: 5 + Math.random() * 6,
-    rotateFinal: (Math.random() - 0.5) * 1080,
+    size: 7 + Math.random() * 8, // 7–15
+    rotateFinal: (Math.random() - 0.5) * 1440,
   };
 }
 
-// 60 particles in the initial blast (30 per side) + 24 in the sustain
-// wave (12 per side) → 84 total across two beats.
+// 70 in the initial blast (35 per side) + 50 sustain (25 per side)
+// + 30 fade (15 per side) → 150 total across three beats.
 const CONFETTI_PARTICLES: CannonParticle[] = [
-  ...Array.from({ length: 30 }, (_, i) => makeParticle('left', 0, i)),
-  ...Array.from({ length: 30 }, (_, i) => makeParticle('right', 0, i)),
-  ...Array.from({ length: 12 }, (_, i) => makeParticle('left', 1, i)),
-  ...Array.from({ length: 12 }, (_, i) => makeParticle('right', 1, i)),
+  ...Array.from({ length: 35 }, () => makeParticle('left', 0)),
+  ...Array.from({ length: 35 }, () => makeParticle('right', 0)),
+  ...Array.from({ length: 25 }, () => makeParticle('left', 1)),
+  ...Array.from({ length: 25 }, () => makeParticle('right', 1)),
+  ...Array.from({ length: 15 }, () => makeParticle('left', 2)),
+  ...Array.from({ length: 15 }, () => makeParticle('right', 2)),
 ];
 
 export function WelcomeHomeOverlay({
@@ -125,6 +140,11 @@ export function WelcomeHomeOverlay({
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
   const [celebrate, setCelebrate] = useState(false);
+  // ⚠️ TEMPORARY (testing only) — replayKey forces ALON + confetti
+  // to remount so the celebration can be replayed via the "Tell your
+  // family" button without re-completing every checklist. Revert
+  // to native share before merging to main.
+  const [replayKey, setReplayKey] = useState(0);
 
   // Trigger ALON's dance shortly after the modal mounts so it lands
   // after the entrance animation, not on top of it.
@@ -137,21 +157,23 @@ export function WelcomeHomeOverlay({
       return () => clearTimeout(t);
     }
     setCelebrate(false);
+    setReplayKey(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const handleShare = async () => {
+  // Replay celebration — used by the testing-only "Tell your family"
+  // hijack. Bumping replayKey re-mounts the confetti layer + ALON,
+  // which resets the celebrationFired ref inside AlonAvatar so the
+  // dance can play again. Toggling celebrate off→on triggers the
+  // useEffect chain that re-fires haptics + the new sequence.
+  const replayCelebration = () => {
     haptics.light();
-    const builderTail = builderName ? ` by ${builderName}` : '';
-    const locationTail = location ? ` (${location})` : '';
-    try {
-      await Share.share({
-        title: 'I got the keys!',
-        message: `I just got the keys to ${propertyName}${builderTail}${locationTail}. Big day.`,
-      });
-    } catch {
-      // Cancelled or unavailable — non-fatal.
-    }
+    setCelebrate(false);
+    setReplayKey((k) => k + 1);
+    setTimeout(() => {
+      setCelebrate(true);
+      haptics.success();
+    }, 80);
   };
 
   // Structured property line — "by Builder · Location" when we have
@@ -176,17 +198,6 @@ export function WelcomeHomeOverlay({
       statusBarTranslucent
     >
       <View style={styles.backdrop}>
-        {/* Confetti layer — particles cannon from bottom-left and
-            bottom-right, arc up toward centre, then fall. Two waves
-            (initial blast + sustain ~1.4s in). Not interactive. */}
-        {visible && (
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            {CONFETTI_PARTICLES.map((p, i) => (
-              <ConfettiParticle key={i} {...p} />
-            ))}
-          </View>
-        )}
-
         <Animated.View
           entering={FadeInUp.duration(360).springify()}
           style={[styles.panel, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 }]}
@@ -223,13 +234,24 @@ export function WelcomeHomeOverlay({
           )}
 
           <View style={styles.avatarWrap}>
-            {/* Soft gold halo behind ALON — gives the avatar warmth
-                and centres the eye. Stacked translucent circles
-                approximate a radial glow without needing a real
-                radial-gradient library. */}
-            <View pointerEvents="none" style={styles.haloOuter} />
-            <View pointerEvents="none" style={styles.haloInner} />
+            {/* Soft gold halo behind ALON — real radial gradient via
+                react-native-svg so the gold fades cleanly to
+                transparent at the edges, merging with the navy bg
+                instead of showing as hard-edged discs. */}
+            <View pointerEvents="none" style={styles.haloHost}>
+              <Svg width={HALO_SIZE} height={HALO_SIZE}>
+                <Defs>
+                  <RadialGradient id="welcome-halo" cx="50%" cy="50%" r="50%">
+                    <Stop offset="0%" stopColor="#E8A84C" stopOpacity={0.32} />
+                    <Stop offset="50%" stopColor="#E8A84C" stopOpacity={0.10} />
+                    <Stop offset="100%" stopColor="#E8A84C" stopOpacity={0} />
+                  </RadialGradient>
+                </Defs>
+                <Rect width={HALO_SIZE} height={HALO_SIZE} fill="url(#welcome-halo)" />
+              </Svg>
+            </View>
             <AlonAvatar
+              key={`alon-${replayKey}`}
               size={120}
               showRings={true}
               showBlink={true}
@@ -249,9 +271,12 @@ export function WelcomeHomeOverlay({
           </Animated.Text>
 
           <View style={styles.ctaRow}>
+            {/* ⚠️ TEMPORARY: hijacked to replay the celebration so we
+                can iterate without re-completing every checklist.
+                Revert to native share via Share.share before merging. */}
             <TouchableOpacity
               style={styles.shareBtn}
-              onPress={handleShare}
+              onPress={replayCelebration}
               activeOpacity={0.85}
             >
               <Share2 size={14} color={Colors.terra500} strokeWidth={2.2} />
@@ -269,8 +294,69 @@ export function WelcomeHomeOverlay({
             </TouchableOpacity>
           </View>
         </Animated.View>
+
+        {/* Confetti layer — rendered AFTER the panel so particles draw
+            on top of the headline + ALON + tagline + CTAs. Without
+            this z-order the cannons get hidden behind text/avatar
+            and the celebration disappears. Plus a brief cannon-flash
+            at each corner on each wave so the user *sees* the launch.
+            The `key={replayKey}` makes the whole layer re-mount on
+            replay so all particle useEffects fire from scratch. */}
+        {visible && (
+          <View key={`confetti-${replayKey}`} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <CannonFlash side="left" />
+            <CannonFlash side="right" />
+            {CONFETTI_PARTICLES.map((p, i) => (
+              <ConfettiParticle key={i} {...p} />
+            ))}
+          </View>
+        )}
       </View>
     </Modal>
+  );
+}
+
+// ── Cannon flash — a brief radial pop at each corner when a wave
+// fires, so the user perceives the launch direction. Three flashes
+// per corner (one per wave) chained via withDelay.
+function CannonFlash({ side }: { side: 'left' | 'right' }) {
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const triggerOne = (delay: number) => {
+      scale.value = withDelay(delay, withSequence(
+        withTiming(0, { duration: 0 }),
+        withTiming(3.2, { duration: 520, easing: Easing.out(Easing.quad) }),
+      ));
+      opacity.value = withDelay(delay, withSequence(
+        withTiming(0.85, { duration: 60 }),
+        withTiming(0, { duration: 460, easing: Easing.out(Easing.ease) }),
+      ));
+    };
+    WAVE_DELAYS.forEach((d) => triggerOne(d));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const origin = side === 'left' ? CANNON_LEFT : CANNON_RIGHT;
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: origin.x - 50,
+          top: origin.y - 50,
+          width: 100, height: 100, borderRadius: 50,
+          backgroundColor: '#E8A84C',
+        },
+        style,
+      ]}
+    />
   );
 }
 
@@ -387,18 +473,12 @@ const styles = StyleSheet.create({
     marginTop: 32, marginBottom: 32,
     alignItems: 'center', justifyContent: 'center',
   },
-  // Two stacked translucent gold circles behind ALON to fake a soft
-  // radial glow. Outer is wider + dimmer, inner is tighter + warmer.
-  // Both absolutely positioned so they sit *behind* the avatar.
-  haloOuter: {
+  // Wraps the radial-gradient SVG. Absolutely positioned so the SVG
+  // sits behind ALON without affecting the wrap's layout.
+  haloHost: {
     position: 'absolute',
-    width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(232,168,76,0.06)',
-  },
-  haloInner: {
-    position: 'absolute',
-    width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(232,168,76,0.10)',
+    width: HALO_SIZE, height: HALO_SIZE,
+    alignItems: 'center', justifyContent: 'center',
   },
   tagline: {
     fontFamily: 'DMSans-Regular', fontSize: 15,
