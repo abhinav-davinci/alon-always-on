@@ -38,10 +38,11 @@ import { useHaptics } from '../hooks/useHaptics';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Confetti — 28 particles, staggered over ~4s so the fall keeps
-// going through most of the modal viewing time. Mix of brand terra,
-// warm gold, soft green, plus white particles that pop on the navy
-// canvas.
+// Confetti — side-cannon model. Particles launch from the bottom-left
+// and bottom-right corners, arc upward toward the centre, peak, then
+// fall back across the screen. Two waves (initial blast + a sustain
+// volley ~1.4s in) give the moment density without monotony. Mix of
+// dot and streamer shapes for visual variety on the navy canvas.
 const CONFETTI_COLORS = [
   Colors.terra500,
   Colors.terra400,
@@ -49,25 +50,76 @@ const CONFETTI_COLORS = [
   '#22C55E', // soft green
   '#FFFFFF', // crisp white — only works because we're on navy
 ];
-const CONFETTI_PARTICLES = Array.from({ length: 28 }, (_, i) => ({
-  x: (i / 28) * SCREEN_W + (i % 3 === 0 ? 22 : i % 3 === 1 ? -16 : 6),
-  delay: i * 140, // ~4s total stagger
-  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-  size: 5 + (i % 4) * 2,
-  drift: (Math.random() - 0.5) * 60, // small horizontal sway
-}));
+
+type ConfettiShape = 'dot' | 'streamer';
+
+interface CannonParticle {
+  side: 'left' | 'right';
+  delay: number;
+  startX: number;
+  startY: number;
+  peakX: number;
+  peakY: number;
+  endX: number;
+  endY: number;
+  color: string;
+  shape: ConfettiShape;
+  size: number;
+  rotateFinal: number;
+}
+
+// Cannon origins sit just off-screen at the bottom corners so the
+// particles "emerge" from outside the view, not from visible dots.
+const CANNON_LEFT = { x: -20, y: SCREEN_H * 0.85 };
+const CANNON_RIGHT = { x: SCREEN_W + 20, y: SCREEN_H * 0.85 };
+
+function makeParticle(side: 'left' | 'right', wave: 0 | 1, i: number): CannonParticle {
+  const origin = side === 'left' ? CANNON_LEFT : CANNON_RIGHT;
+  // Each particle aims for a peak somewhere in the upper-mid screen,
+  // crossing toward the center horizontally. Random spread per particle
+  // so the cloud disperses naturally.
+  const peakX = SCREEN_W * (0.30 + Math.random() * 0.40);
+  const peakY = SCREEN_H * (0.10 + Math.random() * 0.35);
+  const endY = SCREEN_H + 60;
+  const endX = peakX + (Math.random() - 0.5) * 320;
+  const baseDelay = wave === 0 ? 0 : 1400;
+  return {
+    side,
+    delay: baseDelay + Math.random() * 280,
+    startX: origin.x, startY: origin.y,
+    peakX, peakY,
+    endX, endY,
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    shape: Math.random() > 0.7 ? 'streamer' : 'dot',
+    size: 5 + Math.random() * 6,
+    rotateFinal: (Math.random() - 0.5) * 1080,
+  };
+}
+
+// 60 particles in the initial blast (30 per side) + 24 in the sustain
+// wave (12 per side) → 84 total across two beats.
+const CONFETTI_PARTICLES: CannonParticle[] = [
+  ...Array.from({ length: 30 }, (_, i) => makeParticle('left', 0, i)),
+  ...Array.from({ length: 30 }, (_, i) => makeParticle('right', 0, i)),
+  ...Array.from({ length: 12 }, (_, i) => makeParticle('left', 1, i)),
+  ...Array.from({ length: 12 }, (_, i) => makeParticle('right', 1, i)),
+];
 
 export function WelcomeHomeOverlay({
   visible,
   propertyName,
   builderName,
   location,
+  userName,
   onDismiss,
 }: {
   visible: boolean;
   propertyName: string;
   builderName?: string;
   location?: string;
+  /** Buyer's name from onboarding. When present, the headline reads
+   *  "Welcome home, {firstName}." — anchors the moment as personal. */
+  userName?: string;
   onDismiss: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -111,6 +163,10 @@ export function WelcomeHomeOverlay({
     return parts.join(' · ');
   })();
 
+  // First name only — pull cleanly from "Abhinav Raj" or "Abhinav".
+  const firstName = userName?.trim().split(/\s+/)[0] ?? '';
+  const headline = firstName ? `Welcome home,\n${firstName}.` : 'Welcome home.';
+
   return (
     <Modal
       visible={visible}
@@ -120,8 +176,9 @@ export function WelcomeHomeOverlay({
       statusBarTranslucent
     >
       <View style={styles.backdrop}>
-        {/* Confetti layer — drifts down, fades out. Only visible
-            during the celebration; not interactive. */}
+        {/* Confetti layer — particles cannon from bottom-left and
+            bottom-right, arc up toward centre, then fall. Two waves
+            (initial blast + sustain ~1.4s in). Not interactive. */}
         {visible && (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             {CONFETTI_PARTICLES.map((p, i) => (
@@ -145,7 +202,7 @@ export function WelcomeHomeOverlay({
             entering={FadeInUp.delay(240).duration(420)}
             style={styles.headline}
           >
-            Welcome home.
+            {headline}
           </Animated.Text>
 
           <Animated.Text
@@ -166,6 +223,12 @@ export function WelcomeHomeOverlay({
           )}
 
           <View style={styles.avatarWrap}>
+            {/* Soft gold halo behind ALON — gives the avatar warmth
+                and centres the eye. Stacked translucent circles
+                approximate a radial glow without needing a real
+                radial-gradient library. */}
+            <View pointerEvents="none" style={styles.haloOuter} />
+            <View pointerEvents="none" style={styles.haloInner} />
             <AlonAvatar
               size={120}
               showRings={true}
@@ -211,66 +274,67 @@ export function WelcomeHomeOverlay({
   );
 }
 
-// ── Confetti particle — single dot, drifts down + fades. Falls over
-// ~4.5s with a small horizontal sway and continuous rotation, then
-// fades out at the bottom. Combined with staggered launch delays
-// (up to 4s) the overall confetti experience lasts ~8s.
+// ── Confetti particle — cannon-launched parabolic motion. Each
+// particle has a launch corner, an apex point, and a landing point.
+// Animation: 700ms rise to apex (deceleration), then 1500ms fall to
+// landing (acceleration). Continuous rotation throughout. Streamers
+// (~30%) are taller-than-wide rectangles; the rest are square dots.
 function ConfettiParticle({
-  x,
-  delay,
-  color,
-  size,
-  drift,
-}: {
-  x: number;
-  delay: number;
-  color: string;
-  size: number;
-  drift: number;
-}) {
-  const ty = useSharedValue(-30);
-  const tx = useSharedValue(0);
+  side, delay,
+  startX, startY,
+  peakX, peakY,
+  endX, endY,
+  color, shape, size,
+  rotateFinal,
+}: CannonParticle) {
+  const tx = useSharedValue(startX);
+  const ty = useSharedValue(startY);
   const opacity = useSharedValue(0);
   const rotate = useSharedValue(0);
 
   useEffect(() => {
-    ty.value = withDelay(delay, withTiming(SCREEN_H * 0.95, {
-      duration: 4500, easing: Easing.in(Easing.quad),
-    }));
-    tx.value = withDelay(delay, withTiming(drift, {
-      duration: 4500, easing: Easing.inOut(Easing.sin),
+    // Rise — fast initial velocity, decelerating (ease-out) toward apex.
+    tx.value = withDelay(delay, withSequence(
+      withTiming(peakX, { duration: 700, easing: Easing.out(Easing.quad) }),
+      withTiming(endX,  { duration: 1500, easing: Easing.linear }),
+    ));
+    ty.value = withDelay(delay, withSequence(
+      withTiming(peakY, { duration: 700, easing: Easing.out(Easing.quad) }),
+      withTiming(endY,  { duration: 1500, easing: Easing.in(Easing.quad) }),
+    ));
+    rotate.value = withDelay(delay, withTiming(rotateFinal, {
+      duration: 2200, easing: Easing.linear,
     }));
     opacity.value = withDelay(delay, withSequence(
-      withTiming(1, { duration: 250 }),
-      withTiming(1, { duration: 3500 }),
-      withTiming(0, { duration: 750 }),
+      withTiming(1, { duration: 80 }),
+      withTiming(1, { duration: 1700 }),
+      withTiming(0, { duration: 420 }),
     ));
-    rotate.value = withDelay(delay, withTiming(540 + (Math.random() * 360), {
-      duration: 4500, easing: Easing.linear,
-    }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [
-      { translateY: ty.value },
       { translateX: tx.value },
+      { translateY: ty.value },
       { rotate: `${rotate.value}deg` },
     ],
   }));
+
+  // Streamers are tall thin rectangles that flutter as they tumble.
+  const w = shape === 'streamer' ? Math.max(3, size * 0.4) : size;
+  const h = shape === 'streamer' ? size * 2.2 : size;
 
   return (
     <Animated.View
       style={[
         {
           position: 'absolute',
-          left: x,
-          top: 0,
-          width: size,
-          height: size,
+          left: 0, top: 0,
+          width: w, height: h,
           backgroundColor: color,
-          borderRadius: size / 4,
+          borderRadius: shape === 'streamer' ? 1 : size / 4,
         },
         style,
       ]}
@@ -302,9 +366,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headline: {
-    fontFamily: 'DMSerifDisplay', fontSize: 42,
+    fontFamily: 'DMSerifDisplay', fontSize: 40,
     color: Colors.warm50, textAlign: 'center',
-    lineHeight: 48,
+    lineHeight: 46, letterSpacing: 0.2,
   },
   propertyName: {
     fontFamily: 'DMSans-SemiBold', fontSize: 18,
@@ -321,6 +385,20 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     marginTop: 32, marginBottom: 32,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // Two stacked translucent gold circles behind ALON to fake a soft
+  // radial glow. Outer is wider + dimmer, inner is tighter + warmer.
+  // Both absolutely positioned so they sit *behind* the avatar.
+  haloOuter: {
+    position: 'absolute',
+    width: 280, height: 280, borderRadius: 140,
+    backgroundColor: 'rgba(232,168,76,0.06)',
+  },
+  haloInner: {
+    position: 'absolute',
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(232,168,76,0.10)',
   },
   tagline: {
     fontFamily: 'DMSans-Regular', fontSize: 15,

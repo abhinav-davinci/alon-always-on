@@ -75,6 +75,7 @@ export default function PossessionScreen() {
     activeLegalPropertyId,
     legalAnalyses,
     possessions,
+    userName,
     setPossessionHandoverDate,
     setActiveLegalProperty,
     addExternalProperty,
@@ -479,6 +480,7 @@ export default function PossessionScreen() {
         propertyName={property.name}
         builderName={property.builderName}
         location={property.location}
+        userName={userName}
         onDismiss={() => {
           if (activeLegalPropertyId) markWelcomeHomeSeen(activeLegalPropertyId);
         }}
