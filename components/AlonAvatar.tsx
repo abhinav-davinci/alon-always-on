@@ -63,6 +63,13 @@ interface AlonAvatarProps {
   interactive?: boolean; // explicit override; defaults based on size
   autoGreet?: boolean;   // auto-show intro bubble after entrance animation
   onPress?: () => void;
+  /** When flipped to true, plays a one-shot ~2.5s celebration dance
+   *  (jumps + wave + head tilts) and shows `celebrationText` in the
+   *  speech bubble at peak. Used by the Welcome Home overlay when
+   *  the user finishes every Possession checklist. */
+  celebrate?: boolean;
+  celebrationText?: string;
+  onCelebrationDone?: () => void;
 }
 
 const SPRING_BOUNCY = { damping: 12, stiffness: 180, mass: 0.8 };
@@ -77,6 +84,9 @@ export default function AlonAvatar({
   interactive,
   autoGreet = false,
   onPress,
+  celebrate = false,
+  celebrationText = 'Welcome home.',
+  onCelebrationDone,
 }: AlonAvatarProps) {
   const haptics = useHaptics();
   const isSmall = size < 40;
@@ -114,6 +124,10 @@ export default function AlonAvatar({
   const waveRotate = useSharedValue(0);
   const stretchScaleX = useSharedValue(1);
   const stretchScaleY = useSharedValue(1);
+
+  // --- Celebration animations (one-shot, drives the Welcome Home dance) ---
+  const celebrateTilt = useSharedValue(0);
+  const celebrateBoost = useSharedValue(1);
 
   // --- Speech bubble state ---
   const [bubbleText, setBubbleText] = useState<string | null>(null);
@@ -200,6 +214,56 @@ export default function AlonAvatar({
       return () => clearTimeout(timer);
     }
   }, [autoGreet]);
+
+  // Celebration dance — composed from existing motion atoms.
+  // Plays once when `celebrate` flips to true (~2.5s total).
+  const celebrationFired = useRef(false);
+  useEffect(() => {
+    if (!celebrate || celebrationFired.current) return;
+    celebrationFired.current = true;
+    const startDelay = 200;
+
+    // Beat 1: two excited hops with scale boost
+    jumpY.value = withDelay(startDelay, withSequence(
+      withTiming(-14, { duration: 180, easing: Easing.out(Easing.ease) }),
+      withSpring(0, SPRING_ELASTIC),
+      withTiming(-10, { duration: 160, easing: Easing.out(Easing.ease) }),
+      withSpring(0, SPRING_BOUNCY),
+    ));
+    celebrateBoost.value = withDelay(startDelay, withSequence(
+      withTiming(1.08, { duration: 180, easing: Easing.out(Easing.ease) }),
+      withSpring(1, SPRING_ELASTIC),
+      withTiming(1.06, { duration: 160, easing: Easing.out(Easing.ease) }),
+      withSpring(1, SPRING_BOUNCY),
+    ));
+    // Beat 2: hand wave
+    waveRotate.value = withDelay(startDelay + 700, withSequence(
+      withTiming(14, { duration: 130 }),
+      withTiming(-14, { duration: 130 }),
+      withTiming(10, { duration: 130 }),
+      withTiming(-10, { duration: 130 }),
+      withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) }),
+    ));
+    // Beat 3: head tilts
+    celebrateTilt.value = withDelay(startDelay + 1400, withSequence(
+      withTiming(-8, { duration: 240, easing: Easing.inOut(Easing.ease) }),
+      withTiming(8, { duration: 320, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 240, easing: Easing.inOut(Easing.ease) }),
+    ));
+
+    const bubbleTimer = setTimeout(() => {
+      if (bubbleTimeout.current) clearTimeout(bubbleTimeout.current);
+      setBubbleText(celebrationText);
+      bubbleTimeout.current = setTimeout(() => setBubbleText(null), 1700);
+    }, startDelay + 600);
+
+    const doneTimer = setTimeout(() => onCelebrationDone?.(), startDelay + 2500);
+    return () => {
+      clearTimeout(bubbleTimer);
+      clearTimeout(doneTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [celebrate]);
 
   const getGreeting = useCallback(() => {
     const count = tapCount.current;
@@ -308,8 +372,8 @@ export default function AlonAvatar({
   const wrapTouchStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: jumpY.value },
-      { scaleX: squishScaleX.value * stretchScaleX.value },
-      { scaleY: squishScaleY.value * stretchScaleY.value },
+      { scaleX: squishScaleX.value * stretchScaleX.value * celebrateBoost.value },
+      { scaleY: squishScaleY.value * stretchScaleY.value * celebrateBoost.value },
     ],
   }));
 
@@ -319,6 +383,7 @@ export default function AlonAvatar({
       { translateY: headY.value + headBob.value },
       { translateX: sway.value },
       { scale: headScale.value },
+      { rotate: `${celebrateTilt.value}deg` },
     ],
   }));
 

@@ -34,6 +34,8 @@ export function RenamePropertySheet({
   onBuilder,
   onSave,
   onClose,
+  requireAll = false,
+  reason,
 }: {
   visible: boolean;
   name: string;
@@ -44,8 +46,21 @@ export function RenamePropertySheet({
   onBuilder: (v: string) => void;
   onSave: () => void;
   onClose: () => void;
+  /** When true, all three fields (name, location, builder) are
+   *  required — Save stays disabled until each has non-empty content.
+   *  Used by the snag-inspection gate so every saved snag has
+   *  proper attribution. Default behavior keeps builder optional. */
+  requireAll?: boolean;
+  /** Optional copy explaining *why* the user is being asked. Shown
+   *  inline above the fields when set. */
+  reason?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const allFilled =
+    name.trim().length > 0 &&
+    location.trim().length > 0 &&
+    builder.trim().length > 0;
+  const canSave = requireAll ? allFilled : name.trim().length > 0;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.backdrop}>
@@ -55,9 +70,11 @@ export function RenamePropertySheet({
             <View style={styles.handle} />
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.title}>Name this property</Text>
+                <Text style={styles.title}>
+                  {requireAll ? 'Tell me about your home' : 'Name this property'}
+                </Text>
                 <Text style={styles.subtitle}>
-                  So your snag notes, documents, and checklist all save against the right place.
+                  {reason ?? 'So your snag notes, documents, and checklist all save against the right place.'}
                 </Text>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -89,7 +106,8 @@ export function RenamePropertySheet({
               />
 
               <Text style={[styles.fieldLabel, { marginTop: 12 }]}>
-                Builder  <Text style={styles.fieldLabelMuted}>(optional)</Text>
+                Builder
+                {!requireAll && <Text style={styles.fieldLabelMuted}>  (optional)</Text>}
               </Text>
               <TextInput
                 style={styles.input}
@@ -99,13 +117,20 @@ export function RenamePropertySheet({
                 onChangeText={onBuilder}
                 autoCapitalize="words"
                 returnKeyType="done"
-                onSubmitEditing={onSave}
+                onSubmitEditing={() => { if (canSave) onSave(); }}
               />
               <Text style={styles.fieldHelp}>
-                Adding this makes your snag report official when shared.
+                {requireAll
+                  ? 'Snag notes and the builder report use these details.'
+                  : 'Adding this makes your snag report official when shared.'}
               </Text>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={onSave} activeOpacity={0.88}>
+              <TouchableOpacity
+                style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+                onPress={canSave ? onSave : undefined}
+                disabled={!canSave}
+                activeOpacity={0.88}
+              >
                 <Text style={styles.saveBtnText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -175,6 +200,9 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 18, paddingVertical: 13, borderRadius: 12,
     backgroundColor: Colors.terra500, alignItems: 'center',
+  },
+  saveBtnDisabled: {
+    backgroundColor: Colors.warm300,
   },
   saveBtnText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,

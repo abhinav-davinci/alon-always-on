@@ -108,6 +108,11 @@ export interface PossessionRecord {
    *  the report on date X" record. Appended whenever the user ticks
    *  "Record today as shared" on the report preview. */
   snagReportShares?: SnagReportShare[];
+  /** Has the user seen the "Welcome home" celebration overlay for
+   *  this property? Flips true once the modal is dismissed; used so
+   *  the overlay only fires once per property when all three sections
+   *  hit 100% for the first time. */
+  hasSeenWelcomeHome?: boolean;
 }
 
 export interface OnboardingState {
@@ -241,6 +246,10 @@ export interface OnboardingState {
   ) => void;
   /** Append a builder-share event to the property's possession record. */
   addSnagReportShare: (propertyId: string, share: SnagReportShare) => void;
+  /** Mark the Welcome Home overlay as seen for a property — called
+   *  when the user dismisses the celebration so it doesn't replay on
+   *  every subsequent visit. */
+  markWelcomeHomeSeen: (propertyId: string) => void;
   setPossessionDocument: (
     propertyId: string,
     docKey: PossessionDocKey,
@@ -510,6 +519,17 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
         possessions: {
           ...state.possessions,
           [propertyId]: { ...existing, snagConfig: config },
+        },
+      };
+    }),
+
+  markWelcomeHomeSeen: (propertyId) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, hasSeenWelcomeHome: true },
         },
       };
     }),
