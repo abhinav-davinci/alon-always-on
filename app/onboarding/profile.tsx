@@ -600,8 +600,37 @@ export default function ProfileScreen() {
     }
 
     if (currentStep === 'done') {
+      // Final summary — gives the user a quick review of every choice
+      // they made before kicking off the app journey. Read-only on
+      // purpose: this is the "confirm and commit" moment, not another
+      // edit pass. To change anything, the user can tap back at the
+      // top of the screen and re-run the prediction / template flow.
       return (
-        <Animated.View style={styles.doneCta} entering={FadeInUp.delay(300).duration(250)}>
+        <Animated.View style={styles.doneArea} entering={FadeInUp.delay(200).duration(280)}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryHeader}>YOUR BRIEF</Text>
+            {predictionRows.map((row, index) => {
+              const Icon = ROW_ICONS[row.label] || Target;
+              return (
+                <View
+                  key={row.label}
+                  style={[styles.summaryRow, index > 0 && styles.summaryRowBorder]}
+                >
+                  <Icon size={15} color={Colors.terra500} strokeWidth={1.8} />
+                  <View style={styles.summaryRowContent}>
+                    <Text style={styles.summaryRowValue} numberOfLines={2}>{row.value}</Text>
+                    <Text style={styles.summaryRowLabel}>{row.label}</Text>
+                  </View>
+                </View>
+              );
+            })}
+            {store.briefText.trim().length > 0 && (
+              <View style={styles.summaryBrief}>
+                <Text style={styles.summaryBriefLabel}>ALSO TOLD ME</Text>
+                <Text style={styles.summaryBriefText}>"{store.briefText.trim()}"</Text>
+              </View>
+            )}
+          </View>
           <Button
             title="Let's go →"
             onPress={() => router.push('/onboarding/signup')}
@@ -1014,4 +1043,45 @@ const styles = StyleSheet.create({
 
   // Done CTA
   doneCta: { paddingTop: 4 },
+
+  // ── Done state — read-only summary card before "Let's go" ──
+  // Mirrors the prediction card's structure but without edit
+  // affordances. Header uses terra600 (matching the v2 section-label
+  // hierarchy) so it reads as "structural" not "filler".
+  doneArea: { gap: 12 },
+  summaryCard: {
+    backgroundColor: Colors.white, borderRadius: 16,
+    borderWidth: 1, borderColor: Colors.warm200, overflow: 'hidden',
+  },
+  summaryHeader: {
+    paddingHorizontal: 14, paddingVertical: 9, backgroundColor: Colors.cream,
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.terra600,
+    letterSpacing: 0.9,
+  },
+  summaryRow: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14,
+    paddingVertical: 11, gap: 10,
+  },
+  summaryRowBorder: {
+    borderTopWidth: 1, borderTopColor: Colors.warm100,
+  },
+  summaryRowContent: { flex: 1 },
+  summaryRowValue: {
+    fontSize: 14, fontFamily: 'DMSans-Medium', color: Colors.textPrimary,
+  },
+  summaryRowLabel: {
+    fontSize: 11, fontFamily: 'DMSans-Regular', color: Colors.textTertiary, marginTop: 1,
+  },
+  summaryBrief: {
+    borderTopWidth: 1, borderTopColor: Colors.warm100,
+    paddingHorizontal: 14, paddingTop: 11, paddingBottom: 13,
+  },
+  summaryBriefLabel: {
+    fontSize: 9, fontFamily: 'DMSans-SemiBold', color: Colors.terra600,
+    letterSpacing: 0.9, marginBottom: 4,
+  },
+  summaryBriefText: {
+    fontSize: 13, fontFamily: 'DMSans-Regular', color: Colors.textPrimary,
+    lineHeight: 18, fontStyle: 'italic',
+  },
 });

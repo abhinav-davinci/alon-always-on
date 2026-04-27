@@ -491,20 +491,23 @@ export default function AlonChat({ stage, insetBottom }: AlonChatProps) {
       possessionPrompted.current = true;
       const state = useOnboardingStore.getState();
 
-      // Possession is standalone — no legal / agreement prerequisite.
-      // If the user has an active named property, we greet by name.
-      // Otherwise we describe Possession as the checklist experience
-      // it actually is: usable cold, no setup.
+      // Possession copy frames the stage as the high-stakes payoff
+      // moment it actually is — final money exchanges for keys, and
+      // anything unnoticed at handover becomes the buyer's problem
+      // forever. Lead with that gravity, then list what ALON brings
+      // to the moment (room-first snag walk, builder-ready report
+      // with paper trail, documents vault, handover-day playbook).
       const activeName = state.activeLegalPropertyId
         ? resolveLegalProperty(state, state.activeLegalPropertyId)?.name
         : null;
 
       let text: string;
       if (activeName && activeName.length > 0) {
-        text = `Ready for possession of ${activeName}? I've got a 9-category property snag checklist, a 12-document handover vault, and an 8-item handover-day playbook — open it whenever.`;
+        text =
+          `${activeName} possession — keys for the rest of your money, and whatever you miss today, you live with. I'll walk you room-by-room with a checklist tailored to your home, log every defect with photo + severity, and turn it into a builder-ready report you can share and timestamp for follow-ups. Documents and the handover-day playbook live here too.`;
       } else {
         text =
-          "Possession is mostly a checklist — a property snag inspection, your handover document vault, and the day-of playbook. Open it whenever. No agreement, no setup — I'll ask for your property name inside so I know where to save your notes, that's it.";
+          "Possession day — keys come in exchange for the rest of your money, and whatever you miss today, you live with. I'll walk you room-by-room with a checklist tailored to your home, log every defect with photo + severity, and turn it into a builder-ready report you can share and timestamp for follow-ups. Documents and the handover-day playbook live here too.";
       }
 
       setMessages(prev => [...prev, {

@@ -16,6 +16,18 @@ export interface ResolvedLegalProperty {
   location: string;       // e.g. "Baner, Pune"
   price?: string;         // display string, e.g. "₹1.35 Cr"
   image?: string;
+  /** Optional builder / developer name — used to make shared snag
+   *  reports look official ("Kumar Pebble Bay by Godrej Properties"). */
+  builderName?: string;
+  /** Raw size string from the catalog — e.g. "3 BHK · 1,450 sq.ft".
+   *  Used by the snag inspector to infer BHK without asking the user
+   *  to re-enter what ALON already knows. Shortlist-only. */
+  size?: string;
+  /** Explicit BHK on user-added properties ("2BHK", "3BHK", etc.). */
+  bhk?: string;
+  /** Explicit property type on user-added properties ("Apartment",
+   *  "Villa", "Plot"). Used for snag-config inference. */
+  propertyType?: string;
   source: 'shortlist' | 'user' | 'external';
 }
 
@@ -37,6 +49,7 @@ export function resolveLegalProperty(
       location: liked.area,
       price: liked.price,
       image: liked.image,
+      size: liked.size,
       source: 'shortlist',
     };
   }
@@ -49,6 +62,9 @@ export function resolveLegalProperty(
       location: user.area,
       price: user.price,
       image: user.images?.[0],
+      builderName: user.builderName,
+      bhk: user.bhk,
+      propertyType: user.propertyType,
       source: 'user',
     };
   }
@@ -61,6 +77,7 @@ export function resolveLegalProperty(
       location: ext.location,
       price: ext.price,
       image: undefined,
+      builderName: ext.builderName,
       source: 'external',
     };
   }

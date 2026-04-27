@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,185 +16,302 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
-  Building,
-  LayoutGrid,
-  Paintbrush,
+  Pencil,
   DoorOpen,
-  Zap,
-  Droplet,
+  DoorClosed,
+  Sofa,
   ChefHat,
+  Wrench,
+  Sparkles,
+  BookOpen,
+  User,
+  Droplet,
+  Droplets,
+  BedDouble,
+  Bed,
+  ShowerHead,
   Sun,
   Building2,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
-import {
-  useOnboardingStore,
-  type SnagCategory,
-  type SnagFinding,
-} from '../../store/onboarding';
+import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
-import { SNAG_CATEGORIES, SNAG_CATEGORY_MAP } from '../../constants/possession';
+import {
+  generateRooms,
+  inferSnagConfig,
+  type RoomDef,
+  type PropertyConfig,
+} from '../../constants/rooms';
+import { resolveLegalProperty } from '../../utils/legalProperty';
 
-// Map icon string → lucide component. Declared here so category-detail
-// can reuse without a shared import module.
-export const CATEGORY_ICONS: Record<string, typeof Building> = {
-  building: Building,
-  'layout-grid': LayoutGrid,
-  paintbrush: Paintbrush,
+// ═══════════════════════════════════════════════════════════════════
+// Snag Inspection — Room List (v2)
+//
+// The screen the user reaches when they tap "Run a snag inspection" on
+// Possession. Shows the rooms of *their* home in walking-path order.
+// First-visit behaviour: if the user hasn't configured their home yet,
+// we redirect to the setup wizard (setup replaces this route so Back
+// from the wizard goes back to Possession, not to an empty list).
+// ═══════════════════════════════════════════════════════════════════
+
+// Icon resolver — maps the string name stored on RoomDef to a Lucide
+// component. Keeps room templates icon-agnostic (no JSX in constants).
+const ROOM_ICONS: Record<string, typeof DoorOpen> = {
   'door-open': DoorOpen,
-  zap: Zap,
-  droplet: Droplet,
+  'door-closed': DoorClosed,
+  'sofa': Sofa,
   'chef-hat': ChefHat,
-  sun: Sun,
+  'wrench': Wrench,
+  'sparkles': Sparkles,
+  'book-open': BookOpen,
+  'user': User,
+  'droplet': Droplet,
+  'droplets': Droplets,
+  'bed-double': BedDouble,
+  'bed': Bed,
+  'shower-head': ShowerHead,
+  'sun': Sun,
   'building-2': Building2,
 };
-
-// ═══════════════════════════════════════════════════════════════
-// Category list screen — 9 rows, each shows category name, summary,
-// watch-out hint, and counters (checks logged / defects found).
-// Tap a row → detail screen for that category.
-// ═══════════════════════════════════════════════════════════════
 
 export default function PossessionSnagScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const {
+    activeLegalPropertyId,
+    possessions,
+    userProperties,
+    externalProperties,
+    setSnagConfig,
+  } = useOnboardingStore();
+
+  // Pull the saved config for this property's inspection.
+  const record = activeLegalPropertyId ? possessions[activeLegalPropertyId] : undefined;
+  const config = record?.snagConfig;
+
+  // Gate: if no config yet, first try to INFER one from the active
+  // property (Negotiate-locked shortlist / user-added have BHK + type
+  // data we can lean on). If inference succeeds we save it with
+  // `autoConfigured: true` and render the room list immediately —
+  // no redundant wizard. If inference fails (external placeholder,
+  // Studio flats, etc.), fall through to the wizard as before.
+  useEffect(() => {
+    if (!activeLegalPropertyId || config) return;
+    const property = resolveLegalProperty(
+      { userProperties, externalProperties },
+      activeLegalPropertyId,
+    );
+    const inferred = property ? inferSnagConfig(property) : null;
+    if (inferred) {
+      setSnagConfig(activeLegalPropertyId, inferred);
+      return;
+    }
+    router.replace('/onboarding/possession-snag-setup');
+  }, [
+    config, activeLegalPropertyId, router, setSnagConfig,
+    userProperties, externalProperties,
+  ]);
+
+  // Hold render until the gate resolves — either inference commits
+  // (next tick re-renders with a config) or we navigate to wizard.
+  if (!config || !activeLegalPropertyId) {
+    return <View style={[styles.container, { paddingTop: insets.top }]} />;
+  }
+
+  return <RoomList config={config} propertyId={activeLegalPropertyId} />;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RoomList — the actual screen, extracted so we can short-circuit the
+// gate above and keep this body focused on rendering the list.
+// ═══════════════════════════════════════════════════════════════════
+
+function RoomList({
+  config,
+  propertyId,
+}: {
+  config: PropertyConfig;
+  propertyId: string;
+}) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const haptics = useHaptics();
 
-  const { activeLegalPropertyId, possessions } = useOnboardingStore();
-  const [exported, setExported] = useState(false);
+  const { possessions, userProperties, externalProperties } = useOnboardingStore();
+  const record = possessions[propertyId];
+  const property = useMemo(
+    () => resolveLegalProperty({ userProperties, externalProperties }, propertyId),
+    [propertyId, userProperties, externalProperties],
+  );
 
-  const findings = activeLegalPropertyId
-    ? possessions[activeLegalPropertyId]?.findings ?? {}
-    : {};
+  const rooms = useMemo(() => generateRooms(config), [config]);
 
-  // Per-category counts derived from findings map.
-  const perCategory = useMemo(() => {
-    const byCat: Record<string, { checked: number; defects: number; total: number }> = {};
-    for (const cat of SNAG_CATEGORIES) {
-      const catFindings = Object.values(findings).filter((f) => f.category === cat.key);
-      const defects = catFindings.filter((f) => f.status === 'defect').length;
-      const checked = catFindings.filter((f) => f.status !== 'unchecked').length;
-      byCat[cat.key] = { checked, defects, total: cat.checks.length };
+  // Per-room counters: checks reviewed vs total, and defects. A "check
+  // reviewed" means status !== 'unchecked' (so OK / defect / na all
+  // count as progress toward done).
+  const perRoom = useMemo(() => {
+    const findings = record?.findings ?? {};
+    const byRoom: Record<string, { checked: number; defects: number; total: number }> = {};
+    for (const room of rooms) {
+      const total = room.subCategories.reduce((s, sc) => s + sc.checks.length, 0);
+      // Findings whose key starts with this roomId belong to this room.
+      const prefix = `${room.id}:`;
+      const forThisRoom = Object.entries(findings)
+        .filter(([k]) => k.startsWith(prefix))
+        .map(([, v]) => v);
+      const defects = forThisRoom.filter((f) => f.status === 'defect').length;
+      const checked = forThisRoom.filter((f) => f.status !== 'unchecked').length;
+      byRoom[room.id] = { checked, defects, total };
     }
-    return byCat;
-  }, [findings]);
+    return byRoom;
+  }, [rooms, record]);
 
-  const totalDefects = Object.values(perCategory).reduce((s, c) => s + c.defects, 0);
-  const totalChecked = Object.values(perCategory).reduce((s, c) => s + c.checked, 0);
-  const totalChecks = SNAG_CATEGORIES.reduce((s, c) => s + c.checks.length, 0);
+  const totalChecks = rooms.reduce((s, r) => s + perRoom[r.id].total, 0);
+  const totalChecked = rooms.reduce((s, r) => s + perRoom[r.id].checked, 0);
+  const totalDefects = rooms.reduce((s, r) => s + perRoom[r.id].defects, 0);
 
-  const handleExport = () => {
-    haptics.success();
-    setExported(true);
-    setTimeout(() => setExported(false), 2400);
+  const summary = useMemo(() => {
+    const typeLabel = ({
+      'apartment': 'Apartment',
+      'row-house': 'Row House',
+      'penthouse': 'Penthouse',
+    } as const)[config.type];
+    // Drop the area count from the primary summary line. BHK numbers
+    // refer to bedrooms, so sitting an area count ("11 rooms") next to
+    // "2BHK" creates a cognitive collision ("wait, 2BHK means 2?").
+    // The numbered cards right below implicitly convey the walkthrough
+    // length, so the count here is redundant. Keeping BHK + type
+    // (config anchor) and check count (scope signal) only.
+    return `${config.bhk} ${typeLabel} · ${totalChecks} checks`;
+  }, [config, totalChecks]);
+
+  const openRoom = (roomId: string) => {
+    haptics.light();
+    router.push({ pathname: '/onboarding/possession-snag-detail', params: { room: roomId } });
+  };
+
+  const editConfig = () => {
+    haptics.light();
+    router.push({
+      pathname: '/onboarding/possession-snag-setup',
+      params: { propertyId, mode: 'edit' },
+    });
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Search size={16} color={Colors.terra500} strokeWidth={2} />
           <Text style={styles.headerTitle}>Snag Inspection</Text>
         </View>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity style={styles.iconBtn} onPress={editConfig} activeOpacity={0.7}>
+          <Pencil size={16} color={Colors.terra500} strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Summary header */}
+        {/* Auto-config banner — shown when the config was inferred from
+            a Negotiate-locked shortlist / user-added property (i.e. the
+            user didn't go through the wizard). Gives them an obvious
+            "ALON figured this out, tap to adjust" affordance. Flips off
+            the moment they save the wizard (taking ownership). */}
+        {config.autoConfigured && property && (
+          <Animated.View entering={FadeIn.duration(260)}>
+            <TouchableOpacity
+              style={styles.autoBanner}
+              onPress={editConfig}
+              activeOpacity={0.8}
+            >
+              <Sparkles size={12} color={Colors.terra500} strokeWidth={2} />
+              <Text style={styles.autoBannerText} numberOfLines={1}>
+                Built from <Text style={styles.autoBannerBold}>{property.name}</Text> ({config.bhk}) · Tap to adjust
+              </Text>
+              <ChevronRight size={12} color={Colors.terra500} strokeWidth={2} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Summary card */}
         <Animated.View entering={FadeIn.duration(260)} style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
             {totalDefects > 0
               ? `${totalDefects} defect${totalDefects === 1 ? '' : 's'} logged`
-              : 'Start with any category'}
+              : totalChecked === totalChecks
+                ? 'All clear — ready for handover'
+                : 'Walk the flat room-by-room'}
           </Text>
-          <Text style={styles.summarySub}>
-            {totalChecked} of {totalChecks} checks reviewed across {SNAG_CATEGORIES.length} categories
+          <Text style={styles.summarySub}>{summary}</Text>
+          <Text style={styles.summaryProgress}>
+            {totalChecked} of {totalChecks} checks reviewed
           </Text>
           <View style={styles.summaryBarTrack}>
-            <View style={[styles.summaryBarFill, { width: `${(totalChecked / totalChecks) * 100}%` as any }]} />
+            <View
+              style={[
+                styles.summaryBarFill,
+                { width: `${Math.round((totalChecked / totalChecks) * 100)}%` as any },
+              ]}
+            />
           </View>
         </Animated.View>
 
-        {/* How to use */}
+        {/* Usage hint */}
         <View style={styles.usageCard}>
           <Info size={12} color={Colors.terra500} strokeWidth={2} />
           <Text style={styles.usageText}>
-            For each check: mark OK, defect, or not applicable. Defects take a photo +
-            severity tag. Progress saves as you go — pick up where you left off.
+            For each check: mark OK, defect, or N/A. Defects take a photo + severity tag.
+            Progress saves — pick up anytime.
           </Text>
         </View>
 
-        {/* Category list */}
-        <Text style={styles.sectionLabel}>CATEGORIES</Text>
-        {SNAG_CATEGORIES.map((cat) => {
-          const counts = perCategory[cat.key];
-          const Icon = CATEGORY_ICONS[cat.icon] ?? Building;
-          return (
-            <TouchableOpacity
-              key={cat.key}
-              style={styles.catCard}
-              onPress={() => {
-                haptics.light();
-                router.push({
-                  pathname: '/onboarding/possession-snag-detail',
-                  params: { category: cat.key },
-                });
-              }}
-              activeOpacity={0.85}
-            >
-              <View style={styles.catIcon}>
-                <Icon size={18} color={Colors.terra500} strokeWidth={2} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.catHeadRow}>
-                  <Text style={styles.catTitle}>{cat.label}</Text>
-                  {counts.defects > 0 && (
-                    <View style={styles.catDefectPill}>
-                      <AlertTriangle size={9} color={Colors.red500} strokeWidth={2.2} />
-                      <Text style={styles.catDefectPillText}>{counts.defects}</Text>
-                    </View>
-                  )}
-                  {counts.checked === counts.total && counts.defects === 0 && (
-                    <View style={styles.catDonePill}>
-                      <CheckCircle2 size={10} color={Colors.green500} strokeWidth={2.5} />
-                      <Text style={styles.catDonePillText}>all clear</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.catSummary}>{cat.summary}</Text>
-                <Text style={styles.catProgress}>
-                  {counts.checked}/{counts.total} checked
-                </Text>
-              </View>
-              <ChevronRight size={16} color={Colors.warm400} strokeWidth={2} />
-            </TouchableOpacity>
-          );
-        })}
+        {/* Walking path */}
+        <Text style={styles.sectionLabel}>WALK THE FLAT</Text>
+        {rooms.map((room, idx) => (
+          <RoomCard
+            key={room.id}
+            index={idx + 1}
+            room={room}
+            checked={perRoom[room.id].checked}
+            total={perRoom[room.id].total}
+            defects={perRoom[room.id].defects}
+            onPress={() => openRoom(room.id)}
+          />
+        ))}
 
-        {/* Export */}
+        {/* View full report — preview-first language. Entry to the
+            shareable report (grouped by room AND by trade) where the
+            user can also timestamp the share for builder follow-ups.
+            Disabled only when nothing has been reviewed at all — an
+            empty report helps no one. */}
         <Animated.View entering={FadeInDown.delay(80).duration(260)} style={{ marginTop: 20 }}>
           <TouchableOpacity
-            style={[styles.exportBtn, totalDefects === 0 && styles.exportBtnDisabled]}
-            onPress={handleExport}
-            disabled={totalDefects === 0}
+            style={[styles.exportBtn, totalChecked === 0 && styles.exportBtnDisabled]}
+            onPress={() => {
+              if (totalChecked === 0) return;
+              haptics.light();
+              router.push('/onboarding/possession-snag-report');
+            }}
+            disabled={totalChecked === 0}
             activeOpacity={0.88}
           >
             <FileDown size={15} color={Colors.white} strokeWidth={2} />
             <Text style={styles.exportBtnText}>
-              {exported ? 'Report ready — share with builder' : 'Export snag report (PDF)'}
+              {totalChecked === 0 ? 'Start checking to build your report' : 'View full report'}
             </Text>
           </TouchableOpacity>
           <Text style={styles.exportHint}>
-            Includes every defect with photos, severity, and timestamps. Builder gets a
-            documented list — no "I'll look into it" responses.
+            {totalDefects === 0
+              ? 'Preview your clean report before sharing with the builder.'
+              : `Preview ${totalDefects} defect${totalDefects === 1 ? '' : 's'} grouped by room and by trade, then share with the builder.`}
           </Text>
         </Animated.View>
       </ScrollView>
@@ -202,9 +319,66 @@ export default function PossessionSnagScreen() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// RoomCard — one row per room in the walking path. Numbered, iconified,
+// with a progress counter and a defect badge / all-clear chip.
+// ═══════════════════════════════════════════════════════════════════
+
+function RoomCard({
+  index,
+  room,
+  checked,
+  total,
+  defects,
+  onPress,
+}: {
+  index: number;
+  room: RoomDef;
+  checked: number;
+  total: number;
+  defects: number;
+  onPress: () => void;
+}) {
+  const Icon = ROOM_ICONS[room.icon] ?? DoorOpen;
+  const isAllClear = checked === total && defects === 0;
+
+  // Rooms show a 1-2 sub-category preview so the user gets a
+  // fingerprint of what's inside without opening.
+  const preview = room.subCategories.slice(0, 2).map((sc) => sc.label).join(' · ');
+
+  return (
+    <TouchableOpacity style={styles.roomCard} onPress={onPress} activeOpacity={0.85}>
+      <Text style={styles.roomIndex}>{index}</Text>
+      <View style={styles.roomIcon}>
+        <Icon size={18} color={Colors.terra500} strokeWidth={2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={styles.roomHeadRow}>
+          <Text style={styles.roomTitle} numberOfLines={1}>{room.label}</Text>
+          {defects > 0 && (
+            <View style={styles.defectPill}>
+              <AlertTriangle size={9} color={Colors.red500} strokeWidth={2.2} />
+              <Text style={styles.defectPillText}>{defects}</Text>
+            </View>
+          )}
+          {isAllClear && (
+            <View style={styles.donePill}>
+              <CheckCircle2 size={10} color={Colors.green500} strokeWidth={2.5} />
+              <Text style={styles.donePillText}>all clear</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.roomPreview} numberOfLines={1}>{preview}</Text>
+        <Text style={styles.roomProgress}>{checked}/{total} checked</Text>
+      </View>
+      <ChevronRight size={16} color={Colors.warm400} strokeWidth={2} />
+    </TouchableOpacity>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Styles
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
@@ -214,7 +388,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md,
     borderBottomWidth: 1, borderBottomColor: Colors.warm100,
   },
-  backBtn: {
+  iconBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: Colors.cream, alignItems: 'center', justifyContent: 'center',
   },
@@ -223,6 +397,25 @@ const styles = StyleSheet.create({
 
   content: { paddingTop: Spacing.lg },
 
+  // ── Auto-config banner ────────────────────────────────────────────
+  // Slim terra-tinted strip above the summary. Sparkles ("we did this
+  // for you") + property name + BHK + chevron. Tap = edit wizard.
+  autoBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: Spacing.xxl, marginBottom: 10,
+    paddingVertical: 9, paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.terra50, borderWidth: 1, borderColor: Colors.terra100,
+  },
+  autoBannerText: {
+    flex: 1, fontFamily: 'DMSans-Regular', fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  autoBannerBold: {
+    fontFamily: 'DMSans-SemiBold', color: Colors.terra500,
+  },
+
+  // ── Summary ───────────────────────────────────────────────────────
   summaryCard: {
     marginHorizontal: Spacing.xxl, padding: 14,
     backgroundColor: Colors.cream, borderRadius: 14,
@@ -230,8 +423,10 @@ const styles = StyleSheet.create({
   },
   summaryTitle: { fontFamily: 'DMSerifDisplay', fontSize: 20, color: Colors.textPrimary },
   summarySub: {
-    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
-    marginTop: 4, marginBottom: 10,
+    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 4,
+  },
+  summaryProgress: {
+    fontFamily: 'DMSans-Medium', fontSize: 11, color: Colors.textTertiary, marginTop: 8, marginBottom: 8,
   },
   summaryBarTrack: {
     height: 4, borderRadius: 2,
@@ -253,50 +448,53 @@ const styles = StyleSheet.create({
   },
 
   sectionLabel: {
-    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.textTertiary,
-    letterSpacing: 0.8, marginHorizontal: Spacing.xxl, marginTop: 20, marginBottom: 10,
+    fontSize: 10, fontFamily: 'DMSans-SemiBold', color: Colors.terra600,
+    letterSpacing: 0.9, marginHorizontal: Spacing.xxl, marginTop: 20, marginBottom: 10,
   },
 
-  catCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+  // ── Room cards ────────────────────────────────────────────────────
+  roomCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     marginHorizontal: Spacing.xxl, marginBottom: 8,
     padding: 12, backgroundColor: Colors.white, borderRadius: 12,
     borderWidth: 1, borderColor: Colors.warm200,
   },
-  catIcon: {
-    width: 40, height: 40, borderRadius: 10,
-    backgroundColor: Colors.terra50,
-    alignItems: 'center', justifyContent: 'center',
+  roomIndex: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra500,
+    width: 18, textAlign: 'center',
   },
-  catHeadRow: {
+  roomIcon: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: Colors.terra50, alignItems: 'center', justifyContent: 'center',
+  },
+  roomHeadRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap',
   },
-  catTitle: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.textPrimary,
+  roomTitle: { fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.textPrimary },
+  roomPreview: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary, marginTop: 2,
   },
-  catDefectPill: {
+  roomProgress: {
+    fontFamily: 'DMSans-Medium', fontSize: 10, color: Colors.textTertiary, marginTop: 4,
+  },
+  defectPill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 6, backgroundColor: '#FEE2E2',
   },
-  catDefectPillText: {
+  defectPillText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.red500,
   },
-  catDonePill: {
+  donePill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 6, backgroundColor: Colors.green100,
   },
-  catDonePillText: {
+  donePillText: {
     fontFamily: 'DMSans-SemiBold', fontSize: 10, color: Colors.green500, letterSpacing: 0.3,
   },
-  catSummary: {
-    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary, marginTop: 2,
-  },
-  catProgress: {
-    fontFamily: 'DMSans-Medium', fontSize: 10, color: Colors.textTertiary, marginTop: 4,
-  },
 
+  // ── Export ────────────────────────────────────────────────────────
   exportBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     marginHorizontal: Spacing.xxl, paddingVertical: 13, borderRadius: 12,

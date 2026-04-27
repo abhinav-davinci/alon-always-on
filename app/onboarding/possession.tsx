@@ -27,6 +27,7 @@ import {
   Calendar,
   Pencil,
   X,
+  CheckCircle2,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -40,10 +41,12 @@ import {
 } from '../../utils/legalProperty';
 import { useHaptics } from '../../hooks/useHaptics';
 import {
-  SNAG_CATEGORIES,
   POSSESSION_DOCUMENTS,
   HANDOVER_CHECKLIST,
 } from '../../constants/possession';
+import { generateRooms } from '../../constants/rooms';
+import { RenamePropertySheet } from '../../components/RenamePropertySheet';
+import { WelcomeHomeOverlay } from '../../components/WelcomeHomeOverlay';
 
 // ═══════════════════════════════════════════════════════════════
 // Possession home — standalone checklist experience.
@@ -72,10 +75,12 @@ export default function PossessionScreen() {
     activeLegalPropertyId,
     legalAnalyses,
     possessions,
+    userName,
     setPossessionHandoverDate,
     setActiveLegalProperty,
     addExternalProperty,
     updateExternalProperty,
+    markWelcomeHomeSeen,
   } = useOnboardingStore();
 
   // Auto-select-or-create a property on mount. Preference order:
@@ -129,6 +134,14 @@ export default function PossessionScreen() {
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftLocation, setDraftLocation] = useState('');
+  const [draftBuilder, setDraftBuilder] = useState('');
+
+  // Modes for the rename sheet:
+  //  - 'edit'         → relaxed (only name required), tapped from pencil
+  //  - 'gate-snag'    → strict (all 3 required), triggered when user
+  //                      taps "Run snag" with placeholder data; on save
+  //                      we route them straight into snag inspection.
+  const [renameMode, setRenameMode] = useState<'edit' | 'gate-snag'>('edit');
 
   // Date picker state — must live above the early-return below.
   // Rules-of-hooks: hook count must match across renders, so all
@@ -143,11 +156,17 @@ export default function PossessionScreen() {
     return d;
   });
 
-  const openRename = () => {
+  const openRename = (mode: 'edit' | 'gate-snag' = 'edit') => {
     if (!canRename || !property) return;
     haptics.light();
-    setDraftName(property.name);
+    // For gate-snag, blank out the placeholder name so the user types
+    // the real name into an empty field instead of editing "Your
+    // property" character-by-character.
+    const seedName = property.name === 'Your property' ? '' : property.name;
+    setDraftName(seedName);
     setDraftLocation(property.location);
+    setDraftBuilder(property.builderName ?? '');
+    setRenameMode(mode);
     setRenaming(true);
   };
 
@@ -155,9 +174,38 @@ export default function PossessionScreen() {
     if (!activeLegalPropertyId) return;
     const name = draftName.trim() || 'Your property';
     const location = draftLocation.trim();
-    updateExternalProperty(activeLegalPropertyId, { name, location });
+    const builderName = draftBuilder.trim() || undefined;
+    updateExternalProperty(activeLegalPropertyId, { name, location, builderName });
     haptics.success();
     setRenaming(false);
+    // Gate-snag mode: route the user into snag inspection right after
+    // they save details, so they don't need a second tap.
+    if (renameMode === 'gate-snag') {
+      router.push('/onboarding/possession-snag');
+    }
+  };
+
+  // Gate predicate — when user taps "Run a snag inspection" we check
+  // this. External properties with any missing detail are sent to the
+  // gating sheet; shortlist / user-added properties (with catalog data)
+  // pass through.
+  const requireDetailsForSnag =
+    canRename
+    && property
+    && (
+      property.name === 'Your property'
+      || property.location.trim().length === 0
+      || !property.builderName
+      || property.builderName.trim().length === 0
+    );
+
+  const handleSnagPress = () => {
+    if (requireDetailsForSnag) {
+      openRename('gate-snag');
+      return;
+    }
+    haptics.light();
+    router.push('/onboarding/possession-snag');
   };
 
   // Possession waits a tick for the mount-effect to set active + resolve,
@@ -171,9 +219,45 @@ export default function PossessionScreen() {
 
   // ── Derived counts for the action cards ──
   const defects = countSnagDefects({ possessions }, activeLegalPropertyId);
-  const categoriesChecked = record
-    ? new Set(Object.values(record.findings).map((f) => f.category)).size
-    : 0;
+
+  // Snag progress — v2 counts rooms touched (i.e. rooms where any
+  // check has a non-unchecked status). v1 fallback counts distinct
+  // categories for legacy findings that predate room tagging.
+  const snagConfig = record?.snagConfig;
+  const { snagProgressNumer, snagProgressDenom, snagProgressUnit } = (() => {
+    if (snagConfig) {
+      const rooms = generateRooms(snagConfig);
+      const touched = new Set<string>();
+      if (record) {
+        for (const [k, f] of Object.entries(record.findings)) {
+          if (f.status === 'unchecked') continue;
+          const rid = f.roomId ?? k.split(':')[0];
+          if (rid) touched.add(rid);
+        }
+      }
+      return {
+        snagProgressNumer: Array.from(touched).filter((id) => rooms.some((r) => r.id === id)).length,
+        snagProgressDenom: rooms.length,
+        // "areas" not "rooms" — BHK terminology refers to bedroom count,
+        // so "X of 11 rooms" next to a 2BHK property reads as a mismatch.
+        snagProgressUnit: 'areas',
+      };
+    }
+    // No config yet — prompt the user to set up.
+    return { snagProgressNumer: 0, snagProgressDenom: 0, snagProgressUnit: 'not started' };
+  })();
+
+  // Last builder-share footnote — surfaces on the snag row so the user
+  // remembers the date they sent the list and can follow up.
+  const lastShareFootnote = (() => {
+    const shares = record?.snagReportShares;
+    if (!shares || shares.length === 0) return null;
+    const latest = shares[shares.length - 1];
+    const formatted = new Date(latest.sharedAt + 'T00:00:00').toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    });
+    return `Shared with builder · ${formatted}`;
+  })();
 
   const docsReceived = record
     ? Object.values(record.documents).filter((s) => s === 'received').length
@@ -188,7 +272,24 @@ export default function PossessionScreen() {
 
   // ── Expected handover date (derived; useState is above the early return) ──
   const expected = record?.expectedHandoverDate;
-  const displayDate = expected ? formatHandoverDate(expected) : 'Add date';
+  // Smart-relative date copy — "Keys in 47 days" / "Today's the day."
+  // / etc., rather than a bare ISO date. Adds a small layer of
+  // anticipation to every visit without changing the surrounding UI.
+  const displayDate = expected ? formatSmartHandover(expected) : 'Add date';
+
+  // ── Per-row completion (drives the gold-checkmark visual) ──
+  // A row is "complete" when its underlying source has reached 100%.
+  // Snag also requires a non-zero denominator (zero-checks rooms
+  // shouldn't auto-claim completion).
+  const snagComplete = snagProgressDenom > 0 && snagProgressNumer === snagProgressDenom;
+  const docsComplete = docsTotal > 0 && docsReceived === docsTotal;
+  const handoverComplete = handoverTotal > 0 && handoverDone === handoverTotal;
+
+  // ── Welcome Home overlay trigger — fires once per property when
+  //     all three sections hit 100%. Uses record?.hasSeenWelcomeHome
+  //     as the persisted "seen" flag so subsequent visits stay calm. ──
+  const allComplete = snagComplete && docsComplete && handoverComplete;
+  const showWelcomeHome = allComplete && !record?.hasSeenWelcomeHome;
 
   const openDatePicker = () => {
     haptics.light();
@@ -261,7 +362,7 @@ export default function PossessionScreen() {
               )}
             </View>
             {canRename && (
-              <TouchableOpacity style={styles.editBtn} onPress={openRename} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.editBtn} onPress={() => openRename('edit')} activeOpacity={0.7}>
                 <Pencil size={14} color={Colors.terra500} strokeWidth={2} />
               </TouchableOpacity>
             )}
@@ -298,18 +399,22 @@ export default function PossessionScreen() {
           <ChecklistRow
             icon={<Search size={18} color={Colors.terra500} strokeWidth={2} />}
             title="Run a snag inspection"
-            progress={`${categoriesChecked} of ${SNAG_CATEGORIES.length} categories checked`}
+            progress={
+              snagProgressDenom === 0
+                ? 'Tell me about your home to start'
+                : `${snagProgressNumer} of ${snagProgressDenom} ${snagProgressUnit} checked`
+            }
             defectCount={defects.total}
-            onPress={() => {
-              haptics.light();
-              router.push('/onboarding/possession-snag');
-            }}
+            footnote={lastShareFootnote ?? undefined}
+            complete={snagComplete}
+            onPress={handleSnagPress}
           />
           <View style={styles.rowDivider} />
           <ChecklistRow
             icon={<FileText size={18} color={Colors.terra500} strokeWidth={2} />}
             title="Collect your documents"
             progress={`${docsReceived} of ${docsTotal} received`}
+            complete={docsComplete}
             onPress={() => {
               haptics.light();
               router.push('/onboarding/possession-documents');
@@ -320,6 +425,7 @@ export default function PossessionScreen() {
             icon={<ClipboardCheck size={18} color={Colors.terra500} strokeWidth={2} />}
             title="Handover-day playbook"
             progress={`${handoverDone} of ${handoverTotal} ticked`}
+            complete={handoverComplete}
             onPress={() => {
               haptics.light();
               router.push('/onboarding/possession-handover');
@@ -338,14 +444,22 @@ export default function PossessionScreen() {
       </ScrollView>
 
       {/* Rename sheet — only reachable when canRename. */}
-      <RenameSheet
+      <RenamePropertySheet
         visible={renaming}
         name={draftName}
         location={draftLocation}
+        builder={draftBuilder}
         onName={setDraftName}
         onLocation={setDraftLocation}
+        onBuilder={setDraftBuilder}
         onSave={saveRename}
         onClose={() => setRenaming(false)}
+        requireAll={renameMode === 'gate-snag'}
+        reason={
+          renameMode === 'gate-snag'
+            ? "Before I walk your flat, I need three things — your property name, builder, and location. Every snag note + the builder report uses these."
+            : undefined
+        }
       />
 
       {/* Handover-date picker sheet. */}
@@ -357,86 +471,28 @@ export default function PossessionScreen() {
         onClear={expected ? clearDate : undefined}
         onClose={() => setDatePickerOpen(false)}
       />
+
+      {/* Welcome Home — fires once per property when every checklist
+          hits 100%. ALON dances, confetti drifts, share CTA. After
+          dismiss the flag persists so it never replays. */}
+      <WelcomeHomeOverlay
+        visible={showWelcomeHome}
+        propertyName={property.name}
+        builderName={property.builderName}
+        location={property.location}
+        userName={userName}
+        onDismiss={() => {
+          if (activeLegalPropertyId) markWelcomeHomeSeen(activeLegalPropertyId);
+        }}
+      />
     </View>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Rename sheet — a two-field mini-form for renaming a placeholder
-// possession property. Kept inline (no dependency on the Legal
-// selector) because the action is small and one-purpose.
-// ═══════════════════════════════════════════════════════════════
-
-function RenameSheet({
-  visible, name, location, onName, onLocation, onSave, onClose,
-}: {
-  visible: boolean;
-  name: string;
-  location: string;
-  onName: (v: string) => void;
-  onLocation: (v: string) => void;
-  onSave: () => void;
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={renameStyles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[renameStyles.panel, { paddingBottom: insets.bottom + 16 }]}>
-            <View style={renameStyles.handle} />
-            <View style={renameStyles.headerRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={renameStyles.title}>Name this property</Text>
-                <Text style={renameStyles.subtitle}>
-                  So your snag notes, documents, and checklist all save against the right place.
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} style={renameStyles.closeBtn} activeOpacity={0.7}>
-                <X size={18} color={Colors.textSecondary} strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={renameStyles.body}>
-              <Text style={renameStyles.fieldLabel}>Project name</Text>
-              <TextInput
-                style={renameStyles.input}
-                placeholder="e.g. Kumar Pebble Bay"
-                placeholderTextColor={Colors.textTertiary}
-                value={name}
-                onChangeText={onName}
-                autoCapitalize="words"
-                returnKeyType="next"
-              />
-
-              <Text style={[renameStyles.fieldLabel, { marginTop: 12 }]}>Location</Text>
-              <TextInput
-                style={renameStyles.input}
-                placeholder="e.g. Area, City"
-                placeholderTextColor={Colors.textTertiary}
-                value={location}
-                onChangeText={onLocation}
-                autoCapitalize="words"
-                returnKeyType="done"
-                onSubmitEditing={onSave}
-              />
-
-              <TouchableOpacity style={renameStyles.saveBtn} onPress={onSave} activeOpacity={0.88}>
-                <Text style={renameStyles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
 // Handover-date sheet — bottom sheet wrapping the native date
-// picker. Same panel styling as RenameSheet and the Legal selector
-// so all sheets feel like one family.
+// picker. Same panel styling as RenamePropertySheet and the Legal
+// selector so all sheets feel like one family.
 // ═══════════════════════════════════════════════════════════════
 
 function HandoverDateSheet({
@@ -523,35 +579,56 @@ function HandoverDateSheet({
 // One row inside the unified "Your handover checklist" card. Visually
 // lightweight — icon, title, progress line, optional defect badge
 // (count only; severity breakdown lives on the detail screen).
+// Optional `footnote` renders a third subtle line — used for the snag
+// row to surface "Shared with builder · Apr 24" when the user has
+// recorded a share event.
 function ChecklistRow({
   icon,
   title,
   progress,
   defectCount,
+  footnote,
+  complete,
   onPress,
 }: {
   icon: React.ReactNode;
   title: string;
   progress: string;
   defectCount?: number;
+  footnote?: string;
+  /** When true, the row swaps to its "earned" state — gold icon
+   *  background, CheckCircle2 in place of the section's own icon,
+   *  "All done" subtitle. The reward visual for finishing a section. */
+  complete?: boolean;
   onPress: () => void;
 }) {
   return (
     <TouchableOpacity style={styles.checklistRow} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.checklistIcon}>{icon}</View>
+      <View style={[styles.checklistIcon, complete && styles.checklistIconDone]}>
+        {complete
+          ? <CheckCircle2 size={18} color={'#B8770A'} strokeWidth={2.2} />
+          : icon}
+      </View>
       <View style={{ flex: 1 }}>
         <View style={styles.checklistTitleRow}>
           <Text style={styles.checklistRowTitle}>{title}</Text>
-          {defectCount !== undefined && defectCount > 0 && (
-            <View style={styles.defectBadge}>
-              <AlertTriangle size={10} color={Colors.red500} strokeWidth={2.2} />
-              <Text style={styles.defectBadgeText}>
-                {defectCount} defect{defectCount === 1 ? '' : 's'}
-              </Text>
+          {complete ? (
+            <View style={styles.donePill}>
+              <Text style={styles.donePillText}>ALL DONE</Text>
             </View>
+          ) : (
+            defectCount !== undefined && defectCount > 0 && (
+              <View style={styles.defectBadge}>
+                <AlertTriangle size={10} color={Colors.red500} strokeWidth={2.2} />
+                <Text style={styles.defectBadgeText}>
+                  {defectCount} defect{defectCount === 1 ? '' : 's'}
+                </Text>
+              </View>
+            )
           )}
         </View>
         <Text style={styles.checklistProgress}>{progress}</Text>
+        {footnote && <Text style={styles.checklistFootnote}>{footnote}</Text>}
       </View>
       <ChevronRight size={16} color={Colors.terra500} strokeWidth={2} />
     </TouchableOpacity>
@@ -565,6 +642,29 @@ function ChecklistRow({
 function formatHandoverDate(iso: string) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Smart-relative copy for the date row — anticipation that scales
+// with closeness to handover. Recomputed on every screen mount so
+// the countdown updates each visit.
+//   30+ days  → "Keys in 47 days · 21 Jul"
+//   8–30 days → "Keys in 12 days · soon"
+//   1–7 days  → "Keys this week · Friday"
+//   Today     → "Today's the day. 🔑"
+//   Overdue   → "Overdue · was 21 Jul"
+function formatSmartHandover(iso: string): string {
+  const target = new Date(iso + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return `Overdue · was ${formatHandoverDate(iso)}`;
+  if (diffDays === 0) return "Today's the day. 🔑";
+  if (diffDays <= 7) {
+    const weekday = target.toLocaleDateString('en-IN', { weekday: 'long' });
+    return `Keys this week · ${weekday}`;
+  }
+  if (diffDays <= 30) return `Keys in ${diffDays} days · soon`;
+  return `Keys in ${diffDays} days · ${formatHandoverDate(iso)}`;
 }
 
 // Convert a Date to the "YYYY-MM-DD" shape the store expects. Uses
@@ -651,8 +751,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.warm200,
   },
   checklistTitle: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.textTertiary,
-    letterSpacing: 0.6, textTransform: 'uppercase',
+    fontFamily: 'DMSans-SemiBold', fontSize: 12, color: Colors.terra600,
+    letterSpacing: 0.9, textTransform: 'uppercase',
     marginTop: 10, marginBottom: 4, marginHorizontal: 2,
   },
   checklistRow: {
@@ -666,6 +766,13 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: Colors.terra50, alignItems: 'center', justifyContent: 'center',
   },
+  // "Earned" state — soft gold background, gold-toned check inside.
+  // Same dimensions as the default icon so the row layout doesn't
+  // shift on completion.
+  checklistIconDone: {
+    backgroundColor: 'rgba(232,168,76,0.18)',
+    borderWidth: 1, borderColor: 'rgba(184,119,10,0.35)',
+  },
   checklistTitleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap',
   },
@@ -675,6 +782,23 @@ const styles = StyleSheet.create({
   checklistProgress: {
     fontFamily: 'DMSans-Regular', fontSize: 11,
     color: Colors.textSecondary, marginTop: 2, lineHeight: 16,
+  },
+  // Third line under progress — used for the "Shared with builder ·
+  // date" footnote on the snag row. Terra tone to signal it's a
+  // milestone fact, not a generic metric.
+  checklistFootnote: {
+    fontFamily: 'DMSans-Medium', fontSize: 10, color: Colors.terra500,
+    marginTop: 3, letterSpacing: 0.1,
+  },
+  // Gold "ALL DONE" pill — appears on the completed checklist row,
+  // visually parallel to the red defect badge.
+  donePill: {
+    paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: 6, backgroundColor: 'rgba(232,168,76,0.22)',
+  },
+  donePillText: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 10, color: '#B8770A',
+    letterSpacing: 0.5,
   },
   defectBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -700,65 +824,6 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.terra200,
     alignItems: 'center', justifyContent: 'center',
-  },
-});
-
-// ─── Rename sheet styles ────────────────────────────────────────────
-
-const renameStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(13,31,74,0.4)',
-    justifyContent: 'flex-end',
-  },
-  panel: {
-    backgroundColor: Colors.white,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingTop: 8,
-    shadowColor: '#0D1F4A',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08, shadowRadius: 20,
-    elevation: 12,
-  },
-  handle: {
-    alignSelf: 'center', width: 36, height: 4, borderRadius: 2,
-    backgroundColor: Colors.warm200, marginBottom: 10,
-  },
-  headerRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    paddingHorizontal: Spacing.xxl, gap: 12, paddingBottom: 4,
-  },
-  title: {
-    fontFamily: 'DMSerifDisplay', fontSize: 20, color: Colors.textPrimary, lineHeight: 24,
-  },
-  subtitle: {
-    fontFamily: 'DMSans-Regular', fontSize: 12, color: Colors.textSecondary,
-    marginTop: 4, lineHeight: 17,
-  },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.warm100,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 2,
-  },
-  body: {
-    paddingHorizontal: Spacing.xxl, paddingTop: 14,
-  },
-  fieldLabel: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.textSecondary,
-    letterSpacing: 0.4, marginBottom: 6,
-  },
-  input: {
-    paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: Colors.warm200, backgroundColor: Colors.warm50,
-    fontFamily: 'DMSans-Regular', fontSize: 14, color: Colors.textPrimary,
-  },
-  saveBtn: {
-    marginTop: 18, paddingVertical: 13, borderRadius: 12,
-    backgroundColor: Colors.terra500, alignItems: 'center',
-  },
-  saveBtnText: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 14, color: Colors.white,
   },
 });
 

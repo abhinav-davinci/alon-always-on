@@ -25,6 +25,7 @@ export interface ExternalProperty {
   location: string;       // required — "Area, City"
   price?: string;         // optional display string, e.g. "₹1.35 Cr"
   propertyType?: string;  // optional — "Apartment" | "Villa" | "Plot" | "Office"
+  builderName?: string;   // optional — e.g. "Godrej Properties", "Kumar Properties"
 }
 
 // ─── Possession ────────────────────────────────────────────────────
@@ -41,10 +42,15 @@ export type SnagStatus = 'unchecked' | 'ok' | 'defect' | 'na';
 export type SnagSeverity = 'critical' | 'major' | 'minor';
 
 export interface SnagFinding {
-  // Composite key across (propertyId, category, checkItemId) — stored
-  // as a flat map so lookups stay O(1) and updates don't clobber
-  // sibling findings.
+  // Composite key across (propertyId, roomId, subCategoryId, checkItemId)
+  // — stored as a flat map so lookups stay O(1) and updates don't clobber
+  // sibling findings. Legacy v1 records (category-first, no rooms) still
+  // carry `category`; v2 records add `roomId` + `subCategoryId`.
   category: SnagCategory;
+  /** v2: the room this finding belongs to (e.g. 'master-bedroom'). */
+  roomId?: string;
+  /** v2: sub-category group within the room (e.g. 'walls', 'plumbing'). */
+  subCategoryId?: string;
   checkItemId: string;
   status: SnagStatus;
   severity?: SnagSeverity;
@@ -65,6 +71,23 @@ export type PossessionDocKey =
  * `{category}:{checkItemId}` so we can update individual checks
  * without rebuilding the whole tree.
  */
+/**
+ * A single share event — the user exported the snag report and marked
+ * the date (for builder follow-up tracking). We store an array of these
+ * so the paper trail survives multiple rounds of "emailed builder →
+ * builder silent → emailed again" that's typical in Indian handover
+ * disputes.
+ */
+export interface SnagReportShare {
+  /** ISO date of the share (YYYY-MM-DD). */
+  sharedAt: string;
+  /** Snapshot of defect count at share time — so follow-ups can see
+   *  what was on the table that day even if the user logs more later. */
+  defectCount: number;
+  /** Optional: short note the user can attach (e.g. "after site visit"). */
+  note?: string;
+}
+
 export interface PossessionRecord {
   propertyId: string;
   expectedHandoverDate: string | null;  // ISO date
@@ -72,6 +95,24 @@ export interface PossessionRecord {
   findings: Record<string, SnagFinding>;
   documents: Record<string, PossessionDocStatus>;  // key: PossessionDocKey
   handoverChecklist: Record<string, boolean>;      // key: handover item id
+  /**
+   * Snag-inspection v2 configuration. When present, the snag flow uses
+   * the room-first layout derived from this config. Stored on the
+   * possession record (not the property) because the config describes
+   * the *inspection*, and this keeps it available for any property
+   * source — shortlist, user-added, or external. Canonical type lives
+   * in `constants/rooms.ts`.
+   */
+  snagConfig?: import('../constants/rooms').PropertyConfig;
+  /** v2: Builder-share history — each entry is a timestamped "I shared
+   *  the report on date X" record. Appended whenever the user ticks
+   *  "Record today as shared" on the report preview. */
+  snagReportShares?: SnagReportShare[];
+  /** Has the user seen the "Welcome home" celebration overlay for
+   *  this property? Flips true once the modal is dismissed; used so
+   *  the overlay only fires once per property when all three sections
+   *  hit 100% for the first time. */
+  hasSeenWelcomeHome?: boolean;
 }
 
 export interface OnboardingState {
@@ -183,6 +224,32 @@ export interface OnboardingState {
     checkItemId: string,
     patch: Partial<Omit<SnagFinding, 'category' | 'checkItemId' | 'updatedAt'>>,
   ) => void;
+  /**
+   * v2 variant — rooms-first. `roomId` + `subCategoryId` are part of
+   * the composite key, so the same check atom reused across rooms stays
+   * distinct. `category` is derived from the sub-category at the call
+   * site so we keep a single consistent legacy field for the trade-view
+   * export.
+   */
+  updateSnagFindingV2: (
+    propertyId: string,
+    roomId: string,
+    subCategoryId: string,
+    category: SnagCategory,
+    checkItemId: string,
+    patch: Partial<Omit<SnagFinding, 'category' | 'roomId' | 'subCategoryId' | 'checkItemId' | 'updatedAt'>>,
+  ) => void;
+  /** Persist the snag-inspection wizard's answers on the property. */
+  setSnagConfig: (
+    propertyId: string,
+    config: import('../constants/rooms').PropertyConfig,
+  ) => void;
+  /** Append a builder-share event to the property's possession record. */
+  addSnagReportShare: (propertyId: string, share: SnagReportShare) => void;
+  /** Mark the Welcome Home overlay as seen for a property — called
+   *  when the user dismisses the celebration so it doesn't replay on
+   *  every subsequent visit. */
+  markWelcomeHomeSeen: (propertyId: string) => void;
   setPossessionDocument: (
     propertyId: string,
     docKey: PossessionDocKey,
@@ -413,6 +480,68 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
             ...existing,
             findings: { ...existing.findings, [key]: next },
           },
+        },
+      };
+    }),
+
+  updateSnagFindingV2: (propertyId, roomId, subCategoryId, category, checkItemId, patch) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const key = `${roomId}:${subCategoryId}:${checkItemId}`;
+      const prev = existing.findings[key];
+      const next: SnagFinding = {
+        category,
+        roomId,
+        subCategoryId,
+        checkItemId,
+        status: prev?.status ?? 'unchecked',
+        severity: prev?.severity,
+        photoCount: prev?.photoCount ?? 0,
+        notes: prev?.notes ?? '',
+        ...patch,
+        updatedAt: Date.now(),
+      };
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: {
+            ...existing,
+            findings: { ...existing.findings, [key]: next },
+          },
+        },
+      };
+    }),
+
+  setSnagConfig: (propertyId, config) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, snagConfig: config },
+        },
+      };
+    }),
+
+  markWelcomeHomeSeen: (propertyId) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, hasSeenWelcomeHome: true },
+        },
+      };
+    }),
+
+  addSnagReportShare: (propertyId, share) =>
+    set((state) => {
+      const existing = state.possessions[propertyId] ?? blankPossessionRecord(propertyId);
+      const prior = existing.snagReportShares ?? [];
+      return {
+        possessions: {
+          ...state.possessions,
+          [propertyId]: { ...existing, snagReportShares: [...prior, share] },
         },
       };
     }),

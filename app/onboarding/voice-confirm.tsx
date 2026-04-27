@@ -52,7 +52,10 @@ export default function VoiceConfirmScreen() {
     store.setNeedsLoan(needsLoan);
     store.setPurpose(purpose);
     store.setTimeline(timeline);
-    router.push('/onboarding/activation');
+    // Route through signup (name + mobile) before activation, matching
+    // the ALON's-pick / template / write-it-out paths. Voice was the
+    // outlier that skipped this step.
+    router.push('/onboarding/signup');
   };
 
   return (
