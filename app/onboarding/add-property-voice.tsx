@@ -43,6 +43,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import AlonAvatar from '../../components/AlonAvatar';
 import VoiceOrb from '../../components/VoiceOrb';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import Button from '../../components/Button';
 import { Colors, Typography, Spacing } from '../../constants/theme';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -404,7 +405,7 @@ export default function AddPropertyVoiceScreen() {
     const canConfirm = name.trim() && area.trim();
 
     return (
-      <View style={[styles.reviewContainer, { paddingTop: insets.top }]}>
+      <KeyboardSafeView style={[styles.reviewContainer, { paddingTop: insets.top }]}>
         <View style={styles.reviewTopBar}>
           <TouchableOpacity style={styles.reviewBackBtn} onPress={() => setPhase('recording')}>
             <ChevronLeft size={20} color={Colors.terra500} strokeWidth={2} />
@@ -416,6 +417,7 @@ export default function AddPropertyVoiceScreen() {
         <ScrollView
           contentContainerStyle={[styles.reviewContent, { paddingBottom: insets.bottom + 90 }]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={FadeInDown.duration(300)}>
             <View style={styles.reviewHeader}>
@@ -464,7 +466,7 @@ export default function AddPropertyVoiceScreen() {
             <Text style={styles.confirmBtnText}>Confirm & add to my list</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardSafeView>
     );
   }
 

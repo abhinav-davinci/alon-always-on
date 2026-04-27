@@ -33,6 +33,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { useHaptics } from '../../hooks/useHaptics';
 import { checkCompleteness } from '../../utils/propertyCompleteness';
 
@@ -206,7 +207,7 @@ export default function AddPropertyScreenshotScreen() {
   const missedCount = extractedFields.filter(f => !f.extracted || !f.value).length;
 
   const renderReview = () => (
-    <ScrollView contentContainerStyle={[styles.reviewContent, { paddingBottom: insets.bottom + 90 }]} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[styles.reviewContent, { paddingBottom: insets.bottom + 90 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Animated.View entering={FadeInDown.duration(300)}>
         <View style={styles.reviewHeader}>
           <Sparkles size={14} color="#22C55E" strokeWidth={2} />
@@ -338,7 +339,7 @@ export default function AddPropertyScreenshotScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardSafeView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -364,7 +365,7 @@ export default function AddPropertyScreenshotScreen() {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </KeyboardSafeView>
   );
 }
 

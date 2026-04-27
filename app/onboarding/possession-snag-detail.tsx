@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
@@ -126,7 +127,7 @@ export default function PossessionSnagDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardSafeView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -142,6 +143,7 @@ export default function PossessionSnagDetailScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Walk progress */}
         <Text style={styles.walkStep}>
@@ -219,7 +221,7 @@ export default function PossessionSnagDetailScreen() {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </KeyboardSafeView>
   );
 }
 

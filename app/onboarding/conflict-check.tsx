@@ -164,8 +164,8 @@ export default function ConflictCheckScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 50}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 50 : 0}
       >
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}

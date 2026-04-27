@@ -23,6 +23,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
 import { checkCompleteness } from '../../utils/propertyCompleteness';
@@ -174,7 +175,7 @@ export default function AddPropertyManualScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardSafeView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -339,7 +340,7 @@ export default function AddPropertyManualScreen() {
           <Text style={styles.submitBtnText}>Add to my list</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardSafeView>
   );
 }
 

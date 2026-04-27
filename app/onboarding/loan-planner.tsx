@@ -27,6 +27,7 @@ import Slider from '@react-native-community/slider';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { useOnboardingStore } from '../../store/onboarding';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { SHORTLIST_PROPERTIES, Property } from '../../constants/properties';
 import { useHaptics } from '../../hooks/useHaptics';
 import {
@@ -181,7 +182,7 @@ export default function LoanPlannerScreen() {
 
   // ── Render ──
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardSafeView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
@@ -197,6 +198,7 @@ export default function LoanPlannerScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {isLoading ? (
           <SkeletonLoanPlanner />
@@ -645,7 +647,7 @@ export default function LoanPlannerScreen() {
         </>
         )}
       </ScrollView>
-    </View>
+    </KeyboardSafeView>
   );
 }
 

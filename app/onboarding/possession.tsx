@@ -299,12 +299,15 @@ export default function PossessionScreen() {
     setDatePickerOpen(true);
   };
 
-  const saveDate = () => {
+  const commitDate = (d: Date) => {
     if (!activeLegalPropertyId) return;
-    setPossessionHandoverDate(activeLegalPropertyId, 'expected', toISODate(draftDate));
+    setPossessionHandoverDate(activeLegalPropertyId, 'expected', toISODate(d));
     haptics.success();
     setDatePickerOpen(false);
   };
+
+  // iOS uses the in-sheet "Save" button — saves whatever's in draftDate.
+  const saveDraftDate = () => commitDate(draftDate);
 
   const clearDate = () => {
     if (!activeLegalPropertyId) return;
@@ -462,12 +465,14 @@ export default function PossessionScreen() {
         }
       />
 
-      {/* Handover-date picker sheet. */}
-      <HandoverDateSheet
+      {/* Handover-date picker — iOS shows the in-sheet spinner with a
+          Save button; Android mounts the native dialog imperatively. */}
+      <HandoverDatePicker
         visible={datePickerOpen}
         value={draftDate}
-        onChange={setDraftDate}
-        onSave={saveDate}
+        onDraftChange={setDraftDate}
+        onCommit={commitDate}
+        onSaveDraft={saveDraftDate}
         onClear={expected ? clearDate : undefined}
         onClose={() => setDatePickerOpen(false)}
       />
@@ -490,18 +495,28 @@ export default function PossessionScreen() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Handover-date sheet — bottom sheet wrapping the native date
-// picker. Same panel styling as RenamePropertySheet and the Legal
-// selector so all sheets feel like one family.
+// Handover-date picker — platform split.
+//
+// iOS: bottom-sheet Modal wrapping the spinner picker, with our own
+// Save / Clear buttons. Same family as RenamePropertySheet.
+//
+// Android: the native picker IS the dialog (it has its own OK /
+// Cancel and dismisses itself). Wrapping it in our Modal causes two
+// problems: the dialog re-mounts and re-opens after dismissal, and
+// the user sees a confusing dimmed sheet behind the native UI. So
+// on Android we mount <DateTimePicker /> imperatively only while
+// open, and commit / dismiss on the native event directly — no
+// custom Modal at all.
 // ═══════════════════════════════════════════════════════════════
 
-function HandoverDateSheet({
-  visible, value, onChange, onSave, onClear, onClose,
+function HandoverDatePicker({
+  visible, value, onDraftChange, onCommit, onSaveDraft, onClear, onClose,
 }: {
   visible: boolean;
   value: Date;
-  onChange: (d: Date) => void;
-  onSave: () => void;
+  onDraftChange: (d: Date) => void;
+  onCommit: (d: Date) => void;
+  onSaveDraft: () => void;
   onClear?: () => void;
   onClose: () => void;
 }) {
@@ -520,6 +535,29 @@ function HandoverDateSheet({
     return d;
   }, []);
 
+  // ── Android: native dialog, no wrapper Modal. ──
+  if (Platform.OS === 'android') {
+    if (!visible) return null;
+    return (
+      <DateTimePicker
+        value={value}
+        mode="date"
+        display="default"
+        minimumDate={minDate}
+        maximumDate={maxDate}
+        onChange={(event, selected) => {
+          // 'set' = user pressed OK; 'dismissed' = cancel/back.
+          if (event.type === 'set' && selected) {
+            onCommit(selected);
+          } else {
+            onClose();
+          }
+        }}
+      />
+    );
+  }
+
+  // ── iOS: bottom-sheet modal with spinner + Save button. ──
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={dateStyles.backdrop}>
@@ -543,14 +581,12 @@ function HandoverDateSheet({
             <DateTimePicker
               value={value}
               mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="spinner"
               minimumDate={minDate}
               maximumDate={maxDate}
               onChange={(_, selected) => {
-                if (selected) onChange(selected);
+                if (selected) onDraftChange(selected);
               }}
-              // iOS spinner ignores textColor on modern versions, but
-              // keeping navy for the Android inline fallback.
               textColor={Colors.textPrimary}
               themeVariant="light"
             />
@@ -562,7 +598,7 @@ function HandoverDateSheet({
                 <Text style={dateStyles.clearText}>Clear</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={dateStyles.saveBtn} onPress={onSave} activeOpacity={0.88}>
+            <TouchableOpacity style={dateStyles.saveBtn} onPress={onSaveDraft} activeOpacity={0.88}>
               <Text style={dateStyles.saveText}>Save date</Text>
             </TouchableOpacity>
           </View>

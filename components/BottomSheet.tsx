@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { Colors, Spacing } from '../constants/theme';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -27,6 +28,10 @@ export default function BottomSheet({
   onClose,
   children,
 }: BottomSheetProps) {
+  // KeyboardAvoidingView is unreliable inside Android Modals (the Modal
+  // opens its own native window). Track keyboard height directly and
+  // pad the sheet bottom by it so any inputs inside stay visible.
+  const kbHeight = useKeyboardHeight();
   return (
     <Modal
       visible={visible}
@@ -37,7 +42,7 @@ export default function BottomSheet({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={styles.sheet}>
+            <View style={[styles.sheet, { paddingBottom: kbHeight }]}>
               <View style={styles.handle} />
               <View style={styles.header}>
                 <Text style={styles.title}>{title}</Text>
@@ -54,6 +59,7 @@ export default function BottomSheet({
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
                 bounces={false}
+                keyboardShouldPersistTaps="handled"
               >
                 {children}
               </ScrollView>

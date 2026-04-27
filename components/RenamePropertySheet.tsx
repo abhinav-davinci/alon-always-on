@@ -7,12 +7,11 @@ import {
   TextInput,
   Modal,
   Pressable,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { Colors, Spacing } from '../constants/theme';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 /**
  * Shared rename-property sheet. Used on Possession home (to name a
@@ -56,6 +55,10 @@ export function RenamePropertySheet({
   reason?: string;
 }) {
   const insets = useSafeAreaInsets();
+  // KeyboardAvoidingView is unreliable inside Modals on Android; track
+  // the keyboard height directly and pad the panel by it so the inputs
+  // always sit above the keyboard.
+  const kbHeight = useKeyboardHeight();
   const allFilled =
     name.trim().length > 0 &&
     location.trim().length > 0 &&
@@ -65,8 +68,14 @@ export function RenamePropertySheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.panel, { paddingBottom: insets.bottom + 16 }]}>
+        <View
+          style={[
+            styles.panel,
+            // When the keyboard is up the keyboard height replaces the
+            // safe-area inset; when it's down we sit on the safe area.
+            { paddingBottom: kbHeight > 0 ? kbHeight + 16 : insets.bottom + 16 },
+          ]}
+        >
             <View style={styles.handle} />
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
@@ -134,8 +143,7 @@ export function RenamePropertySheet({
                 <Text style={styles.saveBtnText}>Save</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
