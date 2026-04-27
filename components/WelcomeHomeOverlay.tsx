@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Share,
   Dimensions,
 } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
@@ -140,11 +141,6 @@ export function WelcomeHomeOverlay({
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
   const [celebrate, setCelebrate] = useState(false);
-  // ⚠️ TEMPORARY (testing only) — replayKey forces ALON + confetti
-  // to remount so the celebration can be replayed via the "Tell your
-  // family" button without re-completing every checklist. Revert
-  // to native share before merging to main.
-  const [replayKey, setReplayKey] = useState(0);
 
   // Trigger ALON's dance shortly after the modal mounts so it lands
   // after the entrance animation, not on top of it.
@@ -157,23 +153,21 @@ export function WelcomeHomeOverlay({
       return () => clearTimeout(t);
     }
     setCelebrate(false);
-    setReplayKey(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // Replay celebration — used by the testing-only "Tell your family"
-  // hijack. Bumping replayKey re-mounts the confetti layer + ALON,
-  // which resets the celebrationFired ref inside AlonAvatar so the
-  // dance can play again. Toggling celebrate off→on triggers the
-  // useEffect chain that re-fires haptics + the new sequence.
-  const replayCelebration = () => {
+  const handleShare = async () => {
     haptics.light();
-    setCelebrate(false);
-    setReplayKey((k) => k + 1);
-    setTimeout(() => {
-      setCelebrate(true);
-      haptics.success();
-    }, 80);
+    const builderTail = builderName ? ` by ${builderName}` : '';
+    const locationTail = location ? ` (${location})` : '';
+    try {
+      await Share.share({
+        title: 'I got the keys!',
+        message: `I just got the keys to ${propertyName}${builderTail}${locationTail}. Big day.`,
+      });
+    } catch {
+      // Cancelled or unavailable — non-fatal.
+    }
   };
 
   // Structured property line — "by Builder · Location" when we have
@@ -251,7 +245,6 @@ export function WelcomeHomeOverlay({
               </Svg>
             </View>
             <AlonAvatar
-              key={`alon-${replayKey}`}
               size={120}
               showRings={true}
               showBlink={true}
@@ -271,12 +264,9 @@ export function WelcomeHomeOverlay({
           </Animated.Text>
 
           <View style={styles.ctaRow}>
-            {/* ⚠️ TEMPORARY: hijacked to replay the celebration so we
-                can iterate without re-completing every checklist.
-                Revert to native share via Share.share before merging. */}
             <TouchableOpacity
               style={styles.shareBtn}
-              onPress={replayCelebration}
+              onPress={handleShare}
               activeOpacity={0.85}
             >
               <Share2 size={14} color={Colors.terra500} strokeWidth={2.2} />
@@ -299,11 +289,9 @@ export function WelcomeHomeOverlay({
             on top of the headline + ALON + tagline + CTAs. Without
             this z-order the cannons get hidden behind text/avatar
             and the celebration disappears. Plus a brief cannon-flash
-            at each corner on each wave so the user *sees* the launch.
-            The `key={replayKey}` makes the whole layer re-mount on
-            replay so all particle useEffects fire from scratch. */}
+            at each corner on each wave so the user *sees* the launch. */}
         {visible && (
-          <View key={`confetti-${replayKey}`} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <CannonFlash side="left" />
             <CannonFlash side="right" />
             {CONFETTI_PARTICLES.map((p, i) => (
