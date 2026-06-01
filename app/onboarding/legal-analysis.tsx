@@ -47,162 +47,13 @@ import { useHaptics } from '../../hooks/useHaptics';
 import { calculateEligibility, getInterestRate, formatINR, formatINRShort } from '../../utils/financeCalc';
 import { parsePriceToNumber } from '../../utils/compareScore';
 import LegalPropertySelector from '../../components/LegalPropertySelector';
+import LegalAgreementSwitcher from '../../components/LegalAgreementSwitcher';
 import { defaultLegalPropertyId, resolveLegalProperty } from '../../utils/legalProperty';
-
-// ═══════════════════════════════════════════════════════════════
-// DEMO DATA (Phase 1: pre-baked analysis for MahaRERA model)
-// ═══════════════════════════════════════════════════════════════
-
-interface RiskFinding {
-  id: string;
-  severity: 'high' | 'medium' | 'low';
-  title: string;
-  quote: string;
-  explanation: string;
-  action: string;
-}
-
-const DEMO_RISKS: RiskFinding[] = [
-  // HIGH (2)
-  {
-    id: 'no-possession-penalty',
-    severity: 'high',
-    title: 'No possession delay penalty clause',
-    quote: '"In the event of delay in possession, the Promoter shall not be liable for any compensation..."',
-    explanation: 'The agreement lacks a clear penalty clause if the builder delays possession beyond the promised date. RERA mandates a minimum interest payout at MCLR+2% for delays — this is missing.',
-    action: 'Demand a clause stating ₹X per sq.ft per month of delay, or interest at MCLR+2% on amounts paid.',
-  },
-  {
-    id: 'one-sided-cancellation',
-    severity: 'high',
-    title: 'One-sided cancellation terms',
-    quote: '"In case of cancellation by the Allottee, 10% of the total consideration shall be forfeited by the Promoter..."',
-    explanation: 'You lose 10% if you cancel, but the builder faces no equivalent penalty for their default or delay. This is an unfair trade practice under the Consumer Protection Act.',
-    action: 'Negotiate reciprocal terms: 10% penalty only after construction milestones; builder pays equal penalty on delay.',
-  },
-  // MEDIUM (3)
-  {
-    id: 'maintenance-above-avg',
-    severity: 'medium',
-    title: 'Maintenance above area average',
-    quote: '"Monthly maintenance charges shall be ₹4.50 per sq.ft..."',
-    explanation: 'Baner area average is ₹3.50/sq.ft. You are paying 28% above market rate. Over 5 years on a 1,450 sq.ft flat, this adds up to ₹87,000 in excess maintenance.',
-    action: 'Ask for a breakdown of maintenance costs. Push to negotiate down to ₹3.75-4.00/sq.ft.',
-  },
-  {
-    id: 'club-membership',
-    severity: 'medium',
-    title: 'Club membership not disclosed at booking',
-    quote: '"A one-time club membership fee of ₹2,50,000 is payable at the time of possession..."',
-    explanation: 'This charge was not mentioned at the booking stage. MahaRERA disclosure norms require all charges to be stated upfront.',
-    action: 'Ask for a written waiver of this fee or reduction by 50%. Many builders waive it during negotiation.',
-  },
-  {
-    id: 'common-area-ambiguous',
-    severity: 'medium',
-    title: 'Common-area definition is ambiguous',
-    quote: '"Common areas include such areas as the Promoter may designate..."',
-    explanation: 'The clause gives the builder unilateral discretion to designate common areas, which can reduce your usable carpet area post-possession.',
-    action: 'Insist on a specific, itemized list of common areas with sq.ft allocations in an annexure.',
-  },
-  // LOW (4)
-  {
-    id: 'arbitration',
-    severity: 'low',
-    title: 'Standard arbitration clause',
-    quote: '"Any disputes shall be resolved by arbitration in Pune..."',
-    explanation: 'Standard clause, aligned with MahaRERA requirements. Nothing to worry about.',
-    action: 'No action needed.',
-  },
-  {
-    id: 'jurisdiction',
-    severity: 'low',
-    title: 'Default jurisdiction clause',
-    quote: '"Courts in Pune shall have exclusive jurisdiction..."',
-    explanation: 'Standard and fair — disputes can be filed in Pune where the property is located.',
-    action: 'No action needed.',
-  },
-  {
-    id: 'missing-disclosure',
-    severity: 'low',
-    title: 'Non-mandatory MahaRERA disclosure missing',
-    quote: '(Page 7: promoter financial disclosure section incomplete)',
-    explanation: 'The optional promoter financial disclosure is incomplete. Not legally required, but reduces transparency.',
-    action: 'Request the builder share their 3-year financial statement if you want extra assurance.',
-  },
-  {
-    id: 'formatting',
-    severity: 'low',
-    title: 'Minor formatting inconsistencies',
-    quote: '(Various pages: numbering, font inconsistencies)',
-    explanation: 'Minor typos and inconsistent formatting. No legal impact.',
-    action: 'No action needed.',
-  },
-];
-
-interface BenchmarkItem {
-  label: string;
-  yours: string;
-  market: string;
-  severity: 'concern' | 'neutral' | 'favorable';
-  deltaText: string;
-  why?: string;
-}
-
-const DEMO_BENCHMARKS: BenchmarkItem[] = [
-  {
-    label: 'Maintenance',
-    yours: '₹4.50/sq.ft',
-    market: '₹3.50/sq.ft',
-    severity: 'concern',
-    deltaText: '+28% above',
-    why: 'Adds ~₹87K over 5 years on a 1,450 sq.ft flat',
-  },
-  {
-    label: 'Possession buffer',
-    yours: '8 months',
-    market: '3–6 months',
-    severity: 'concern',
-    deltaText: 'Builder has buffer',
-    why: 'Extra months let the builder delay without penalty',
-  },
-  {
-    label: 'Floor rise',
-    yours: '₹75/sq.ft',
-    market: '₹50–100/sq.ft',
-    severity: 'neutral',
-    deltaText: 'Within range',
-  },
-  {
-    label: 'GST',
-    yours: '5% on under-construction',
-    market: 'Standard',
-    severity: 'neutral',
-    deltaText: 'As per law',
-  },
-  {
-    label: 'Cancellation penalty',
-    yours: '10% (buyer only)',
-    market: 'Reciprocal preferred',
-    severity: 'concern',
-    deltaText: 'One-sided',
-    why: 'You forfeit 10%, builder owes nothing on delay',
-  },
-];
-
-// Mock parser output for the prototype. In production the parsed
-// property metadata comes from the upload pipeline — we just want
-// plausible Pune-market values so the UI downstream (AT A GLANCE,
-// affordability, benchmarks) has realistic context. Cycled per-extraction
-// so users running the flow multiple times don't see identical
-// "Previously analyzed" rows.
-const MOCK_EXTRACTED_PROPERTIES = [
-  { name: 'Kumar Pebble Bay',    location: 'Kalyani Nagar, Pune', price: '₹1.68 Cr', propertyType: 'Apartment' },
-  { name: 'Lodha Belmondo',      location: 'Pirangut, Pune',      price: '₹95 L',    propertyType: 'Villa' },
-  { name: 'Mahindra Antheia',    location: 'Pimpri, Pune',        price: '₹1.42 Cr', propertyType: 'Apartment' },
-  { name: 'Kolte-Patil iTowers', location: 'Hinjewadi, Pune',     price: '₹1.15 Cr', propertyType: 'Apartment' },
-  { name: 'Rohan Abhilasha',     location: 'Wagholi, Pune',       price: '₹85 L',    propertyType: 'Apartment' },
-];
+import {
+  type RiskFinding,
+  MOCK_EXTRACTED_PROPERTIES,
+  getAnalysisVariant,
+} from '../../constants/legalData';
 
 // ═══════════════════════════════════════════════════════════════
 // SCREEN
@@ -225,7 +76,6 @@ export default function LegalAnalysisScreen() {
     activeLegalPropertyId,
     setActiveLegalProperty,
     setLegalAnalysisForProperty,
-    clearLegalAnalysisForProperty,
     addExternalProperty,
     updateExternalProperty,
   } = useOnboardingStore();
@@ -248,18 +98,29 @@ export default function LegalAnalysisScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // once on mount only; later user actions are deliberate
 
-  // First-visit defaulting: prefer Negotiate lock → shortlist → userProperties → null.
-  // We only set the default once (when the selection is empty). If the user
-  // later picks something else via the selector, we keep their choice.
+  // Every analyzed agreement, oldest-first (stable order for the switcher).
+  // A record exists in `legalAnalyses` iff that property's agreement has
+  // been analyzed — this is the multi-agreement list the user toggles.
+  const analyzedIds = useMemo(
+    () =>
+      Object.values(legalAnalyses)
+        .sort((a, b) => a.uploadedAt - b.uploadedAt)
+        .map((r) => r.propertyId),
+    [legalAnalyses],
+  );
+  const hasAnalyzed = analyzedIds.length > 0;
+
+  // First-visit defaulting: once any agreement is analyzed, default to the
+  // first one so the switcher view is coherent. Otherwise fall back to
+  // Negotiate lock → shortlist → userProperties → null. Only sets a default
+  // when nothing is selected; a deliberate pick is always kept.
   React.useEffect(() => {
     if (activeLegalPropertyId) return;
-    const fallback = defaultLegalPropertyId({
-      negotiatePropertyId,
-      likedPropertyIds,
-      userProperties,
-    });
+    const fallback =
+      analyzedIds[0] ??
+      defaultLegalPropertyId({ negotiatePropertyId, likedPropertyIds, userProperties });
     if (fallback) setActiveLegalProperty(fallback);
-  }, [activeLegalPropertyId, negotiatePropertyId, likedPropertyIds, userProperties, setActiveLegalProperty]);
+  }, [activeLegalPropertyId, analyzedIds, negotiatePropertyId, likedPropertyIds, userProperties, setActiveLegalProperty]);
 
   const property = useMemo(
     () => resolveLegalProperty({ userProperties, externalProperties }, activeLegalPropertyId),
@@ -271,6 +132,18 @@ export default function LegalAnalysisScreen() {
   // yet so name/location are still empty. In this mode, the upload card
   // announces the auto-extract flow; after upload, the AI fills in details.
   const isExternalPending = property?.source === 'external' && !property.name;
+
+  // Re-home guard: if agreements have been analyzed but the active selection
+  // points at something that ISN'T analyzed (e.g. a shortlist property left
+  // active from a prior visit), snap to the first analyzed agreement so the
+  // switcher and the analysis below stay in sync. Skipped while a scan is in
+  // flight, and for a pending external upload (which is mid-analysis).
+  React.useEffect(() => {
+    if (isProcessing || isExternalPending) return;
+    if (analyzedIds.length === 0 || !activeLegalPropertyId) return;
+    if (legalAnalyses[activeLegalPropertyId]) return; // already analyzed — keep it
+    setActiveLegalProperty(analyzedIds[0]);
+  }, [isProcessing, isExternalPending, analyzedIds, activeLegalPropertyId, legalAnalyses, setActiveLegalProperty]);
 
   // Zero-pool: truly fresh start — user has no shortlist, no user-added,
   // and no named external properties, and hasn't picked anything yet.
@@ -348,14 +221,41 @@ export default function LegalAnalysisScreen() {
     runAnalysis(id);
   }, [addExternalProperty, setActiveLegalProperty, runAnalysis]);
 
+  // Re-upload re-runs the scan in place on the SAME agreement — it never
+  // drops the record, so the agreement stays in the switcher list the whole
+  // time (no remove path anywhere, by design).
   const reupload = useCallback(() => {
     if (!activeLegalPropertyId) return;
-    haptics.light();
-    clearLegalAnalysisForProperty(activeLegalPropertyId);
-  }, [activeLegalPropertyId, clearLegalAnalysisForProperty, haptics]);
+    runAnalysis(activeLegalPropertyId, docName ?? undefined);
+  }, [activeLegalPropertyId, docName, runAnalysis]);
 
-  // ═══ RISK COUNTS ═══
-  const highCount = DEMO_RISKS.filter((r) => r.severity === 'high').length;
+  // Switcher "+ Add" — go straight to a fresh external upload. One tap
+  // creates a placeholder, makes it active, and starts the scan; details are
+  // auto-extracted from the agreement and a new row appears in the list.
+  const handleAddAnotherAgreement = useCallback(() => {
+    const id = addExternalProperty({ name: '', location: '' });
+    setActiveLegalProperty(id);
+    runAnalysis(id);
+  }, [addExternalProperty, setActiveLegalProperty, runAnalysis]);
+
+  // ═══ ACTIVE AGREEMENT ANALYSIS ═══
+  // Resolved deterministically per property so toggling between agreements
+  // shows each one's own findings (see constants/legalData).
+  const variant = activeLegalPropertyId ? getAnalysisVariant(activeLegalPropertyId) : null;
+  const risks = variant?.risks ?? [];
+  const glance = variant?.glance ?? null;
+  const highCount = risks.filter((r) => r.severity === 'high').length;
+  const mediumCount = risks.filter((r) => r.severity === 'medium').length;
+  const lowCount = risks.filter((r) => r.severity === 'low').length;
+
+  // When switching agreements, open the most severe non-empty section so the
+  // user lands on what matters most for that specific agreement (a clean one
+  // opens to medium/low instead of an empty High section).
+  React.useEffect(() => {
+    if (!activeLegalPropertyId) return;
+    setExpandedSeverity(highCount > 0 ? 'high' : mediumCount > 0 ? 'medium' : 'low');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLegalPropertyId]);
 
   // ═══ AFFORDABILITY ═══
   // Only meaningful once a property is selected; empty-state path falls back to 0s
@@ -445,11 +345,23 @@ export default function LegalAnalysisScreen() {
         )}
 
         {/* ── Property selector (replaces the old locked card) ── */}
-        {!isZeroPool && (
+        {/* Before any agreement is analyzed: pick a property to upload for. */}
+        {!isZeroPool && !hasAnalyzed && (
           <LegalPropertySelector
             activePropertyId={activeLegalPropertyId}
             onChange={setActiveLegalProperty}
             onStartExternalUpload={handleStartExternalUpload}
+          />
+        )}
+
+        {/* Once ≥1 agreement is analyzed: the list of agreements, tap to
+            switch, "+ Add" to analyze another. No remove — by design. */}
+        {hasAnalyzed && (
+          <LegalAgreementSwitcher
+            analyzedIds={analyzedIds}
+            activeId={activeLegalPropertyId}
+            onSelect={setActiveLegalProperty}
+            onAdd={handleAddAnotherAgreement}
           />
         )}
 
@@ -534,24 +446,24 @@ export default function LegalAnalysisScreen() {
                 <GlanceRow
                   icon={<Calendar size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Possession promised"
-                  value="Dec 2026"
-                  warning="No delay penalty clause"
+                  value={glance?.possession ?? '—'}
+                  warning={glance?.possessionWarning}
                 />
                 <GlanceRow
                   icon={<CreditCard size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Payment plan"
-                  value="10 construction-linked stages · 20% upfront"
+                  value={glance?.paymentPlan ?? '—'}
                 />
                 <GlanceRow
                   icon={<Home size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Monthly maintenance"
-                  value="₹4.50/sq.ft"
-                  warning="28% above Baner average"
+                  value={glance?.maintenance ?? '—'}
+                  warning={glance?.maintenanceWarning}
                 />
                 <GlanceRow
                   icon={<ShieldCheck size={14} color="#16A34A" strokeWidth={2} />}
                   label="RERA verified"
-                  value="P52100012345"
+                  value={glance?.rera ?? '—'}
                 />
               </View>
             </Animated.View>
@@ -560,42 +472,69 @@ export default function LegalAnalysisScreen() {
             <Animated.View entering={FadeInDown.delay(200).duration(300)}>
               <Text style={styles.sectionLabel}>WHAT WE FOUND</Text>
 
-              {/* What to do first — prioritizing hint */}
-              <View style={styles.priorityHint}>
-                <AlertTriangle size={13} color="#C2410C" strokeWidth={2} />
-                <Text style={styles.priorityHintText}>
-                  <Text style={styles.priorityHintBold}>Start with the {highCount} high-priority items</Text> — they have the biggest impact on your negotiation leverage.
+              {/* What to do first — prioritizing hint. Reads positively when
+                  there are no high-priority red flags. */}
+              <View
+                style={[
+                  styles.priorityHint,
+                  highCount === 0 && { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' },
+                ]}
+              >
+                {highCount > 0 ? (
+                  <AlertTriangle size={13} color="#C2410C" strokeWidth={2} />
+                ) : (
+                  <CheckCircle2 size={13} color="#16A34A" strokeWidth={2} />
+                )}
+                <Text style={[styles.priorityHintText, highCount === 0 && { color: '#166534' }]}>
+                  {highCount > 0 ? (
+                    <>
+                      <Text style={styles.priorityHintBold}>
+                        Start with the {highCount} high-priority {highCount === 1 ? 'item' : 'items'}
+                      </Text> — they have the biggest impact on your negotiation leverage.
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.priorityHintBold, { color: '#166534' }]}>No high-priority red flags.</Text> Skim the medium and low items below before you sign.
+                    </>
+                  )}
                 </Text>
               </View>
 
-              {/* Risk findings (collapsible by severity) */}
-              <RiskSection
-                severity="high"
-                label="High priority"
-                color="#DC2626"
-                bgColor="#FEE2E2"
-                findings={DEMO_RISKS.filter((r) => r.severity === 'high')}
-                expanded={expandedSeverity === 'high'}
-                onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'high' ? null : 'high'); }}
-              />
-              <RiskSection
-                severity="medium"
-                label="Medium priority"
-                color="#C2410C"
-                bgColor="#FFEDD5"
-                findings={DEMO_RISKS.filter((r) => r.severity === 'medium')}
-                expanded={expandedSeverity === 'medium'}
-                onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'medium' ? null : 'medium'); }}
-              />
-              <RiskSection
-                severity="low"
-                label="Low priority"
-                color="#16A34A"
-                bgColor="#DCFCE7"
-                findings={DEMO_RISKS.filter((r) => r.severity === 'low')}
-                expanded={expandedSeverity === 'low'}
-                onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'low' ? null : 'low'); }}
-              />
+              {/* Risk findings (collapsible by severity). Empty sections are
+                  hidden, so a clean agreement doesn't show "High (0)". */}
+              {highCount > 0 && (
+                <RiskSection
+                  severity="high"
+                  label="High priority"
+                  color="#DC2626"
+                  bgColor="#FEE2E2"
+                  findings={risks.filter((r) => r.severity === 'high')}
+                  expanded={expandedSeverity === 'high'}
+                  onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'high' ? null : 'high'); }}
+                />
+              )}
+              {mediumCount > 0 && (
+                <RiskSection
+                  severity="medium"
+                  label="Medium priority"
+                  color="#C2410C"
+                  bgColor="#FFEDD5"
+                  findings={risks.filter((r) => r.severity === 'medium')}
+                  expanded={expandedSeverity === 'medium'}
+                  onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'medium' ? null : 'medium'); }}
+                />
+              )}
+              {lowCount > 0 && (
+                <RiskSection
+                  severity="low"
+                  label="Low priority"
+                  color="#16A34A"
+                  bgColor="#DCFCE7"
+                  findings={risks.filter((r) => r.severity === 'low')}
+                  expanded={expandedSeverity === 'low'}
+                  onToggle={() => { haptics.light(); setExpandedSeverity(expandedSeverity === 'low' ? null : 'low'); }}
+                />
+              )}
             </Animated.View>
 
             {/* ── Affordability check ── */}
@@ -674,13 +613,13 @@ export default function LegalAnalysisScreen() {
                   <Text style={styles.benchmarkTitle}>Your terms vs Pune market</Text>
                 </View>
 
-                {DEMO_BENCHMARKS.map((item, i) => {
+                {(variant?.benchmarks ?? []).map((item, i) => {
                   const isConcern = item.severity === 'concern';
                   const isFavorable = item.severity === 'favorable';
                   return (
                     <View
                       key={item.label}
-                      style={[styles.benchmarkRow, i < DEMO_BENCHMARKS.length - 1 && styles.benchmarkRowBorder]}
+                      style={[styles.benchmarkRow, i < (variant?.benchmarks?.length ?? 0) - 1 && styles.benchmarkRowBorder]}
                     >
                       <View style={styles.benchmarkTopRow}>
                         <Text style={styles.benchmarkLabel}>{item.label}</Text>
