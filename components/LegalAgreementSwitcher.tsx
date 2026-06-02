@@ -1,12 +1,31 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+} from 'react-native';
 import { Plus, Check, ShieldCheck } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import { Colors, Spacing } from '../constants/theme';
 import { useOnboardingStore } from '../store/onboarding';
 import { useHaptics } from '../hooks/useHaptics';
 import { resolveLegalProperty, type ResolvedLegalProperty } from '../utils/legalProperty';
 import { riskCountsForProperty } from '../constants/legalData';
+
+// Beyond this many agreements the list scrolls in place instead of growing.
+// VISIBLE_ROWS is intentionally a half-row so the cut-off row peeks — the
+// clearest "there's more, scroll me" affordance.
+const SCROLL_AFTER = 4;
+const ROW_HEIGHT = 63;
+const VISIBLE_ROWS = 3.5;
+const LIST_MAX_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
+const FADE_H = 28;
 
 interface Props {
   /** Property ids that have a completed analysis, in display order. */
@@ -56,6 +75,28 @@ export default function LegalAgreementSwitcher({
     onAdd();
   };
 
+  // ── Scroll-in-place when the list is long ──
+  const scrollable = agreements.length > SCROLL_AFTER;
+  const listRef = useRef<ScrollView>(null);
+  const [atEnd, setAtEnd] = useState(false);
+
+  // On mount (and whenever it becomes scrollable), bring the active row into
+  // view so the user never opens to a list that hides their selection. Not
+  // re-run on every tap — a tapped row is already visible, so no jump.
+  useEffect(() => {
+    if (!scrollable) return;
+    const idx = agreements.findIndex((p) => p.id === activeId);
+    if (idx < 0) return;
+    const y = Math.max(0, idx * ROW_HEIGHT - LIST_MAX_HEIGHT / 2 + ROW_HEIGHT / 2);
+    const t = setTimeout(() => listRef.current?.scrollTo({ y, animated: false }), 0);
+    return () => clearTimeout(t);
+  }, [scrollable]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    setAtEnd(contentOffset.y + layoutMeasurement.height >= contentSize.height - 6);
+  };
+
   return (
     <Animated.View entering={FadeIn.duration(260)} style={styles.wrap}>
       {/* Header: count + add */}
@@ -69,8 +110,17 @@ export default function LegalAgreementSwitcher({
         </TouchableOpacity>
       </View>
 
-      {/* List card */}
+      {/* List card — scrolls in place once past SCROLL_AFTER rows */}
       <View style={styles.card}>
+        <ScrollView
+          ref={listRef}
+          style={scrollable ? { maxHeight: LIST_MAX_HEIGHT } : undefined}
+          scrollEnabled={scrollable}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={scrollable}
+          onScroll={scrollable ? onScroll : undefined}
+          scrollEventThrottle={16}
+        >
         {agreements.map((p, i) => {
           const isActive = p.id === activeId;
           const { high } = riskCountsForProperty(p.id);
@@ -128,6 +178,22 @@ export default function LegalAgreementSwitcher({
             </TouchableOpacity>
           );
         })}
+        </ScrollView>
+
+        {/* Bottom fade — reinforces "scroll for more"; hidden at the end. */}
+        {scrollable && !atEnd && (
+          <View pointerEvents="none" style={styles.fade}>
+            <Svg width="100%" height={FADE_H}>
+              <Defs>
+                <SvgLinearGradient id="agFade" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={Colors.white} stopOpacity={0} />
+                  <Stop offset="1" stopColor={Colors.white} stopOpacity={1} />
+                </SvgLinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height={FADE_H} fill="url(#agFade)" />
+            </Svg>
+          </View>
+        )}
       </View>
     </Animated.View>
   );
@@ -177,6 +243,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.warm200,
     overflow: 'hidden',
+  },
+  fade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: FADE_H,
   },
   row: {
     flexDirection: 'row',

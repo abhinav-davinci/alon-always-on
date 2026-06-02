@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -39,8 +40,6 @@ import Animated, {
   withRepeat,
   withTiming,
   withSequence,
-  withDelay,
-  interpolateColor,
   Easing,
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -259,30 +258,29 @@ export default function LegalAnalysisScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLegalPropertyId]);
 
-  // ── Switch feedback ──
-  // The report region (AT A GLANCE downward) fades + slides up on every
-  // agreement switch, and the anchor card briefly pulses its tint — together
-  // they make it unmistakable that the data below now belongs to the newly
-  // selected agreement, even when it's scrolled out of view.
-  const swap = useSharedValue(1); // 1 = settled, 0 = just switched
-  const anchorPulse = useSharedValue(1);
-  React.useEffect(() => {
-    if (!activeLegalPropertyId) return;
-    swap.value = 0;
-    swap.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
-    anchorPulse.value = 0;
-    anchorPulse.value = withTiming(1, { duration: 650, easing: Easing.out(Easing.ease) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLegalPropertyId]);
+  // ── Switching between already-analyzed agreements ──
+  // Tapping a different agreement shows a brief, crisp loader in the report
+  // region — standing in for the round-trip that reads that agreement's
+  // analysis from the backend — then reveals the new content. The list row
+  // highlights immediately so the tap feels responsive; the loader only
+  // masks the report swap.
+  const [isSwitching, setIsSwitching] = useState(false);
+  const switchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const reportStyle = useAnimatedStyle(() => ({
-    opacity: swap.value,
-    transform: [{ translateY: (1 - swap.value) * 10 }],
-  }));
-  const anchorPulseStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(anchorPulse.value, [0, 1], [Colors.terra100, Colors.terra50]),
-    borderColor: interpolateColor(anchorPulse.value, [0, 1], [Colors.terra400, Colors.terra200]),
-  }));
+  const handleSwitchAgreement = useCallback(
+    (id: string) => {
+      if (id === activeLegalPropertyId) return;
+      setActiveLegalProperty(id); // highlight + swap content underneath the loader
+      setIsSwitching(true);
+      if (switchTimer.current) clearTimeout(switchTimer.current);
+      switchTimer.current = setTimeout(() => setIsSwitching(false), 650);
+    },
+    [activeLegalPropertyId, setActiveLegalProperty],
+  );
+
+  React.useEffect(() => () => {
+    if (switchTimer.current) clearTimeout(switchTimer.current);
+  }, []);
 
   // ═══ AFFORDABILITY ═══
   // Only meaningful once a property is selected; empty-state path falls back to 0s
@@ -387,7 +385,7 @@ export default function LegalAnalysisScreen() {
           <LegalAgreementSwitcher
             analyzedIds={analyzedIds}
             activeId={activeLegalPropertyId}
-            onSelect={setActiveLegalProperty}
+            onSelect={handleSwitchAgreement}
             onAdd={handleAddAnotherAgreement}
           />
         )}
@@ -436,67 +434,35 @@ export default function LegalAnalysisScreen() {
           </Animated.View>
         )}
 
-        {/* ════════════════════════════════════
-             STATE: Processing
-             ════════════════════════════════════ */}
-        {isProcessing && <ScanningCard />}
+        {/* Processing is a full-screen takeover — see <Modal> below. */}
 
         {/* ════════════════════════════════════
              STATE: Analysis complete
              ════════════════════════════════════ */}
         {analysisDone && !isProcessing && property && (
           <>
-            {/* ── Anchor card: persistent identity + document + Replace ──
-                Mirrors the active list row (avatar, name, risk badge) so the
-                report below is always tied to a named agreement. Pulses on
-                switch; carries the demoted "Replace" action for this file. */}
-            <Animated.View style={[styles.anchorCard, anchorPulseStyle]}>
-              <View style={styles.anchorTop}>
-                {property.image ? (
-                  <Image source={{ uri: property.image }} style={styles.anchorAvatar} />
-                ) : (
-                  <View style={[styles.anchorAvatar, styles.anchorAvatarPlaceholder]}>
-                    <Text style={styles.anchorAvatarInitial}>{property.name.charAt(0)}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.anchorEyebrow}>VIEWING ANALYSIS FOR</Text>
-                  <Text style={styles.anchorName} numberOfLines={1}>{property.name}</Text>
-                  <Text style={styles.anchorMeta} numberOfLines={1}>
-                    {property.location}{property.price ? ` · ${property.price}` : ''}
-                  </Text>
-                </View>
-                {highCount > 0 ? (
-                  <View style={styles.anchorRiskBadge}>
-                    <Text style={styles.anchorRiskText}>{highCount} high</Text>
-                  </View>
-                ) : (
-                  <View style={styles.anchorCleanBadge}>
-                    <ShieldCheck size={11} color="#16A34A" strokeWidth={2.2} />
-                    <Text style={styles.anchorCleanText}>Clean</Text>
-                  </View>
-                )}
+            {/* ── Document row + Replace (scoped to the active agreement) ── */}
+            <View style={styles.docRow}>
+              <View style={styles.docIconWrap}>
+                <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
               </View>
-
-              <View style={styles.anchorDivider} />
-
-              <View style={styles.anchorDocRow}>
-                <View style={styles.docIconWrap}>
-                  <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.docName} numberOfLines={1}>{docName || 'Agreement.pdf'}</Text>
-                  <Text style={styles.docSub}>Analyzed · 3 sections reviewed</Text>
-                </View>
-                <TouchableOpacity style={styles.replaceBtn} onPress={reupload} activeOpacity={0.7}>
-                  <RefreshCw size={11} color={Colors.terra500} strokeWidth={2} />
-                  <Text style={styles.replaceText}>Replace</Text>
-                </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.docName} numberOfLines={1}>{docName || 'Agreement.pdf'}</Text>
+                <Text style={styles.docSub}>Analyzed · 3 sections reviewed</Text>
               </View>
-            </Animated.View>
+              <TouchableOpacity style={styles.replaceBtn} onPress={reupload} activeOpacity={0.7}>
+                <RefreshCw size={11} color={Colors.terra500} strokeWidth={2} />
+                <Text style={styles.replaceText}>Replace</Text>
+              </TouchableOpacity>
+            </View>
 
-            {/* ── Report region — fades/slides in on every switch ── */}
-            <Animated.View style={reportStyle}>
+            {/* While switching agreements, mask the report swap with a crisp
+                loader; otherwise render the report (which fades in per-section
+                on reveal). */}
+            {isSwitching ? (
+              <SwitchLoader />
+            ) : (
+            <>
 
             {/* ── At a Glance ── */}
             <Animated.View entering={FadeInDown.delay(100).duration(300)}>
@@ -505,7 +471,7 @@ export default function LegalAnalysisScreen() {
                 <GlanceRow
                   icon={<Wallet size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Agreement value"
-                  value={property.price ?? 'Price not set'}
+                  value={`${property.price ?? 'Price not set'} · ${property.name}`}
                 />
                 <GlanceRow
                   icon={<Calendar size={14} color={Colors.terra500} strokeWidth={2} />}
@@ -726,7 +692,8 @@ export default function LegalAnalysisScreen() {
                 })}
               </View>
             </Animated.View>
-            </Animated.View>
+            </>
+            )}
           </>
         )}
 
@@ -764,6 +731,32 @@ export default function LegalAnalysisScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* ════════════════════════════════════
+           Full-screen scan takeover (Add / Replace).
+           A Modal so nothing behind stays tappable while ALON reads the
+           document — the user can't mis-tap the list or Add mid-scan.
+           ════════════════════════════════════ */}
+      <Modal
+        visible={isProcessing}
+        animationType="fade"
+        onRequestClose={() => {}}
+        statusBarTranslucent
+      >
+        <View style={[styles.scanModal, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.scanModalHeader}>
+            <Scale size={16} color={Colors.terra500} strokeWidth={2} />
+            <Text style={styles.scanModalHeaderText}>Legal Analysis</Text>
+          </View>
+          <View style={styles.scanModalBody}>
+            <Text style={styles.scanModalTitle}>Reading your agreement</Text>
+            <Text style={styles.scanModalSub}>
+              Hang tight — this takes a few seconds. Please keep this screen open.
+            </Text>
+            <ScanningCard />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -771,6 +764,50 @@ export default function LegalAnalysisScreen() {
 // ═══════════════════════════════════════════════════════════════
 // SUBCOMPONENTS
 // ═══════════════════════════════════════════════════════════════
+
+// ── Switch loader: brief "reading from backend" spinner shown while the
+// user toggles between already-analyzed agreements. A single crisp rotating
+// arc — deliberately understated so it reads as a quick fetch, not a re-scan.
+function SwitchLoader() {
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    spin.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.linear }), -1, false);
+  }, []);
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value * 360}deg` }],
+  }));
+  return (
+    <Animated.View entering={FadeIn.duration(140)} style={switchLoaderStyles.wrap}>
+      <Animated.View style={[switchLoaderStyles.ring, ringStyle]} />
+      <Text style={switchLoaderStyles.label}>Loading analysis…</Text>
+    </Animated.View>
+  );
+}
+
+const switchLoaderStyles = StyleSheet.create({
+  wrap: {
+    marginHorizontal: Spacing.xxl,
+    marginTop: 20,
+    paddingVertical: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  ring: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 3,
+    borderColor: Colors.terra100,
+    borderTopColor: Colors.terra500,
+  },
+  label: {
+    fontFamily: 'DMSans-Medium',
+    fontSize: 12,
+    color: Colors.textTertiary,
+    letterSpacing: 0.2,
+  },
+});
 
 // ── Scanning card: polished "ALON is reading" animation ──
 const SCAN_STATUSES = [
@@ -1227,51 +1264,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, lineHeight: 17,
   },
 
-  // ── Analysis: Anchor card (identity + document + Replace) ──
-  anchorCard: {
-    marginHorizontal: Spacing.xxl, marginTop: 16,
-    padding: 12, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.terra200, backgroundColor: Colors.terra50,
-  },
-  anchorTop: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-  },
-  anchorAvatar: {
-    width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.white,
-  },
-  anchorAvatarPlaceholder: {
-    alignItems: 'center', justifyContent: 'center',
-  },
-  anchorAvatarInitial: {
-    fontSize: 18, fontFamily: 'DMSerifDisplay', color: Colors.terra500,
-  },
-  anchorEyebrow: {
-    fontFamily: 'DMSans-SemiBold', fontSize: 9, color: Colors.textTertiary,
-    letterSpacing: 0.6, marginBottom: 2,
-  },
-  anchorName: {
-    fontFamily: 'DMSans-Bold', fontSize: 15, color: Colors.textPrimary,
-  },
-  anchorMeta: {
-    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary, marginTop: 1,
-  },
-  anchorRiskBadge: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-    backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA',
-  },
-  anchorRiskText: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: '#DC2626' },
-  anchorCleanBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
-    backgroundColor: '#DCFCE7', borderWidth: 1, borderColor: '#BBF7D0',
-  },
-  anchorCleanText: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: '#16A34A' },
-  anchorDivider: {
-    height: 1, backgroundColor: Colors.terra200, opacity: 0.7,
-    marginVertical: 11,
-  },
-  anchorDocRow: {
+  // ── Analysis: Document row + Replace ──
+  docRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: Spacing.xxl, marginTop: 16,
+    padding: 12, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.terra200, backgroundColor: Colors.terra50,
   },
   docIconWrap: {
     width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.white,
@@ -1286,6 +1284,33 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.terra200,
   },
   replaceText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.terra500 },
+
+  // ── Full-screen scan takeover ──
+  scanModal: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.xxl,
+  },
+  scanModalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: Spacing.md,
+  },
+  scanModalHeaderText: { fontSize: 17, fontFamily: 'DMSans-Bold', color: Colors.textPrimary },
+  scanModalBody: {
+    flex: 1,
+    justifyContent: 'center',
+    marginHorizontal: -Spacing.xxl, // let ScanningCard use its own margins
+    paddingBottom: 40,
+  },
+  scanModalTitle: {
+    fontFamily: 'DMSerifDisplay', fontSize: 24, color: Colors.textPrimary,
+    textAlign: 'center', marginHorizontal: Spacing.xxl,
+  },
+  scanModalSub: {
+    fontFamily: 'DMSans-Regular', fontSize: 13, color: Colors.textSecondary,
+    textAlign: 'center', lineHeight: 19, marginTop: 8, marginBottom: 4,
+    marginHorizontal: Spacing.xxl,
+  },
 
   // ── At a Glance (iconographic row layout) ──
   glanceCard: {
