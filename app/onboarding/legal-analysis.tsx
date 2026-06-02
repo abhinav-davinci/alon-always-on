@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -39,6 +40,7 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
+  interpolateColor,
   Easing,
 } from 'react-native-reanimated';
 import { Colors, Spacing } from '../../constants/theme';
@@ -257,6 +259,31 @@ export default function LegalAnalysisScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLegalPropertyId]);
 
+  // ── Switch feedback ──
+  // The report region (AT A GLANCE downward) fades + slides up on every
+  // agreement switch, and the anchor card briefly pulses its tint — together
+  // they make it unmistakable that the data below now belongs to the newly
+  // selected agreement, even when it's scrolled out of view.
+  const swap = useSharedValue(1); // 1 = settled, 0 = just switched
+  const anchorPulse = useSharedValue(1);
+  React.useEffect(() => {
+    if (!activeLegalPropertyId) return;
+    swap.value = 0;
+    swap.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+    anchorPulse.value = 0;
+    anchorPulse.value = withTiming(1, { duration: 650, easing: Easing.out(Easing.ease) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLegalPropertyId]);
+
+  const reportStyle = useAnimatedStyle(() => ({
+    opacity: swap.value,
+    transform: [{ translateY: (1 - swap.value) * 10 }],
+  }));
+  const anchorPulseStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(anchorPulse.value, [0, 1], [Colors.terra100, Colors.terra50]),
+    borderColor: interpolateColor(anchorPulse.value, [0, 1], [Colors.terra400, Colors.terra200]),
+  }));
+
   // ═══ AFFORDABILITY ═══
   // Only meaningful once a property is selected; empty-state path falls back to 0s
   // and the affordability block doesn't render unless analysis is complete anyway.
@@ -419,20 +446,57 @@ export default function LegalAnalysisScreen() {
              ════════════════════════════════════ */}
         {analysisDone && !isProcessing && property && (
           <>
-            {/* Document row + re-upload */}
-            <View style={styles.docRow}>
-              <View style={styles.docIconWrap}>
-                <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
+            {/* ── Anchor card: persistent identity + document + Replace ──
+                Mirrors the active list row (avatar, name, risk badge) so the
+                report below is always tied to a named agreement. Pulses on
+                switch; carries the demoted "Replace" action for this file. */}
+            <Animated.View style={[styles.anchorCard, anchorPulseStyle]}>
+              <View style={styles.anchorTop}>
+                {property.image ? (
+                  <Image source={{ uri: property.image }} style={styles.anchorAvatar} />
+                ) : (
+                  <View style={[styles.anchorAvatar, styles.anchorAvatarPlaceholder]}>
+                    <Text style={styles.anchorAvatarInitial}>{property.name.charAt(0)}</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.anchorEyebrow}>VIEWING ANALYSIS FOR</Text>
+                  <Text style={styles.anchorName} numberOfLines={1}>{property.name}</Text>
+                  <Text style={styles.anchorMeta} numberOfLines={1}>
+                    {property.location}{property.price ? ` · ${property.price}` : ''}
+                  </Text>
+                </View>
+                {highCount > 0 ? (
+                  <View style={styles.anchorRiskBadge}>
+                    <Text style={styles.anchorRiskText}>{highCount} high</Text>
+                  </View>
+                ) : (
+                  <View style={styles.anchorCleanBadge}>
+                    <ShieldCheck size={11} color="#16A34A" strokeWidth={2.2} />
+                    <Text style={styles.anchorCleanText}>Clean</Text>
+                  </View>
+                )}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.docName} numberOfLines={1}>{docName || 'Agreement.pdf'}</Text>
-                <Text style={styles.docSub}>Analyzed · 3 sections reviewed</Text>
+
+              <View style={styles.anchorDivider} />
+
+              <View style={styles.anchorDocRow}>
+                <View style={styles.docIconWrap}>
+                  <FileText size={14} color={Colors.terra500} strokeWidth={1.8} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.docName} numberOfLines={1}>{docName || 'Agreement.pdf'}</Text>
+                  <Text style={styles.docSub}>Analyzed · 3 sections reviewed</Text>
+                </View>
+                <TouchableOpacity style={styles.replaceBtn} onPress={reupload} activeOpacity={0.7}>
+                  <RefreshCw size={11} color={Colors.terra500} strokeWidth={2} />
+                  <Text style={styles.replaceText}>Replace</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.reuploadBtn} onPress={reupload} activeOpacity={0.7}>
-                <RefreshCw size={12} color={Colors.terra500} strokeWidth={2} />
-                <Text style={styles.reuploadText}>Re-upload</Text>
-              </TouchableOpacity>
-            </View>
+            </Animated.View>
+
+            {/* ── Report region — fades/slides in on every switch ── */}
+            <Animated.View style={reportStyle}>
 
             {/* ── At a Glance ── */}
             <Animated.View entering={FadeInDown.delay(100).duration(300)}>
@@ -441,7 +505,7 @@ export default function LegalAnalysisScreen() {
                 <GlanceRow
                   icon={<Wallet size={14} color={Colors.terra500} strokeWidth={2} />}
                   label="Agreement value"
-                  value={`${property.price ?? 'Price not set'} · ${property.name}`}
+                  value={property.price ?? 'Price not set'}
                 />
                 <GlanceRow
                   icon={<Calendar size={14} color={Colors.terra500} strokeWidth={2} />}
@@ -661,6 +725,7 @@ export default function LegalAnalysisScreen() {
                   );
                 })}
               </View>
+            </Animated.View>
             </Animated.View>
           </>
         )}
@@ -1162,12 +1227,51 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, lineHeight: 17,
   },
 
-  // ── Analysis: Document row ──
-  docRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+  // ── Analysis: Anchor card (identity + document + Replace) ──
+  anchorCard: {
     marginHorizontal: Spacing.xxl, marginTop: 16,
-    padding: 12, backgroundColor: Colors.terra50,
-    borderRadius: 12, borderWidth: 1, borderColor: Colors.terra200,
+    padding: 12, borderRadius: 14,
+    borderWidth: 1, borderColor: Colors.terra200, backgroundColor: Colors.terra50,
+  },
+  anchorTop: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
+  anchorAvatar: {
+    width: 44, height: 44, borderRadius: 10, backgroundColor: Colors.white,
+  },
+  anchorAvatarPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+  },
+  anchorAvatarInitial: {
+    fontSize: 18, fontFamily: 'DMSerifDisplay', color: Colors.terra500,
+  },
+  anchorEyebrow: {
+    fontFamily: 'DMSans-SemiBold', fontSize: 9, color: Colors.textTertiary,
+    letterSpacing: 0.6, marginBottom: 2,
+  },
+  anchorName: {
+    fontFamily: 'DMSans-Bold', fontSize: 15, color: Colors.textPrimary,
+  },
+  anchorMeta: {
+    fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textSecondary, marginTop: 1,
+  },
+  anchorRiskBadge: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+    backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA',
+  },
+  anchorRiskText: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: '#DC2626' },
+  anchorCleanBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+    backgroundColor: '#DCFCE7', borderWidth: 1, borderColor: '#BBF7D0',
+  },
+  anchorCleanText: { fontFamily: 'DMSans-SemiBold', fontSize: 10, color: '#16A34A' },
+  anchorDivider: {
+    height: 1, backgroundColor: Colors.terra200, opacity: 0.7,
+    marginVertical: 11,
+  },
+  anchorDocRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   docIconWrap: {
     width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.white,
@@ -1175,13 +1279,13 @@ const styles = StyleSheet.create({
   },
   docName: { fontFamily: 'DMSans-SemiBold', fontSize: 13, color: Colors.textPrimary },
   docSub: { fontFamily: 'DMSans-Regular', fontSize: 11, color: Colors.textTertiary, marginTop: 1 },
-  reuploadBtn: {
+  replaceBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 6,
+    paddingHorizontal: 9, paddingVertical: 5,
     backgroundColor: Colors.white, borderRadius: 8,
     borderWidth: 1, borderColor: Colors.terra200,
   },
-  reuploadText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.terra500 },
+  replaceText: { fontFamily: 'DMSans-SemiBold', fontSize: 11, color: Colors.terra500 },
 
   // ── At a Glance (iconographic row layout) ──
   glanceCard: {
