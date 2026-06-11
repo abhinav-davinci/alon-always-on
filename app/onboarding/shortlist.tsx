@@ -17,13 +17,12 @@ import {
   Heart,
   Clock,
   Calendar,
-  ChevronRight,
   UserPlus,
   GitCompareArrows,
   Check,
 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Colors, Spacing } from '../../constants/theme';
+import { Colors, Spacing, Shadows } from '../../constants/theme';
 import { SHORTLIST_PROPERTIES } from '../../constants/properties';
 import { useOnboardingStore } from '../../store/onboarding';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -44,6 +43,32 @@ function formatLastUpdated(): string {
   return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}, ${h12}:${mm} ${ampm}`;
 }
 
+/**
+ * Compare toggle that lives on the property image's bottom edge. Frosted
+ * navy glass at rest so it recedes into the photo; solid terracotta with a
+ * check once added — the only "loud" state on the card, and only when earned.
+ */
+function CompareChip({ active, onPress }: { active: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={[styles.compareChip, active && styles.compareChipActive]}
+      activeOpacity={0.8}
+      onPress={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
+      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+    >
+      {active ? (
+        <Check size={11} color={Colors.white} strokeWidth={3} />
+      ) : (
+        <GitCompareArrows size={11} color={Colors.white} strokeWidth={2.2} />
+      )}
+      <Text style={styles.compareChipText}>{active ? 'Added' : 'Compare'}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function ShortlistScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string; selectMode?: string; nudge?: string }>();
@@ -51,7 +76,6 @@ export default function ShortlistScreen() {
   const haptics = useHaptics();
   const { likedPropertyIds, toggleLikedProperty, userProperties, comparePropertyIds, toggleCompareProperty, clearCompareProperties } = useOnboardingStore();
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'all');
-  const [selectMode, setSelectMode] = useState(false);
   const nudgeType = params.nudge; // 'shortlist' | 'negotiate' | undefined
   const [showNudge, setShowNudge] = useState(!!nudgeType);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,11 +85,12 @@ export default function ShortlistScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-enter select mode if navigated with selectMode param
+  // Deep-linked "compare my shortlist" — land on the shortlisted tab with a
+  // clean compare tray. The per-card Compare toggles drive selection now, so
+  // there's no separate "select mode" to enter.
   useEffect(() => {
-    if (params.selectMode === '1' && likedPropertyIds.length >= 2) {
+    if (params.selectMode === '1') {
       setActiveTab('shortlisted');
-      setSelectMode(true);
       clearCompareProperties();
     }
   }, []);
@@ -172,19 +197,9 @@ export default function ShortlistScreen() {
         </View>
       )}
 
-      {/* Selection mode header */}
-      {selectMode && (
-        <View style={styles.selectHeader}>
-          <Text style={styles.selectHeaderText}>Select 2–3 properties to compare</Text>
-          <TouchableOpacity onPress={() => { setSelectMode(false); clearCompareProperties(); }}>
-            <Text style={styles.selectHeaderCancel}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Property list */}
       <ScrollView
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + (selectMode ? 140 : 24) }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + (comparePropertyIds.length > 0 ? 140 : 24) }]}
         showsVerticalScrollIndicator={false}
       >
         {displayedProperties.length === 0 && activeTab === 'shortlisted' && !isUserTab && (
@@ -192,7 +207,7 @@ export default function ShortlistScreen() {
             <Heart size={32} color={Colors.warm200} strokeWidth={1.5} />
             <Text style={styles.emptyTitle}>No shortlisted properties yet</Text>
             <Text style={styles.emptySub}>
-              Tap the heart icon on any property to add it to your shortlist
+              Tap Shortlist on any property to save it here
             </Text>
           </View>
         )}
@@ -208,19 +223,11 @@ export default function ShortlistScreen() {
           </View>
         )}
 
-        {isUserTab && userProperties.map((up, i) => (
+        {isUserTab && userProperties.map((up, i) => {
+          const isComparing = comparePropertyIds.includes(up.id);
+          return (
           <Animated.View key={up.id} entering={FadeInDown.delay(i * 60).duration(250)}>
-            <TouchableOpacity
-              style={[styles.card, selectMode && comparePropertyIds.includes(up.id) && styles.cardSelected]}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (selectMode) {
-                  if (comparePropertyIds.length >= 3 && !comparePropertyIds.includes(up.id)) return;
-                  haptics.selection();
-                  toggleCompareProperty(up.id);
-                }
-              }}
-            >
+            <View style={styles.card}>
               <View style={styles.cardImageWrap}>
                 {up.images[0] ? (
                   <Image source={{ uri: up.images[0] }} style={styles.cardImage} resizeMode="cover" />
@@ -229,23 +236,22 @@ export default function ShortlistScreen() {
                     <Text style={styles.cardImagePlaceholderText}>{up.name.charAt(0)}</Text>
                   </View>
                 )}
-                {selectMode && (
-                  <View style={[styles.selectCheck, comparePropertyIds.includes(up.id) && styles.selectCheckActive]}>
-                    {comparePropertyIds.includes(up.id) && <Check size={13} color={Colors.white} strokeWidth={3} />}
-                  </View>
-                )}
-                {!selectMode && (
-                  <View style={styles.userAddedBadge}>
-                    <Text style={styles.userAddedBadgeText}>
-                      {up.source === 'screenshot' ? 'SCREENSHOT' : up.source === 'voice' ? 'VOICE' : 'MANUAL'}
-                    </Text>
-                  </View>
-                )}
+                <View style={styles.userAddedBadge}>
+                  <Text style={styles.userAddedBadgeText}>
+                    {up.source === 'screenshot' ? 'SCREENSHOT' : up.source === 'voice' ? 'VOICE' : 'MANUAL'}
+                  </Text>
+                </View>
+                <CompareChip
+                  active={isComparing}
+                  onPress={() => {
+                    if (!isComparing && comparePropertyIds.length >= 3) return;
+                    haptics.selection();
+                    toggleCompareProperty(up.id);
+                  }}
+                />
               </View>
               <View style={styles.cardInfo}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.cardName} numberOfLines={1}>{up.name}</Text>
-                </View>
+                <Text style={styles.cardName} numberOfLines={1}>{up.name}</Text>
                 <Text style={styles.cardArea}>{up.area}</Text>
                 <View style={styles.cardPriceRow}>
                   <Text style={styles.cardPrice}>{up.price || 'Price TBD'}</Text>
@@ -265,87 +271,64 @@ export default function ShortlistScreen() {
                   Added {new Date(up.addedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 </Text>
               </View>
-              <ChevronRight size={16} color={Colors.warm300} strokeWidth={2} style={styles.cardChevron} />
-            </TouchableOpacity>
+            </View>
           </Animated.View>
-        ))}
+          );
+        })}
 
         {!isUserTab && displayedProperties.map((p, i) => {
           const isLiked = likedPropertyIds.includes(p.id);
+          const isComparing = comparePropertyIds.includes(p.id);
+          const hasRera = p.tags.includes('RERA ✓');
           return (
             <Animated.View
               key={p.id}
               entering={FadeInDown.delay(i * 60).duration(250)}
             >
               <TouchableOpacity
-                style={[styles.card, selectMode && comparePropertyIds.includes(p.id) && styles.cardSelected]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (selectMode) {
-                    if (comparePropertyIds.length >= 3 && !comparePropertyIds.includes(p.id)) {
-                      // Max 3 — could show toast here
-                      return;
-                    }
-                    haptics.selection();
-                    toggleCompareProperty(p.id);
-                  } else {
-                    router.push({
-                      pathname: '/onboarding/property-detail',
-                      params: { id: p.id },
-                    });
-                  }
-                }}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/onboarding/property-detail',
+                    params: { id: p.id },
+                  })
+                }
               >
-                {/* Image */}
+                {/* Image — anchors the card; carries status badges + the
+                    Compare toggle pinned to its bottom edge. */}
                 <View style={styles.cardImageWrap}>
                   <Image
                     source={{ uri: p.image }}
                     style={styles.cardImage}
                     resizeMode="cover"
                   />
-                  {selectMode && (
-                    <View style={[styles.selectCheck, comparePropertyIds.includes(p.id) && styles.selectCheckActive]}>
-                      {comparePropertyIds.includes(p.id) && <Check size={13} color={Colors.white} strokeWidth={3} />}
-                    </View>
-                  )}
-                  {!selectMode && p.isNew && (
+                  {p.isNew && (
                     <View style={styles.newBadge}>
                       <Text style={styles.newBadgeText}>NEW</Text>
                     </View>
                   )}
-                  {!selectMode && p.hasConflict && (
+                  {p.hasConflict && (
                     <View style={styles.flagOverlay}>
-                      <AlertTriangle size={10} color="#D97706" strokeWidth={2.5} />
+                      <AlertTriangle size={9} color="#D97706" strokeWidth={2.5} />
                       <Text style={styles.flagOverlayText}>Flagged</Text>
                     </View>
                   )}
+                  <CompareChip
+                    active={isComparing}
+                    onPress={() => {
+                      if (!isComparing && comparePropertyIds.length >= 3) return;
+                      haptics.selection();
+                      toggleCompareProperty(p.id);
+                    }}
+                  />
                 </View>
 
                 {/* Info */}
                 <View style={styles.cardInfo}>
-                  <View style={styles.cardTopRow}>
-                    <Text style={styles.cardName} numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    {/* Like button */}
-                    <TouchableOpacity
-                      style={[styles.likeBtn, isLiked && styles.likeBtnActive]}
-                      activeOpacity={0.7}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        haptics.light();
-                        toggleLikedProperty(p.id);
-                      }}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    >
-                      <Heart
-                        size={13}
-                        color={isLiked ? '#fff' : Colors.warm400}
-                        strokeWidth={2}
-                        fill={isLiked ? '#fff' : 'none'}
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.cardName} numberOfLines={1}>
+                    {p.name}
+                  </Text>
                   <Text style={styles.cardArea}>{p.area}</Text>
 
                   <View style={styles.cardPriceRow}>
@@ -353,50 +336,48 @@ export default function ShortlistScreen() {
                     <Text style={styles.cardSize}>{p.size}</Text>
                   </View>
 
-                  {/* Possession date */}
-                  <View style={styles.cardPossessionRow}>
-                    <Calendar size={10} color={Colors.textTertiary} strokeWidth={1.8} />
-                    <Text style={styles.cardPossession}>{p.possession}</Text>
+                  {/* Possession + RERA — trust + timing on one quiet line */}
+                  <View style={styles.cardMetaRow}>
+                    <View style={styles.cardPossessionRow}>
+                      <Calendar size={10} color={Colors.textTertiary} strokeWidth={1.8} />
+                      <Text style={styles.cardPossession}>{p.possession}</Text>
+                    </View>
+                    {hasRera && (
+                      <View style={styles.cardTagRera}>
+                        <ShieldCheck size={9} color="#16A34A" strokeWidth={2.5} />
+                        <Text style={styles.cardTagTextRera}>RERA</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Tags — only for new */}
-                  {p.isNew && (
-                    <View style={styles.cardTags}>
-                      {p.tags.map((tag) => (
-                        <View
-                          key={tag}
-                          style={[styles.cardTag, tag === 'RERA ✓' && styles.cardTagRera]}
-                        >
-                          {tag === 'RERA ✓' && (
-                            <ShieldCheck size={9} color="#16A34A" strokeWidth={2.5} />
-                          )}
-                          <Text
-                            style={[
-                              styles.cardTagText,
-                              tag === 'RERA ✓' && styles.cardTagTextRera,
-                            ]}
-                          >
-                            {tag}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* ALON verdict */}
+                  {/* ALON verdict — the signature insight line */}
                   {p.alonVerdict && (
                     <Text style={styles.cardVerdict} numberOfLines={1}>
                       {p.alonVerdict}
                     </Text>
                   )}
-                </View>
 
-                <ChevronRight
-                  size={16}
-                  color={Colors.warm300}
-                  strokeWidth={2}
-                  style={styles.cardChevron}
-                />
+                  {/* Shortlist — secondary/outline at rest, terracotta when active */}
+                  <TouchableOpacity
+                    style={[styles.shortlistBtn, isLiked && styles.shortlistBtnActive]}
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      haptics.light();
+                      toggleLikedProperty(p.id);
+                    }}
+                  >
+                    <Heart
+                      size={13}
+                      color={isLiked ? Colors.terra500 : Colors.textSecondary}
+                      strokeWidth={2.2}
+                      fill={isLiked ? Colors.terra500 : 'none'}
+                    />
+                    <Text style={[styles.shortlistBtnText, isLiked && styles.shortlistBtnTextActive]}>
+                      {isLiked ? 'Shortlisted' : 'Shortlist'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
             </Animated.View>
           );
@@ -406,39 +387,13 @@ export default function ShortlistScreen() {
       </>
       )}
 
-      {/* Floating Compare button — visible when 2+ total properties (shortlisted + user) and not in select mode */}
-      {!selectMode && (shortlistedProperties.length + userProperties.length) >= 2 && (
-        <TouchableOpacity
-          style={[styles.floatingCompareBtn, { bottom: insets.bottom + 20 }]}
-          activeOpacity={0.85}
-          onPress={() => {
-            haptics.medium();
-            setSelectMode(true);
-            // Stay on current tab if it has properties, otherwise go to tab with most
-            if (activeTab === 'byYou' && userProperties.length > 0) {
-              // Stay on By You
-            } else if (shortlistedProperties.length >= 2) {
-              setActiveTab('shortlisted');
-            } else {
-              setActiveTab('all');
-            }
-            clearCompareProperties();
-          }}
-        >
-          <GitCompareArrows size={18} color={Colors.white} strokeWidth={2} />
-          <Text style={styles.floatingCompareBtnText}>Compare</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Selection bar */}
-      {selectMode && (
+      {/* Compare tray — slides up the moment the first property is added,
+          and "Compare Now" unlocks at 2. Replaces the old FAB + select mode. */}
+      {comparePropertyIds.length > 0 && (
         <CompareSelectionBar
           selectedIds={comparePropertyIds}
           onRemove={(id) => toggleCompareProperty(id)}
-          onCompare={() => {
-            setSelectMode(false);
-            router.push('/onboarding/compare');
-          }}
+          onCompare={() => router.push('/onboarding/compare')}
         />
       )}
     </View>
@@ -548,28 +503,31 @@ const styles = StyleSheet.create({
   // Card
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Colors.warm200,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
+    ...Shadows.sm,
   },
   cardImageWrap: {
-    width: 90,
+    width: 104,
     alignSelf: 'stretch',
     backgroundColor: Colors.warm100,
     position: 'relative',
+    overflow: 'hidden',
   },
+  // Absolutely fills the wrap so the photo never drives the row height —
+  // the info column defines the card height and the image just covers it.
   cardImage: {
-    width: 90,
-    height: 120,
+    ...StyleSheet.absoluteFillObject,
   },
   newBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 7,
+    left: 7,
     backgroundColor: Colors.terra500,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -583,8 +541,8 @@ const styles = StyleSheet.create({
   },
   flagOverlay: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
+    top: 7,
+    right: 7,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
@@ -599,36 +557,43 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
 
+  // Compare toggle — pinned to the image's bottom edge
+  compareChip: {
+    position: 'absolute',
+    left: 7,
+    right: 7,
+    bottom: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    borderRadius: 9,
+    backgroundColor: 'rgba(13,31,74,0.66)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
+  },
+  compareChipActive: {
+    backgroundColor: Colors.terra500,
+    borderColor: Colors.terra500,
+  },
+  compareChipText: {
+    fontSize: 10,
+    fontFamily: 'DMSans-SemiBold',
+    color: '#fff',
+    letterSpacing: 0.2,
+  },
+
   // Card info
   cardInfo: {
     flex: 1,
-    padding: 12,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 13,
   },
   cardName: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'DMSans-SemiBold',
     color: Colors.textPrimary,
-    marginRight: 8,
-  },
-  likeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.warm50,
-    borderWidth: 1,
-    borderColor: Colors.warm200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  likeBtnActive: {
-    backgroundColor: Colors.terra500,
-    borderColor: Colors.terra500,
   },
   cardArea: {
     fontSize: 11,
@@ -638,12 +603,12 @@ const styles = StyleSheet.create({
   },
   cardPriceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 7,
   },
   cardPrice: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'DMSans-Bold',
     color: Colors.terra600,
   },
@@ -652,11 +617,16 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Regular',
     color: Colors.textTertiary,
   },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
   cardPossessionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
   },
   cardPossession: {
     fontSize: 10,
@@ -678,7 +648,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   cardTagRera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     backgroundColor: '#DCFCE7',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   cardTagText: {
     fontSize: 9,
@@ -686,18 +662,42 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
   cardTagTextRera: {
+    fontSize: 9,
+    fontFamily: 'DMSans-SemiBold',
     color: '#16A34A',
   },
   cardVerdict: {
-    fontSize: 10,
-    fontFamily: 'DMSans-Regular',
-    fontStyle: 'italic',
+    fontSize: 11,
+    fontFamily: 'DMSans-Medium',
     color: Colors.terra500,
-    marginTop: 4,
-    lineHeight: 14,
+    marginTop: 7,
+    lineHeight: 15,
   },
-  cardChevron: {
-    marginRight: 10,
+
+  // Shortlist — secondary/outline button; brand color only when active
+  shortlistBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 11,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.warm300,
+    backgroundColor: Colors.white,
+  },
+  shortlistBtnActive: {
+    borderColor: Colors.terra200,
+    backgroundColor: Colors.terra50,
+  },
+  shortlistBtnText: {
+    fontSize: 13,
+    fontFamily: 'DMSans-SemiBold',
+    color: Colors.textPrimary,
+  },
+  shortlistBtnTextActive: {
+    color: Colors.terra500,
   },
 
   // User-added property styles
@@ -747,50 +747,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // --- Compare selection ---
-  cardSelected: {
-    borderColor: Colors.terra400,
-    borderWidth: 1.5,
-    backgroundColor: Colors.terra50,
-  },
-  selectCheck: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-  },
-  selectCheckActive: {
-    backgroundColor: Colors.terra500,
-    borderColor: Colors.terra500,
-  },
-  selectHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.terra50,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.terra200,
-  },
-  selectHeaderText: {
-    fontFamily: 'DMSans-Medium',
-    fontSize: 13,
-    color: Colors.terra600,
-  },
-  selectHeaderCancel: {
-    fontFamily: 'DMSans-SemiBold',
-    fontSize: 13,
-    color: Colors.terra500,
-  },
+  // --- Compare nudge banners ---
   nudgeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -808,26 +765,5 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Medium',
     fontSize: 12,
     color: Colors.terra600,
-  },
-  floatingCompareBtn: {
-    position: 'absolute',
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.terra500,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 100,
-    shadowColor: Colors.terra500,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  floatingCompareBtnText: {
-    fontFamily: 'DMSans-SemiBold',
-    fontSize: 14,
-    color: Colors.white,
   },
 });
