@@ -51,6 +51,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import BottomSheet from '../../components/BottomSheet';
+import SimilarProperties from '../../components/SimilarProperties';
 import { SkeletonPropertyDetail } from '../../components/skeleton';
 import { Colors, Spacing } from '../../constants/theme';
 import { useHaptics } from '../../hooks/useHaptics';
@@ -446,6 +447,9 @@ export default function PropertyDetailScreen() {
             </View>
           ))}
         </Animated.View>
+
+        {/* Similar properties — other ALON matches */}
+        <SimilarProperties currentId={params.id} enterDelay={800} />
         </>
         )}
       </ScrollView>
